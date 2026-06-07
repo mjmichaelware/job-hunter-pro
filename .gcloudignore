@@ -1,0 +1,13 @@
+.git
+.gitignore
+.gcloudignore
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.env.*
+*.zip
+debug_*.py
+full_debug.py
