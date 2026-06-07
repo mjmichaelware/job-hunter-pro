@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+    <main>{% block content %}{% endblock %}</main>
+</body>
+</html>
