@@ -9,7 +9,7 @@ async function loadOverview() {
     const [health, usage, jobs, opps, history] = await Promise.all([
         safeFetch(API_URLS.health),
         safeFetch(API_URLS.usage),
-        safeFetch(API_URLS.jobs), // This is safe because it fetches cached jobs by default in backend
+        fetchJobsDryRun(), // explicit safe dry-run; no live discovery on boot
         safeFetch(API_URLS.opportunities),
         safeFetch(API_URLS.history)
     ]);

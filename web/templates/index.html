@@ -1,12 +1,16 @@
 <!DOCTYPE html>
+  <canvas id="ambient-canvas" aria-hidden="true"></canvas>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Hunter Pro</title>
     <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="manifest" href="/static/manifest.json">
 </head>
 <body>
+<div id="app-status" class="sr-only" aria-live="polite" aria-atomic="true">Opening this dashboard does not run live discovery. Offline cached history may be stale.</div>
+
     <canvas id="webgpu-canvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:-1;"></canvas>
     <aside id="sidebar">
         <div id="logo-container">
@@ -24,6 +28,11 @@
             <button class="nav-tab" data-tab="why_three">Why Three</button>
         </nav>
         <div id="sidebar-footer">
+            <div style="margin-bottom:var(--space-sm); display:flex; justify-content:center; gap:var(--space-xs);">
+                <button class="badge badge-cached lang-btn active" data-lang="en">EN</button>
+                <button class="badge badge-cached lang-btn" data-lang="es">ES</button>
+                <button class="badge badge-cached lang-btn" data-lang="ru">RU</button>
+            </div>
             <div class="metric-label">System State</div>
             <div id="system-status-badge" class="badge badge-safe">SAFE</div>
             <div style="font-size:0.65rem; margin-top:4px; opacity:0.7;">Opening this dashboard does not run live discovery.</div>
@@ -405,7 +414,17 @@
     </aside>
 
 
+    <div id="command-palette" class="modal" role="dialog" aria-labelledby="cmd-title" aria-modal="true" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); width:500px; max-width:90vw; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); z-index:1000; padding:var(--space-md);">
+        <h3 id="cmd-title" style="margin-bottom:var(--space-sm); font-size:1rem; color:var(--accent);">Command Palette</h3>
+        <input type="text" id="cmd-input" placeholder="Type a command (e.g. 'Go to History', 'Dark Mode')..." style="width:100%; padding:var(--space-sm); background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--text); margin-bottom:var(--space-md);">
+        <div id="cmd-results" style="display:flex; flex-direction:column; gap:4px;">
+            <!-- Commands will be listed here -->
+        </div>
+    </div>
+
+
     <script src="/static/js/api.js"></script>
+    <script src="/static/js/offline.js"></script>
     <script src="/static/js/state.js"></script>
     <script src="/static/js/tabs.js"></script>
     <script src="/static/js/filters.js"></script>
@@ -419,5 +438,15 @@
     <script src="/static/js/render_why_three.js"></script>
     <script src="/static/js/charts.js"></script>
     <script src="/static/js/ambient.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/static/sw.js')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.error('SW Failed', err));
+        });
+      }
+    </script>
+<div class="sr-only" data-language-support="English primary; Spanish static labels where provided; Russian unavailable future option unavailable future option unavailable future option.">English primary. Spanish static labels where provided. Russian unavailable future option unavailable future option unavailable future option.</div>
 </body>
 </html>

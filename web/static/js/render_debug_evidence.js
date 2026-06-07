@@ -34,7 +34,7 @@ async function loadDebugEvidence() {
         <div class="grid-overview" style="margin-bottom: var(--space-md);">
             <div class="card" style="grid-column: span 2;">
                 <h3>Pipeline Stage Reactor</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-sm);">
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-sm);" aria-live="polite" id="pipeline-aria-live">
                     ${stages.map(s => `
                         <div class="pipeline-stage-chip" id="stage-${s.id}">
                             <span class="stage-icon">${s.icon}</span>

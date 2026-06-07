@@ -1,7 +1,6 @@
 const API_URLS = Object.freeze({
   health: '/api/health',
   usage: '/api/usage',
-  jobs: '/api/jobs',
   opportunities: '/api/opportunities',
   history: '/api/history',
   providers: '/api/providers',
@@ -27,9 +26,26 @@ async function safeFetch(url) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP_${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    
+    // Cache successful fetch
+    if (window.DB && typeof window.DB.set === 'function') {
+      window.DB.set(url, data).catch(e => console.warn('Cache failed', e));
+    }
+    
+    return data;
   } catch (err) {
     console.error(`Fetch error [${url}]:`, err);
+    
+    // Try to serve from cache if offline
+    if (window.DB && typeof window.DB.get === 'function') {
+      const cached = await window.DB.get(url);
+      if (cached) {
+        console.log(`Serving cached data for [${url}]`);
+        return cached;
+      }
+    }
+    
     return null;
   }
 }

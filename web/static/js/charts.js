@@ -4,7 +4,7 @@ const ChartUtils = {
     container.innerHTML = `
       <div class="chart-fallback">
         ${UI.escape(message)}
-        <div style="font-size:0.75rem; margin-top:8px; opacity:0.8;">Required data fields missing from API response.</div>
+        <div style="font-size:0.75rem; margin-top:8px; opacity:0.8;">Required data fields missing from API response. Table view remains authoritative.</div>
       </div>
     `;
   },

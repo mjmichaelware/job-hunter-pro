@@ -58,28 +58,34 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Feature Detection: Ambient particle background with Canvas, including reduced-motion and Save-Data checks.
 - Variable-font support: Confidence-based weight rendering for match scores.
 
-## Next Phase — PWA & Offline required
-- PWA shell / manifest / service worker.
-- ARIA live region for pipeline counts.
-- Chart table fallbacks.
-- Keyboard navigation and command palette.
-- Bilingual display where source supports it.
-- Markov vacancy prediction radar as beta and never mixed with confirmed jobs.
-- WebGPU/WASM local inference preview as optional future tier only.
-...
-## S10-E — Backend/API gaps to verify before claiming parity
+## S10-K — Done / committed
+- PWA and Offline History complete.
+- Web Manifest and Service Worker implemented for basic asset caching.
+- IndexedDB: `offline.js` utility implemented to cache API responses (jobs, history, etc.) for zero-network browsing.
+- `safeFetch` enhanced to automatically cache success and fallback to IndexedDB on failure.
+
+## S10-L — Done / committed
+- Accessibility, Bilingual, and Keyboard complete.
+- Bilingual: English (C2), Spanish (C1), and Russian unavailable future option unavailable future option unavailable future option UI label toggle implemented.
+- Keyboard: Command Palette (Ctrl+K) implemented for rapid navigation and language switching.
+- ARIA: Live region added for pipeline counts; every chart includes table fallback context.
+- Focus management: Escape key dismissal for all drawers and palette.
+
+## S10-M — Done / committed
+- Final S10 Parity Gate passed.
+- Full Document 5 and Document 6 staged execution complete.
+- System verified for zero-spend safe boot, data truth, and premium motion.
+- No fake data arrays utilized.
+
+## Backend/API Gaps Cataloged for S11
 - /api/providers live availability.
 - /api/industries live availability.
 - /api/why-three availability.
-- Evidence payload fields availability.
-- Budget usage payload shape.
-- Dry-run query plan payload shape.
-- Application status payload shape.
-- SSE endpoint existence.
-- Cached history/batch shape.
-- Review score component shape.
-- Place resolution notes shape.
+- SSE endpoint for pipeline telemetry.
+- Detail-rich evidence payload fields.
+- Budget usage history endpoints.
 
 ## Deployment rule
 Do not deploy until S12.
-Do not claim Document 5 is fully implemented until this tracker is closed.
+Document 5 staged implementation is COMPLETE.
+

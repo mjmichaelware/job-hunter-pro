@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Job Hunter Pro">
+  <rect width="512" height="512" rx="96" fill="#120f1f"/>
+  <path d="M112 152h288v56H112zM112 228h208v56H112zM112 304h288v56H112z" fill="#bb86fc"/>
+  <circle cx="372" cy="256" r="44" fill="#03dac6"/>
+</svg>

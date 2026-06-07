@@ -2,6 +2,54 @@
 const AppState = {
   activeTab: 'overview',
   budgetState: 'safe',
+  lang: 'en',
+  translations: {
+    en: {
+      overview: 'Overview',
+      live_jobs: 'Live Jobs',
+      opportunities: 'Opportunities',
+      history: 'History',
+      debug_evidence: 'Debug Evidence',
+      providers: 'Providers',
+      budget: 'Budget',
+      why_three: 'Why Three'
+    },
+    es: {
+      overview: 'Resumen',
+      live_jobs: 'Empleos en vivo',
+      opportunities: 'Oportunidades',
+      history: 'Historial',
+      debug_evidence: 'Evidencia',
+      providers: 'Proveedores',
+      budget: 'Presupuesto',
+      why_three: '¿Por qué tres?'
+    },
+    ru: {
+      overview: 'Обзор',
+      live_jobs: 'Вакансии',
+      opportunities: 'Возможности',
+      history: 'История',
+      debug_evidence: 'Отладка',
+      providers: 'Провайдеры',
+      budget: 'Бюджет',
+      why_three: 'Почему три?'
+    }
+  },
+  setLang(lang) {
+    this.lang = lang;
+    document.querySelectorAll('.lang-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-lang') === lang);
+    });
+    this.translateUI();
+  },
+  translateUI() {
+    const t = this.translations[this.lang];
+    document.querySelectorAll('.nav-tab').forEach(btn => {
+      const key = btn.getAttribute('data-tab');
+      if (t[key]) btn.textContent = t[key];
+    });
+    // Add more translation targets if needed
+  },
   filters: {
     // Always visible
     mode: '',
