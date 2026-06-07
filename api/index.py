@@ -45,7 +45,7 @@ class Config:
     MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "100"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "24"))
 
-VERSION = "ai_places_resolver_v3_definitive_food_fix"
+VERSION = "ai_places_resolver_v5_review_filter_intelligence"
 
 ROLE_QUERIES = [
     "restaurant server jobs near 84115 Salt Lake City",
@@ -949,6 +949,352 @@ def fetch_jobs() -> Dict[str, Any]:
         "rejected": rejected[:100],
     }
 
+
+
+POSITIVE_REVIEW_TERMS = [
+    "great", "excellent", "amazing", "friendly", "clean", "fast", "organized",
+    "professional", "supportive", "respectful", "good management", "good tips",
+    "flexible", "team", "positive", "stable", "fair", "busy", "popular"
+]
+
+NEGATIVE_REVIEW_TERMS = [
+    "toxic", "rude", "dirty", "slow", "unorganized", "chaotic", "bad management",
+    "underpaid", "low pay", "harassment", "unsafe", "high turnover", "stressful",
+    "short staffed", "micromanage", "favoritism", "hostile", "late pay"
+]
+
+ROLE_GROUPS = {
+    "server": "front-of-house",
+    "waiter": "front-of-house",
+    "waitress": "front-of-house",
+    "busser": "front-of-house",
+    "food runner": "front-of-house",
+    "host": "front-of-house",
+    "hostess": "front-of-house",
+    "barista": "front-of-house",
+    "cashier": "front-of-house",
+    "cook": "back-of-house",
+    "line cook": "back-of-house",
+    "prep cook": "back-of-house",
+    "dishwasher": "back-of-house",
+    "dishwashing": "back-of-house",
+    "kitchen": "back-of-house",
+    "chef": "back-of-house",
+    "steward": "back-of-house",
+    "supervisor": "management",
+    "manager": "management",
+    "director": "management",
+    "lead": "management",
+}
+
+def role_family_for_job(job: Dict[str, Any]) -> str:
+    text = " ".join([
+        clean(job.get("title")),
+        clean(job.get("description")),
+        clean(job.get("restaurant_name")),
+        " ".join(job.get("tags") or []),
+    ]).lower()
+
+    for term, family in ROLE_GROUPS.items():
+        if term_present(text, term):
+            return family
+
+    return "food-service"
+
+@lru_cache(maxsize=1024)
+def place_details(place_id: str) -> Dict[str, Any]:
+    place_id = clean(place_id)
+    if not place_id or not Config.GOOGLE_MAPS_API_KEY:
+        return {}
+
+    try:
+        res = session.get(
+            "https://maps.googleapis.com/maps/api/place/details/json",
+            params={
+                "place_id": place_id,
+                "fields": "name,rating,user_ratings_total,reviews,price_level,website,url,business_status,formatted_phone_number,opening_hours",
+                "key": Config.GOOGLE_MAPS_API_KEY,
+            },
+            timeout=Config.REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        data = res.json()
+
+        if data.get("status") != "OK":
+            return {}
+
+        return data.get("result") or {}
+
+    except Exception as exc:
+        logger.warning("place details failed for %s: %s", place_id, exc)
+        return {}
+
+@lru_cache(maxsize=512)
+def web_search(query: str, limit: int = 5) -> List[Dict[str, str]]:
+    query = clean(query)
+    if not query or not Config.SERPAPI_KEY:
+        return []
+
+    try:
+        res = session.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine": "google",
+                "q": query,
+                "location": "Salt Lake City, Utah, United States",
+                "hl": "en",
+                "gl": "us",
+                "num": limit,
+                "api_key": Config.SERPAPI_KEY,
+            },
+            timeout=Config.REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        data = res.json()
+
+        out = []
+        for item in data.get("organic_results", [])[:limit]:
+            out.append({
+                "title": clean(item.get("title")),
+                "link": clean(item.get("link")),
+                "snippet": clean(item.get("snippet")),
+                "source": clean(item.get("source")),
+            })
+
+        return out
+
+    except Exception as exc:
+        logger.warning("web search failed for %s: %s", query, exc)
+        return []
+
+def count_terms(text: str, terms: List[str]) -> int:
+    text = clean(text).lower()
+    total = 0
+
+    for term in terms:
+        if term in text:
+            total += 1
+
+    return total
+
+def review_score(google_rating, review_count, combined_text: str) -> Dict[str, Any]:
+    try:
+        rating = float(google_rating or 0)
+    except Exception:
+        rating = 0.0
+
+    try:
+        count = int(review_count or 0)
+    except Exception:
+        count = 0
+
+    positive = count_terms(combined_text, POSITIVE_REVIEW_TERMS)
+    negative = count_terms(combined_text, NEGATIVE_REVIEW_TERMS)
+
+    rating_component = (rating / 5.0) * 100 if rating else 50
+    volume_component = min(20, math.log10(count + 1) * 10) if count else 0
+    sentiment_component = max(-25, min(25, (positive - negative) * 4))
+
+    score = round(max(0, min(100, rating_component + volume_component + sentiment_component)))
+
+    consistency_penalty = min(45, negative * 7)
+    consistency = round(max(0, min(100, 100 - consistency_penalty + min(10, positive * 2))))
+
+    risk = "low"
+    if score < 55 or consistency < 55:
+        risk = "high"
+    elif score < 70 or consistency < 70:
+        risk = "medium"
+
+    return {
+        "review_score": score,
+        "consistency_score": consistency,
+        "positive_signal_count": positive,
+        "negative_signal_count": negative,
+        "risk_level": risk,
+    }
+
+def build_review_intelligence(job: Dict[str, Any]) -> Dict[str, Any]:
+    restaurant = clean(job.get("restaurant_name") or job.get("resolved_place_name") or job.get("company"))
+    address = clean(job.get("resolved_address") or job.get("location"))
+    place_id = clean(job.get("place_id"))
+
+    details = place_details(place_id)
+    google_rating = details.get("rating", job.get("place_rating"))
+    google_review_count = details.get("user_ratings_total")
+
+    google_reviews = []
+    for r in details.get("reviews", []) or []:
+        google_reviews.append({
+            "author": clean(r.get("author_name")),
+            "rating": r.get("rating"),
+            "relative_time": clean(r.get("relative_time_description")),
+            "text": clean(r.get("text")),
+        })
+
+    review_queries = [
+        f'"{restaurant}" reviews Salt Lake City',
+        f'"{restaurant}" employee reviews restaurant',
+        f'"{restaurant}" Glassdoor OR Indeed reviews',
+    ]
+
+    chef_queries = [
+        f'"{restaurant}" chef Salt Lake City',
+        f'"{restaurant}" executive chef',
+        f'"{restaurant}" sous chef',
+    ]
+
+    public_review_results = []
+    chef_public_results = []
+
+    for q in review_queries:
+        public_review_results.extend(web_search(q, 4))
+
+    for q in chef_queries:
+        chef_public_results.extend(web_search(q, 3))
+
+    seen_links = set()
+    deduped_reviews = []
+    for item in public_review_results:
+        link = item.get("link")
+        if link and link not in seen_links:
+            seen_links.add(link)
+            deduped_reviews.append(item)
+
+    seen_links = set()
+    deduped_chef = []
+    for item in chef_public_results:
+        link = item.get("link")
+        if link and link not in seen_links:
+            seen_links.add(link)
+            deduped_chef.append(item)
+
+    combined_text = " ".join(
+        [restaurant, address, clean(job.get("description"))]
+        + [r.get("text", "") for r in google_reviews]
+        + [r.get("snippet", "") for r in deduped_reviews]
+        + [r.get("snippet", "") for r in deduped_chef]
+    )
+
+    score = review_score(google_rating, google_review_count, combined_text)
+
+    chef_names = list(job.get("chef_names") or [])
+    for item in deduped_chef:
+        for name in chef_names_from_text(item.get("snippet", "")):
+            if name not in chef_names:
+                chef_names.append(name)
+
+    return {
+        "google_rating": google_rating,
+        "google_review_count": google_review_count,
+        "google_reviews_sample": google_reviews[:5],
+        "public_review_results": deduped_reviews[:8],
+        "chef_public_results": deduped_chef[:6],
+        "chef_names": chef_names[:8],
+        "website": clean(details.get("website")),
+        "google_maps_url": clean(details.get("url")),
+        "phone": clean(details.get("formatted_phone_number")),
+        "business_status": clean(details.get("business_status")),
+        **score,
+    }
+
+def enrich_job_for_filters(job: Dict[str, Any]) -> Dict[str, Any]:
+    j = dict(job)
+    j["role_family"] = role_family_for_job(j)
+    j["review_intelligence"] = build_review_intelligence(j)
+
+    ri = j["review_intelligence"]
+    j["google_rating"] = ri.get("google_rating")
+    j["google_review_count"] = ri.get("google_review_count")
+    j["review_score"] = ri.get("review_score")
+    j["consistency_score"] = ri.get("consistency_score")
+    j["risk_level"] = ri.get("risk_level")
+    j["chef_names"] = ri.get("chef_names") or j.get("chef_names") or []
+
+    return j
+
+def float_arg(name: str, default: Optional[float]) -> Optional[float]:
+    value = request.args.get(name)
+    if value in (None, ""):
+        return default
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+def str_arg(name: str, default: str = "") -> str:
+    return clean(request.args.get(name), default)
+
+def apply_user_filters(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    min_rating = float_arg("min_rating", None)
+    max_radius = float_arg("max_radius", None)
+    max_transit = float_arg("max_transit", None)
+    min_score = float_arg("min_score", None)
+
+    role = str_arg("role", "all").lower()
+    house = str_arg("house", "all").lower()
+    q = str_arg("q", "").lower()
+
+    out = []
+
+    for job in jobs:
+        if min_rating is not None:
+            try:
+                if float(job.get("google_rating") or 0) < min_rating:
+                    continue
+            except Exception:
+                continue
+
+        if max_radius is not None:
+            try:
+                if float(job.get("radius_miles")) > max_radius:
+                    continue
+            except Exception:
+                continue
+
+        if max_transit is not None:
+            try:
+                if float(job.get("commute_seconds")) / 60 > max_transit:
+                    continue
+            except Exception:
+                continue
+
+        if min_score is not None:
+            try:
+                if float(job.get("review_score") or 0) < min_score:
+                    continue
+            except Exception:
+                continue
+
+        tags = [clean(t).lower() for t in job.get("tags") or []]
+        title = clean(job.get("title")).lower()
+        role_text = " ".join(tags + [title])
+
+        if role and role != "all":
+            if role not in role_text:
+                continue
+
+        if house and house != "all":
+            if clean(job.get("role_family")).lower() != house:
+                continue
+
+        if q:
+            haystack = " ".join([
+                clean(job.get("title")),
+                clean(job.get("restaurant_name")),
+                clean(job.get("resolved_address")),
+                clean(job.get("description")),
+                " ".join(tags),
+            ]).lower()
+
+            if q not in haystack:
+                continue
+
+        out.append(job)
+
+    return out
+
+
 @app.after_request
 def headers(response):
     response.headers["X-App-Name"] = "job-hunter-pro"
@@ -970,25 +1316,75 @@ def index():
   <main class="container section">
     <p class="kicker">Cloud Run Online</p>
     <h1 class="text-gradient">Job Hunter Pro</h1>
-    <p class="lead">Live restaurant jobs resolved through AI + Google Places, filtered by 2.5 mile radius and under 35 minute transit.</p>
-    <div class="cluster">
-      <a class="btn btn-primary" href="/api/health">Health</a>
-      <button class="btn btn-ghost" onclick="loadJobs()">Refresh Restaurant Jobs</button>
-      <a class="btn btn-ghost" href="/api/debug/jobs">Debug</a>
+    <p class="lead">Live restaurant jobs with AI place resolution, review intelligence, chef/public web research, and flexible filtering.</p>
+
+    <div class="panel stack">
+      <div class="cluster">
+        <label>Min rating <input id="min_rating" type="number" step="0.1" min="0" max="5" placeholder="4.5"></label>
+        <label>Max radius <input id="max_radius" type="number" step="0.1" min="0" placeholder="1"></label>
+        <label>Max transit <input id="max_transit" type="number" step="1" min="0" placeholder="35"></label>
+        <label>Min review score <input id="min_score" type="number" step="1" min="0" max="100" placeholder="70"></label>
+      </div>
+
+      <div class="cluster">
+        <label>Role
+          <select id="role">
+            <option value="all">All roles</option>
+            <option value="server">Server / waiter</option>
+            <option value="busser">Busser / food runner</option>
+            <option value="host">Host / hostess</option>
+            <option value="cook">Cook</option>
+            <option value="line-cook">Line cook</option>
+            <option value="prep-cook">Prep cook</option>
+            <option value="dishwasher">Dishwasher</option>
+            <option value="barista">Barista</option>
+            <option value="supervisor">Supervisor</option>
+          </select>
+        </label>
+
+        <label>House
+          <select id="house">
+            <option value="all">All</option>
+            <option value="front-of-house">Front of house</option>
+            <option value="back-of-house">Back of house</option>
+            <option value="management">Management</option>
+          </select>
+        </label>
+
+        <label>Keyword <input id="q" type="text" placeholder="Sweet Lake, tips, chef..."></label>
+
+        <button class="btn btn-primary" onclick="loadJobs()">Apply filters</button>
+        <a class="btn btn-ghost" href="/api/debug/jobs">Debug</a>
+        <a class="btn btn-ghost" href="/api/health">Health</a>
+      </div>
     </div>
+
     <p class="status-line" id="status">Loading live jobs...</p>
     <section class="grid-system" id="jobs"></section>
   </main>
+
   <div class="noise"></div>
   <script src="/static/js/main.js"></script>
   <script>
+    function val(id){ return document.getElementById(id)?.value || ""; }
+
+    function buildParams(){
+      const p = new URLSearchParams();
+      for (const id of ["min_rating","max_radius","max_transit","min_score","role","house","q"]) {
+        const v = val(id);
+        if (v && v !== "all") p.set(id, v);
+      }
+      return p.toString();
+    }
+
     function loadJobs(){
       const s = document.getElementById('status');
-      s.textContent = 'Searching live jobs with AI + Google Places...';
-      fetch('/api/jobs')
+      const qs = buildParams();
+      s.textContent = 'Searching live jobs, public reviews, chef info, and filters...';
+      fetch('/api/jobs' + (qs ? '?' + qs : ''))
         .then(r => r.json())
         .then(p => {
-          s.textContent = `Showing ${p.count || 0} strict-matched jobs. Raw scanned: ${p.raw_count || 0}. Nearby restaurants: ${p.nearby_restaurant_count || 0}.`;
+          s.textContent = `Showing ${p.count || 0} jobs. Unfiltered: ${p.unfiltered_count || 0}. Raw scanned: ${p.raw_count || 0}. Nearby restaurants: ${p.nearby_restaurant_count || 0}.`;
           window.UI && window.UI.renderJobs(p.data || []);
         })
         .catch(e => {
@@ -996,11 +1392,14 @@ def index():
           s.textContent = 'Search failed. Open Debug.';
         });
     }
+
     loadJobs();
   </script>
 </body>
 </html>
 """)
+
+
 
 @app.route("/api/health")
 def health():
@@ -1039,29 +1438,46 @@ def ai_status():
 @app.route("/api/jobs")
 def jobs():
     result = fetch_jobs()
+
+    enriched = [enrich_job_for_filters(job) for job in result["accepted"]]
+    filtered = apply_user_filters(enriched)
+
     return jsonify({
         "status": "success",
         "source": VERSION,
-        "count": len(result["accepted"]),
+        "count": len(filtered),
+        "unfiltered_count": len(enriched),
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
         "nearby_restaurant_count": result["nearby_restaurant_count"],
+        "filters": {
+            "min_rating": request.args.get("min_rating"),
+            "max_radius": request.args.get("max_radius"),
+            "max_transit": request.args.get("max_transit"),
+            "min_score": request.args.get("min_score"),
+            "role": request.args.get("role"),
+            "house": request.args.get("house"),
+            "q": request.args.get("q"),
+        },
         "rules": {
             "origin": Config.ORIGIN_ADDRESS,
             "max_radius_miles": Config.MAX_RADIUS_MILES,
             "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
             "food_only": True,
         },
-        "data": result["accepted"],
+        "data": filtered,
     })
+
 
 @app.route("/api/debug/jobs")
 def debug_jobs():
     result = fetch_jobs()
+    enriched = [enrich_job_for_filters(job) for job in result["accepted"]]
+
     return jsonify({
         "status": "success",
         "source": VERSION,
-        "accepted_count": len(result["accepted"]),
+        "accepted_count": len(enriched),
         "rejected_count": len(result["rejected"]),
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
@@ -1072,9 +1488,31 @@ def debug_jobs():
             "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
             "food_only": True,
         },
-        "accepted": result["accepted"],
+        "accepted": enriched,
         "rejected": result["rejected"],
     })
+
+
+@app.route("/api/research/place")
+def research_place():
+    name = str_arg("name", "")
+    place_id = str_arg("place_id", "")
+
+    if not place_id and name:
+        place = places_text_search(f"{name} Salt Lake City")
+        place_id = clean((place or {}).get("place_id"))
+
+    details = place_details(place_id) if place_id else {}
+    search_results = web_search(f'"{name}" reviews chef employee restaurant Salt Lake City', 10) if name else []
+
+    return jsonify({
+        "status": "success",
+        "name": name,
+        "place_id": place_id,
+        "place_details": details,
+        "public_results": search_results,
+    })
+
 
 @app.route("/api/demo")
 def demo():

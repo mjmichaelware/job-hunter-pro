@@ -6,7 +6,7 @@ const UI={
     if(!grid)return;
 
     if(!Array.isArray(jobs)||jobs.length===0){
-      grid.innerHTML=`<div class="empty-state"><h3>No strict-matched restaurant jobs yet</h3><p>The backend is live. Open Debug to see raw jobs, nearby restaurants, and exact rejection reasons.</p></div>`;
+      grid.innerHTML=`<div class="empty-state"><h3>No matching jobs for these filters</h3><p>Relax the rating, radius, transit, role, or keyword filters. Debug shows accepted and rejected evidence.</p></div>`;
       return;
     }
 
@@ -23,15 +23,32 @@ const UI={
       const tags=Array.isArray(job.tags)?job.tags.slice(0,5):[];
       const match=Number.isFinite(Number(job.match))?`${Math.round(Number(job.match))}% match`:"Live";
 
+      const ri=job.review_intelligence||{};
+      const rating=ri.google_rating?`${escapeHTML(ri.google_rating)}★`:"No rating";
+      const reviews=ri.google_review_count?`${escapeHTML(ri.google_review_count)} reviews`:"review count unknown";
+      const reviewScore=Number.isFinite(Number(ri.review_score))?`${ri.review_score}/100`:"unscored";
+      const consistency=Number.isFinite(Number(ri.consistency_score))?`${ri.consistency_score}/100 consistency`:"";
+      const risk=escapeHTML(ri.risk_level||"unknown");
+      const chefs=Array.isArray(ri.chef_names)&&ri.chef_names.length?`Chef/public names: ${ri.chef_names.map(escapeHTML).join(", ")}`:"No chef names found yet";
+
+      const reviewLinks=Array.isArray(ri.public_review_results)?ri.public_review_results.slice(0,3).map(r=>`<li><a href="${escapeHTML(r.link)}" target="_blank" rel="noopener noreferrer">${escapeHTML(r.title||r.source||"Review source")}</a><br><small>${escapeHTML(r.snippet||"")}</small></li>`).join(""):"";
+
       return `<article class="job-card reveal" style="animation-delay:${index*45}ms">
         <span class="match">${escapeHTML(match)}</span>
         <h3>${title}</h3>
         <div class="company">${company}</div>
         <p class="meta">${address} • ${commute} • ${radius}</p>
+        <p class="meta">${rating} • ${reviews} • Review score ${reviewScore} • ${consistency} • Risk: ${risk}</p>
         <div class="salary">${salary}</div>
-        <div class="tag-row">${tags.map(t=>`<span class="tag">${escapeHTML(t)}</span>`).join("")}<span class="tag">AI: ${ai}</span></div>
+        <div class="tag-row">${tags.map(t=>`<span class="tag">${escapeHTML(t)}</span>`).join("")}<span class="tag">${escapeHTML(job.role_family||"food-service")}</span><span class="tag">AI: ${ai}</span></div>
         <p class="description">${description}</p>
-        <div class="cluster"><button class="action-btn" data-action="toggle-details">View Details</button>${url?`<a class="btn btn-ghost" href="${url}" target="_blank" rel="noopener noreferrer">Apply</a>`:""}</div>
+        <p class="description">${chefs}</p>
+        ${reviewLinks?`<div class="description"><strong>Public review signals:</strong><ul>${reviewLinks}</ul></div>`:""}
+        <div class="cluster">
+          <button class="action-btn" data-action="toggle-details">View Details</button>
+          ${url?`<a class="btn btn-ghost" href="${url}" target="_blank" rel="noopener noreferrer">Apply</a>`:""}
+          ${job.place_id?`<a class="btn btn-ghost" href="/api/research/place?place_id=${escapeHTML(job.place_id)}&name=${encodeURIComponent(company)}" target="_blank">Research</a>`:""}
+        </div>
       </article>`;
     }).join("");
 
@@ -69,7 +86,7 @@ const UI={
 
 document.addEventListener("DOMContentLoaded",()=>{
   UI.bind();
-  console.log("AI Places Job UI v3 live");
+  console.log("Review intelligence filter UI live");
 });
 
 window.UI=UI;
