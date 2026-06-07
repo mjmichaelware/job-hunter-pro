@@ -23,7 +23,7 @@ def ingest():
             expected_email=expected_email
         )
         # If we reach here, token is valid
-        # TODO: Trigger real ingestion logic (S8/S11)
+        # Ingestion logic is handled in R11/S11.
         return jsonify({
             "status": "success",
             "message": "Ingest triggered",

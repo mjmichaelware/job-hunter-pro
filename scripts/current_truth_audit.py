@@ -80,13 +80,24 @@ def audit():
                                     findings.append((file_path, line_num, "TODO", "TODO found"))
 
                                 # Endpoint checks
-                                if "@app.route" in content or "@blueprint.route" in content:
-                                    if any(safe in content for safe in ["/health", "/usage", "/opportunities", "/history", "/industries"]):
+                                if "@app.route" in content or "@blueprint.route" in content or "@app.get" in content:
+                                    # Expanded safe list including orchestration and research
+                                    safe_routes = [
+                                        "/health", "/usage", "/opportunities", "/history", "/industries",
+                                        "/why-three", "/research", "/batches", "/batch", "/_surface", "/favicon.ico"
+                                    ]
+                                    risky_routes = ["/jobs", "/ingest", "/demo", "/search"]
+                                    
+                                    if any(safe in content for safe in safe_routes):
                                         counts["SAFE_ENDPOINTS_PRESENT_COUNT"] += 1
-                                    elif "/jobs" in content or "/ingest" in content:
+                                    elif any(risky in content for risky in risky_routes):
                                         counts["RISKY_LIVE_ENDPOINTS_COUNT"] += 1
+                                    elif content.strip() == "@app.route(\"/\")" or content.strip() == "@app.get(\"/\")":
+                                        # Root index is safe
+                                        counts["SAFE_ENDPOINTS_PRESENT_COUNT"] += 1
                                     else:
                                         counts["UNWIRED_ROUTE_COUNT"] += 1
+                                        findings.append((file_path, line_num, "UNWIRED_ROUTE", f"Unwired or undocumented route found: {content}"))
                                         
                     except Exception as e:
                         print(f"Error reading {file_path}: {e}")

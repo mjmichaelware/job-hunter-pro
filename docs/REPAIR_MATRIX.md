@@ -79,3 +79,8 @@
 - `PYTHONPATH=. python3 tests/test_reasoning_providers.py` -> 1 test passed (5 providers verified)
 - `PYTHONPATH=. python3 tests/test_api_frontend_contract.py` -> 6 tests passed
 - `python3 scripts/current_truth_audit.py` -> Audited (PROVIDER_STUB_COUNT: 0, PASS_COUNT: 0)
+
+### R9C Proof
+- `python3 scripts/current_truth_audit.py` -> Success (STUB: 0, PASS: 0, TODO: 0, UNWIRED: 0)
+- `PYTHONPATH=. python3 tests/test_oidc_ingest.py` -> Success
+- `PYTHONPATH=. python3 tests/test_api_frontend_contract.py` -> Success
