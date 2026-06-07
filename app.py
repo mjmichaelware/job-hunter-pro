@@ -1,1 +1,9 @@
-"""S0 scaffold placeholder. Real Flask factory arrives in S9."""
+from flask import Flask
+from api import api_bp
+
+def create_app():
+    app = Flask(__name__)
+    app.register_blueprint(api_bp)
+    return app
+
+app = create_app()
