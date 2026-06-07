@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>84115 Live Aggregator</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0c0f12; color: #e2e8f0; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        header { border-bottom: 2px solid #1e293b; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-size: 1.3rem; font-weight: 800; color: #fff; margin: 0; }
+        .btn-scrape { background: #2563eb; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-scrape:hover { background: #1d4ed8; }
+        .btn-scrape:disabled { background: #475569; cursor: not-allowed; }
+        .job-card { background: #141b24; border: 1px solid #223044; border-radius: 12px; padding: 20px; margin-bottom: 16px; position: relative; }
+        .job-title { font-size: 1.15rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px; padding-right: 90px; }
+        .company-name { color: #38bdf8; font-weight: 600; font-size: 0.95rem; margin-bottom: 12px; }
+        .details-row { font-size: 0.8rem; color: #94a3b8; margin-bottom: 16px; display: flex; gap: 10px; text-transform: uppercase; }
+        .badge-quick { position: absolute; top: 20px; right: 20px; background: #f59e0b; color: #000; font-size: 0.65rem; font-weight: 800; padding: 4px 8px; border-radius: 4px; }
+        .btn-link { display: block; width: 100%; box-sizing: border-box; text-align: center; background: #1e293b; color: #fff; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.9rem; border: 1px solid #334155; }
+        .loader { text-align: center; color: #10b981; font-weight: bold; display: none; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📍 84115 Target Feed</h1>
+            <button id="scrapeBtn" class="btn-scrape" onclick="triggerScrape()">🔄 Scan Internet</button>
+        </header>
+        <div id="loading" class="loader">Scanning global networks via Groq Llama-3...</div>
+        <div id="feed"></div>
+    </div>
+
+    <script>
+        async function loadFeed() {
+            const feedDiv = document.getElementById('feed');
+            feedDiv.innerHTML = '<div style="text-align:center; color:#64748b;">Loading active listings...</div>';
+            try {
+                const res = await fetch('/api/feed');
+                const jobs = await res.json();
+                
+                if (jobs.length === 0) {
+                    feedDiv.innerHTML = '<div style="text-align:center; color:#64748b; padding: 40px; border: 1px dashed #223044; border-radius: 12px;">No local matches found. Run a global scan.</div>';
+                    return;
+                }
+
+                feedDiv.innerHTML = jobs.map(job => `
+                    <div class="job-card">
+                        ${job.quick_apply ? '<span class="badge-quick">⚡ FAST APPLY</span>' : ''}
+                        <div class="job-title">${job.title}</div>
+                        <div class="company-name">🏢 ${job.company}</div>
+                        <div class="details-row">
+                            <span>📂 ${job.category}</span>
+                            <span>•</span>
+                            <span>📍 ${job.location}</span>
+                        </div>
+                        <a href="${job.apply_url}" target="_blank" class="btn-link">Open Application</a>
+                    </div>
+                `).join('');
+            } catch (err) {
+                feedDiv.innerHTML = `<div style="color: red;">Error loading feed: ${err.message}</div>`;
+            }
+        }
+
+        async function triggerScrape() {
+            const btn = document.getElementById('scrapeBtn');
+            const loader = document.getElementById('loading');
+            btn.disabled = true;
+            loader.style.display = 'block';
+            
+            try {
+                await fetch('/api/scrape', { method: 'POST' });
+                await loadFeed();
+            } catch (err) {
+                alert("Scrape failed: " + err.message);
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+            }
+        }
+
+        // Initial load
+        loadFeed();
+    </script>
+</body>
+</html>
