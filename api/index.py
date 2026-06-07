@@ -45,7 +45,7 @@ class Config:
     MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "100"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "24"))
 
-VERSION = "ai_places_resolver_v5_review_filter_intelligence"
+VERSION = "ai_places_resolver_v7_orchestrated_dashboard"
 
 ROLE_QUERIES = [
     "restaurant server jobs near 84115 Salt Lake City",
@@ -373,8 +373,50 @@ def generic_place_query(query: str) -> bool:
 
     return any(re.search(pattern, q) for pattern in generic_patterns)
 
+
+@lru_cache(maxsize=1)
+def serpapi_account_status() -> Dict[str, Any]:
+    if not Config.SERPAPI_KEY:
+        return {"available": False, "reason": "SERPAPI_KEY missing"}
+
+    try:
+        res = session.get(
+            "https://serpapi.com/account.json",
+            params={"api_key": Config.SERPAPI_KEY},
+            timeout=Config.REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        data = res.json()
+        return {
+            "available": True,
+            "plan_name": data.get("plan_name"),
+            "total_searches_left": data.get("total_searches_left"),
+            "this_month_usage": data.get("this_month_usage"),
+            "searches_per_month": data.get("searches_per_month"),
+            "last_hour_searches": data.get("last_hour_searches"),
+            "hourly_throughput": data.get("hourly_throughput"),
+        }
+    except Exception as exc:
+        return {"available": False, "reason": str(exc)}
+
+def serpapi_budget_allows_search() -> bool:
+    if not Config.SERPAPI_BUDGET_MODE:
+        return True
+    account = serpapi_account_status()
+    left = account.get("total_searches_left")
+    if left is None:
+        return True
+    try:
+        return int(left) > Config.SERPAPI_MIN_SEARCHES_LEFT
+    except Exception:
+        return True
+
 def serpapi_jobs(query: str) -> List[Dict[str, Any]]:
     if not Config.SERPAPI_KEY:
+        return []
+
+    if not serpapi_budget_allows_search():
+        logger.warning("SerpAPI budget guard stopped search: %s", query)
         return []
 
     try:
@@ -1313,20 +1355,43 @@ def index():
   <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-  <main class="container section">
-    <p class="kicker">Cloud Run Online</p>
-    <h1 class="text-gradient">Job Hunter Pro</h1>
-    <p class="lead">Live restaurant jobs with AI place resolution, review intelligence, chef/public web research, and flexible filtering.</p>
+  <aside class="app-sidebar">
+    <div class="brand">JHP</div>
+    <a href="#overview">Overview</a>
+    <a href="#filters">Filters</a>
+    <a href="#jobs">Live Jobs</a>
+    <a href="#opportunities">Opportunities</a>
+    <a href="#history">History</a>
+    <a href="/api/usage">Usage</a>
+    <a href="/api/why-three">Why only a few?</a>
+  </aside>
 
-    <div class="panel stack">
+  <main class="app-shell">
+    <section class="hero-panel" id="overview">
+      <p class="kicker">Persistent AI Job Intelligence</p>
+      <h1 class="text-gradient">Job Hunter Pro</h1>
+      <p class="lead">A Google Cloud Run application that combines SerpAPI job discovery, Google Places restaurant intelligence, Maps transit/radius scoring, LLM entity extraction, public review signals, persistent batch history, and filterable UI/UX.</p>
       <div class="cluster">
+        <button class="btn btn-primary" onclick="loadLiveJobs()">Run Live Job Discovery</button>
+        <button class="btn btn-ghost" onclick="loadOpportunities()">Load Restaurant Opportunities</button>
+        <button class="btn btn-ghost" onclick="loadHistory()">Load Last 24h History</button>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card"><strong id="statJobs">—</strong><span>visible jobs</span></div>
+      <div class="stat-card"><strong id="statRaw">—</strong><span>raw jobs scanned</span></div>
+      <div class="stat-card"><strong id="statOpps">—</strong><span>nearby opportunities</span></div>
+      <div class="stat-card"><strong id="statSerp">—</strong><span>SerpAPI left</span></div>
+    </section>
+
+    <section class="panel stack" id="filters">
+      <h2>Filters</h2>
+      <div class="filter-grid">
         <label>Min rating <input id="min_rating" type="number" step="0.1" min="0" max="5" placeholder="4.5"></label>
         <label>Max radius <input id="max_radius" type="number" step="0.1" min="0" placeholder="1"></label>
         <label>Max transit <input id="max_transit" type="number" step="1" min="0" placeholder="35"></label>
         <label>Min review score <input id="min_score" type="number" step="1" min="0" max="100" placeholder="70"></label>
-      </div>
-
-      <div class="cluster">
         <label>Role
           <select id="role">
             <option value="all">All roles</option>
@@ -1341,7 +1406,6 @@ def index():
             <option value="supervisor">Supervisor</option>
           </select>
         </label>
-
         <label>House
           <select id="house">
             <option value="all">All</option>
@@ -1350,25 +1414,53 @@ def index():
             <option value="management">Management</option>
           </select>
         </label>
-
         <label>Keyword <input id="q" type="text" placeholder="Sweet Lake, tips, chef..."></label>
-
-        <button class="btn btn-primary" onclick="loadJobs()">Apply filters</button>
-        <a class="btn btn-ghost" href="/api/debug/jobs">Debug</a>
-        <a class="btn btn-ghost" href="/api/health">Health</a>
       </div>
-    </div>
+      <div class="cluster">
+        <button class="btn btn-primary" onclick="loadLiveJobs()">Apply to Live Jobs</button>
+        <button class="btn btn-ghost" onclick="loadHistory()">Apply to History</button>
+        <button class="btn btn-ghost" onclick="loadOpportunities()">Apply to Opportunities</button>
+      </div>
+    </section>
 
-    <p class="status-line" id="status">Loading live jobs...</p>
-    <section class="grid-system" id="jobs"></section>
+    <p class="status-line" id="status">Loading dashboard...</p>
+
+    <section id="jobs">
+      <h2>Live / Historical Jobs</h2>
+      <div class="grid-system" id="jobGrid"></div>
+    </section>
+
+    <section id="opportunities">
+      <h2>Nearby Restaurant Opportunities</h2>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Name</th><th>Rating</th><th>Reviews</th><th>Radius</th><th>Status</th><th>Research</th></tr></thead>
+          <tbody id="opportunityRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="history">
+      <h2>Batch History</h2>
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Batch</th><th>Created</th><th>Accepted</th><th>Rejected</th><th>Raw</th></tr></thead>
+          <tbody id="historyRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel stack">
+      <h2>About</h2>
+      <p>This application is designed as a persistent, multi-intelligence job research system: it discovers listings, resolves real restaurant locations, checks commute and radius, enriches with reviews and public signals, stores timestamped batches, and lets you inspect jobs by filters and time ranges.</p>
+    </section>
   </main>
 
-  <div class="noise"></div>
   <script src="/static/js/main.js"></script>
   <script>
     function val(id){ return document.getElementById(id)?.value || ""; }
 
-    function buildParams(){
+    function params(){
       const p = new URLSearchParams();
       for (const id of ["min_rating","max_radius","max_transit","min_score","role","house","q"]) {
         const v = val(id);
@@ -1377,28 +1469,85 @@ def index():
       return p.toString();
     }
 
-    function loadJobs(){
-      const s = document.getElementById('status');
-      const qs = buildParams();
-      s.textContent = 'Searching live jobs, public reviews, chef info, and filters...';
-      fetch('/api/jobs' + (qs ? '?' + qs : ''))
-        .then(r => r.json())
-        .then(p => {
-          s.textContent = `Showing ${p.count || 0} jobs. Unfiltered: ${p.unfiltered_count || 0}. Raw scanned: ${p.raw_count || 0}. Nearby restaurants: ${p.nearby_restaurant_count || 0}.`;
-          window.UI && window.UI.renderJobs(p.data || []);
-        })
-        .catch(e => {
-          console.error(e);
-          s.textContent = 'Search failed. Open Debug.';
-        });
+    function setStatus(t){ document.getElementById("status").textContent = t; }
+
+    function updateStats(p){
+      if ("count" in p) document.getElementById("statJobs").textContent = p.count;
+      if ("raw_count" in p) document.getElementById("statRaw").textContent = p.raw_count;
+      if ("nearby_restaurant_count" in p) document.getElementById("statOpps").textContent = p.nearby_restaurant_count;
     }
 
-    loadJobs();
+    function loadUsage(){
+      fetch("/api/usage").then(r=>r.json()).then(p=>{
+        const left = p?.serpapi?.total_searches_left ?? "—";
+        document.getElementById("statSerp").textContent = left;
+      }).catch(()=>{});
+    }
+
+    function loadLiveJobs(){
+      const qs = params();
+      setStatus("Running budget-limited live discovery...");
+      fetch("/api/jobs" + (qs ? "?" + qs : ""))
+        .then(r=>r.json())
+        .then(p=>{
+          updateStats(p);
+          setStatus(`Live jobs loaded: ${p.count || 0}. Raw scanned: ${p.raw_count || 0}.`);
+          window.UI && window.UI.renderJobsInto("jobGrid", p.data || []);
+        })
+        .catch(e=>setStatus("Live job load failed: " + e));
+    }
+
+    function loadOpportunities(){
+      const qs = params();
+      setStatus("Loading Google Places restaurant opportunities without SerpAPI...");
+      fetch("/api/opportunities" + (qs ? "?" + qs : ""))
+        .then(r=>r.json())
+        .then(p=>{
+          document.getElementById("statOpps").textContent = p.count || 0;
+          setStatus(`Loaded ${p.count || 0} nearby restaurant opportunities.`);
+          const rows = (p.data || []).map(x => `
+            <tr>
+              <td>${escapeHTML(x.name || "")}</td>
+              <td>${escapeHTML(x.google_rating || "—")}</td>
+              <td>${escapeHTML(x.google_review_count || "—")}</td>
+              <td>${escapeHTML(x.radius_label || "—")}</td>
+              <td>${escapeHTML(x.business_status || "—")}</td>
+              <td>${x.place_id ? `<a href="/api/research/place?place_id=${escapeHTML(x.place_id)}&name=${encodeURIComponent(x.name || "")}" target="_blank">Research</a>` : ""}</td>
+            </tr>`).join("");
+          document.getElementById("opportunityRows").innerHTML = rows || "<tr><td colspan='6'>No opportunities loaded.</td></tr>";
+        })
+        .catch(e=>setStatus("Opportunities failed: " + e));
+    }
+
+    function loadHistory(){
+      const qs = params();
+      setStatus("Loading stored batch history...");
+      fetch("/api/history?hours=24" + (qs ? "&" + qs : ""))
+        .then(r=>r.json())
+        .then(p=>{
+          document.getElementById("statJobs").textContent = p.job_count || 0;
+          setStatus(`History loaded: ${p.job_count || 0} jobs across ${p.batch_count || 0} batches.`);
+          window.UI && window.UI.renderJobsInto("jobGrid", p.data || []);
+          const rows = (p.batches || []).map(b => `
+            <tr>
+              <td>${escapeHTML(b.object_name || "")}</td>
+              <td>${escapeHTML(b.created_at_utc || "")}</td>
+              <td>${escapeHTML(b.counts?.accepted ?? "—")}</td>
+              <td>${escapeHTML(b.counts?.rejected ?? "—")}</td>
+              <td>${escapeHTML(b.counts?.raw ?? "—")}</td>
+            </tr>`).join("");
+          document.getElementById("historyRows").innerHTML = rows || "<tr><td colspan='5'>No batches stored yet.</td></tr>";
+        })
+        .catch(e=>setStatus("History failed: " + e));
+    }
+
+    loadUsage();
+    loadOpportunities();
+    loadHistory();
   </script>
 </body>
 </html>
 """)
-
 
 
 @app.route("/api/health")
@@ -1873,6 +2022,519 @@ def history():
     })
 
 # === ORCHESTRATION_V1_END ===
+
+
+
+# === V7_ORCHESTRATION_DASHBOARD_START ===
+
+from datetime import datetime, timezone, timedelta
+from urllib.parse import quote as url_quote
+import time
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+def batch_bucket() -> str:
+    return os.environ.get("BATCH_BUCKET", "").strip()
+
+def ingest_token() -> str:
+    return os.environ.get("INGEST_TOKEN", "").strip()
+
+def metadata_access_token() -> str:
+    try:
+        res = session.get(
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+            headers={"Metadata-Flavor": "Google"},
+            timeout=5,
+        )
+        res.raise_for_status()
+        return res.json().get("access_token", "")
+    except Exception:
+        return ""
+
+def gcs_headers() -> Dict[str, str]:
+    return {
+        "Authorization": f"Bearer {metadata_access_token()}",
+        "Content-Type": "application/json",
+    }
+
+def gcs_upload_json(object_name: str, payload: Dict[str, Any]) -> bool:
+    bucket = batch_bucket()
+    if not bucket:
+        return False
+
+    try:
+        res = session.post(
+            f"https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o",
+            params={"uploadType": "media", "name": object_name},
+            headers=gcs_headers(),
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            timeout=30,
+        )
+        res.raise_for_status()
+        return True
+    except Exception as exc:
+        logger.warning("GCS upload failed: %s", exc)
+        return False
+
+def gcs_download_json(object_name: str) -> Dict[str, Any]:
+    bucket = batch_bucket()
+    if not bucket:
+        return {}
+
+    try:
+        encoded = url_quote(object_name, safe="")
+        res = session.get(
+            f"https://storage.googleapis.com/storage/v1/b/{bucket}/o/{encoded}",
+            params={"alt": "media"},
+            headers=gcs_headers(),
+            timeout=30,
+        )
+        res.raise_for_status()
+        return res.json()
+    except Exception:
+        return {}
+
+def gcs_list_batches(limit: int = 200) -> List[Dict[str, Any]]:
+    bucket = batch_bucket()
+    if not bucket:
+        return []
+
+    try:
+        res = session.get(
+            f"https://storage.googleapis.com/storage/v1/b/{bucket}/o",
+            params={
+                "prefix": "batches/",
+                "maxResults": str(limit),
+                "fields": "items(name,updated,size)",
+            },
+            headers=gcs_headers(),
+            timeout=30,
+        )
+        res.raise_for_status()
+        items = res.json().get("items", []) or []
+        items = [i for i in items if i.get("name", "").endswith(".json")]
+        items.sort(key=lambda x: x.get("updated", ""), reverse=True)
+        return items
+    except Exception as exc:
+        logger.warning("GCS list failed: %s", exc)
+        return []
+
+def v7_place_details(place_id: str) -> Dict[str, Any]:
+    place_id = clean(place_id)
+    if not place_id or not Config.GOOGLE_MAPS_API_KEY:
+        return {}
+
+    try:
+        res = session.get(
+            "https://maps.googleapis.com/maps/api/place/details/json",
+            params={
+                "place_id": place_id,
+                "fields": "name,rating,user_ratings_total,formatted_address,website,url,business_status,price_level,types",
+                "key": Config.GOOGLE_MAPS_API_KEY,
+            },
+            timeout=Config.REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        data = res.json()
+        return data.get("result") or {}
+    except Exception:
+        return {}
+
+@lru_cache(maxsize=16)
+def v7_nearby_opportunities(radius_miles: float = None) -> List[Dict[str, Any]]:
+    origin = origin_latlng()
+    if not origin or not Config.GOOGLE_MAPS_API_KEY:
+        return []
+
+    radius = radius_miles if radius_miles else Config.MAX_RADIUS_MILES
+    keywords = ["restaurant", "cafe", "bakery", "bar", "diner", "grill", "coffee", "sandwich", "pizza"]
+    seen = set()
+    out = []
+
+    for keyword in keywords:
+        next_token = ""
+        page_count = 0
+
+        while True:
+            params = {
+                "location": f"{origin[0]},{origin[1]}",
+                "radius": int(radius * 1609.344),
+                "keyword": keyword,
+                "key": Config.GOOGLE_MAPS_API_KEY,
+            }
+
+            if next_token:
+                params = {
+                    "pagetoken": next_token,
+                    "key": Config.GOOGLE_MAPS_API_KEY,
+                }
+                time.sleep(2)
+
+            try:
+                res = session.get(
+                    "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+                    params=params,
+                    timeout=Config.REQUEST_TIMEOUT,
+                )
+                res.raise_for_status()
+                data = res.json()
+            except Exception:
+                break
+
+            for item in data.get("results", []) or []:
+                place_id = clean(item.get("place_id"))
+                if not place_id or place_id in seen:
+                    continue
+
+                seen.add(place_id)
+                loc = item.get("geometry", {}).get("location", {})
+                latlng = None
+                radius_distance = None
+                radius_label = "Radius unavailable"
+
+                if "lat" in loc and "lng" in loc:
+                    latlng = (float(loc["lat"]), float(loc["lng"]))
+                    radius_distance = round(miles_between(origin, latlng), 2)
+                    radius_label = f"{radius_distance} mi radius"
+
+                details = v7_place_details(place_id)
+                name = clean(details.get("name") or item.get("name"))
+                address = clean(details.get("formatted_address") or item.get("vicinity"))
+
+                out.append({
+                    "type": "restaurant_opportunity",
+                    "place_id": place_id,
+                    "name": name,
+                    "restaurant_name": name,
+                    "resolved_address": address,
+                    "radius_miles": radius_distance,
+                    "radius_label": radius_label,
+                    "google_rating": details.get("rating", item.get("rating")),
+                    "google_review_count": details.get("user_ratings_total", item.get("user_ratings_total")),
+                    "business_status": clean(details.get("business_status") or item.get("business_status")),
+                    "website": clean(details.get("website")),
+                    "google_maps_url": clean(details.get("url")),
+                    "types": details.get("types") or item.get("types", []),
+                    "suggested_searches": [
+                        f'"{name}" server jobs',
+                        f'"{name}" cook jobs',
+                        f'"{name}" dishwasher jobs',
+                        f'"{name}" host jobs',
+                    ],
+                })
+
+            next_token = data.get("next_page_token") or ""
+            page_count += 1
+            if not next_token or page_count >= 3:
+                break
+
+    out.sort(key=lambda x: (
+        x.get("radius_miles") if x.get("radius_miles") is not None else 999,
+        -(float(x.get("google_rating") or 0)),
+    ))
+
+    return out[:160]
+
+def v7_apply_opportunity_filters(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    min_rating = request.args.get("min_rating")
+    max_radius = request.args.get("max_radius")
+    q = clean(request.args.get("q", "")).lower()
+
+    out = []
+
+    for item in items:
+        if min_rating:
+            try:
+                if float(item.get("google_rating") or 0) < float(min_rating):
+                    continue
+            except Exception:
+                continue
+
+        if max_radius:
+            try:
+                if float(item.get("radius_miles") or 999) > float(max_radius):
+                    continue
+            except Exception:
+                continue
+
+        if q:
+            haystack = " ".join([
+                clean(item.get("name")),
+                clean(item.get("resolved_address")),
+                " ".join(item.get("types") or []),
+            ]).lower()
+            if q not in haystack:
+                continue
+
+        out.append(item)
+
+    return out
+
+def serialize_ingest_batch() -> Dict[str, Any]:
+    result = fetch_jobs()
+    enriched = []
+
+    for job in result.get("accepted", []):
+        try:
+            if "enrich_job_for_filters" in globals():
+                enriched.append(enrich_job_for_filters(job))
+            else:
+                enriched.append(job)
+        except Exception:
+            enriched.append(job)
+
+    return {
+        "batch_schema": "job_hunter_batch_v1",
+        "created_at_utc": utc_now_iso(),
+        "source": VERSION if "VERSION" in globals() else "unknown",
+        "rules": {
+            "origin": Config.ORIGIN_ADDRESS,
+            "max_radius_miles": Config.MAX_RADIUS_MILES,
+            "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
+            "food_only": True,
+        },
+        "budget": {
+            "serpapi": serpapi_account_status(),
+            "max_serp_queries": Config.MAX_SERP_QUERIES,
+            "max_raw_jobs": Config.MAX_RAW_JOBS,
+            "max_ai_calls": Config.MAX_AI_CALLS,
+        },
+        "counts": {
+            "accepted": len(enriched),
+            "rejected": len(result.get("rejected", [])),
+            "raw": result.get("raw_count"),
+            "queries": result.get("query_count"),
+            "nearby_restaurants": result.get("nearby_restaurant_count"),
+        },
+        "accepted": enriched,
+        "rejected": result.get("rejected", []),
+    }
+
+@app.route("/api/usage")
+def usage():
+    return jsonify({
+        "status": "ok",
+        "version": VERSION if "VERSION" in globals() else "unknown",
+        "serpapi": serpapi_account_status(),
+        "storage": {
+            "batch_bucket": batch_bucket(),
+            "bucket_configured": bool(batch_bucket()),
+        },
+        "budget": {
+            "budget_mode": Config.SERPAPI_BUDGET_MODE,
+            "min_searches_left_guard": Config.SERPAPI_MIN_SEARCHES_LEFT,
+            "max_serp_queries_per_live_run": Config.MAX_SERP_QUERIES,
+            "max_raw_jobs_per_live_run": Config.MAX_RAW_JOBS,
+            "public_web_research_enabled": Config.ENABLE_PUBLIC_WEB_RESEARCH,
+            "review_web_search_enabled": Config.ENABLE_REVIEW_WEB_SEARCH,
+        },
+        "orchestration": {
+            "ingest_endpoint": "/api/ingest",
+            "batches_endpoint": "/api/batches",
+            "history_endpoint": "/api/history?hours=24",
+            "opportunities_endpoint": "/api/opportunities",
+            "why_three_endpoint": "/api/why-three",
+        },
+    })
+
+@app.route("/api/why-three")
+def why_three():
+    return jsonify({
+        "status": "explained",
+        "why_only_few_jobs": [
+            "The page is currently in SerpAPI budget mode.",
+            "MAX_SERP_QUERIES is intentionally low to preserve your remaining SerpAPI searches.",
+            "The visible jobs are strict accepted jobs, not all nearby restaurants.",
+            "Strict filters require food-service match, exact or resolved place, radius, and transit pass.",
+            "Historical accumulation requires /api/ingest batches over time, not only live page refreshes.",
+            "Opportunities can show many nearby restaurants without spending SerpAPI job searches.",
+        ],
+        "current_limits": {
+            "max_serp_queries": Config.MAX_SERP_QUERIES,
+            "max_raw_jobs": Config.MAX_RAW_JOBS,
+            "max_ai_calls": Config.MAX_AI_CALLS,
+            "serpapi_min_searches_left_guard": Config.SERPAPI_MIN_SEARCHES_LEFT,
+            "max_radius_miles": Config.MAX_RADIUS_MILES,
+            "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
+        },
+        "next_correct_architecture": [
+            "Use /api/opportunities for Google Places opportunity intelligence.",
+            "Use /api/ingest every 6 hours while SerpAPI quota is low.",
+            "Use /api/history for time-range browsing.",
+            "Use /api/jobs only when intentionally burning a small live SerpAPI batch.",
+        ],
+    })
+
+@app.route("/api/opportunities")
+def opportunities():
+    max_radius = request.args.get("max_radius")
+    radius = None
+    try:
+        if max_radius:
+            radius = float(max_radius)
+    except Exception:
+        radius = None
+
+    data = v7_apply_opportunity_filters(v7_nearby_opportunities(radius))
+
+    return jsonify({
+        "status": "success",
+        "source": "google_places_opportunities_no_serpapi",
+        "count": len(data),
+        "rules": {
+            "origin": Config.ORIGIN_ADDRESS,
+            "radius_miles": radius or Config.MAX_RADIUS_MILES,
+            "uses_serpapi": False,
+        },
+        "data": data,
+    })
+
+@app.route("/api/ingest", methods=["GET", "POST"])
+def ingest():
+    token = request.args.get("token", "")
+
+    if ingest_token() and token != ingest_token():
+        return jsonify({"status": "error", "error": "invalid ingest token"}), 403
+
+    account = serpapi_account_status()
+    left = account.get("total_searches_left")
+
+    if left is not None:
+        try:
+            if int(left) <= Config.SERPAPI_MIN_SEARCHES_LEFT:
+                return jsonify({
+                    "status": "skipped",
+                    "reason": "serpapi_budget_guard",
+                    "serpapi": account,
+                })
+        except Exception:
+            pass
+
+    batch = serialize_ingest_batch()
+    created = datetime.fromisoformat(batch["created_at_utc"])
+    object_name = f"batches/{created.strftime('%Y/%m/%d/%H%M%S')}_job_batch.json"
+    ok = gcs_upload_json(object_name, batch)
+
+    return jsonify({
+        "status": "success" if ok else "error",
+        "stored": ok,
+        "object_name": object_name,
+        "batch": {
+            "created_at_utc": batch["created_at_utc"],
+            "counts": batch["counts"],
+            "source": batch["source"],
+        },
+    })
+
+@app.route("/api/batches")
+def batches():
+    items = gcs_list_batches(200)
+    return jsonify({
+        "status": "success",
+        "count": len(items),
+        "bucket": batch_bucket(),
+        "batches": [
+            {
+                "object_name": item.get("name"),
+                "updated": item.get("updated"),
+                "size": item.get("size"),
+                "batch_id": item.get("name", "").replace("batches/", "").replace(".json", ""),
+            }
+            for item in items
+        ],
+    })
+
+@app.route("/api/batch/<path:object_name>")
+def batch_by_name(object_name):
+    if not object_name.startswith("batches/"):
+        object_name = "batches/" + object_name
+    if not object_name.endswith(".json"):
+        object_name += ".json"
+
+    data = gcs_download_json(object_name)
+    return jsonify({
+        "status": "success" if data else "not_found",
+        "object_name": object_name,
+        "batch": data,
+    })
+
+@app.route("/api/history")
+def history():
+    hours_raw = request.args.get("hours", "24")
+    try:
+        hours = float(hours_raw)
+    except Exception:
+        hours = 24.0
+
+    start_dt = datetime.now(timezone.utc) - timedelta(hours=hours)
+    end_dt = datetime.now(timezone.utc)
+
+    from_raw = request.args.get("from", "")
+    to_raw = request.args.get("to", "")
+
+    if from_raw:
+        try:
+            start_dt = datetime.fromisoformat(from_raw.replace("Z", "+00:00"))
+        except Exception:
+            pass
+
+    if to_raw:
+        try:
+            end_dt = datetime.fromisoformat(to_raw.replace("Z", "+00:00"))
+        except Exception:
+            pass
+
+    jobs_out = []
+    batch_summaries = []
+
+    for item in gcs_list_batches(300):
+        name = item.get("name")
+        data = gcs_download_json(name)
+        if not data:
+            continue
+
+        created_raw = data.get("created_at_utc", "")
+        try:
+            created = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
+        except Exception:
+            continue
+
+        if created < start_dt or created > end_dt:
+            continue
+
+        batch_summaries.append({
+            "object_name": name,
+            "created_at_utc": created_raw,
+            "counts": data.get("counts"),
+        })
+
+        for job in data.get("accepted", []):
+            j = dict(job)
+            j["batch_object_name"] = name
+            j["batch_created_at_utc"] = created_raw
+            jobs_out.append(j)
+
+    if "apply_user_filters" in globals():
+        jobs_out = apply_user_filters(jobs_out)
+
+    jobs_out.sort(key=lambda j: (
+        j.get("batch_created_at_utc", ""),
+        j.get("radius_miles") if j.get("radius_miles") is not None else 999,
+    ), reverse=True)
+
+    return jsonify({
+        "status": "success",
+        "source": "orchestration_batch_history_v1",
+        "from": start_dt.isoformat(),
+        "to": end_dt.isoformat(),
+        "batch_count": len(batch_summaries),
+        "job_count": len(jobs_out),
+        "batches": batch_summaries,
+        "data": jobs_out,
+    })
+
+# === V7_ORCHESTRATION_DASHBOARD_END ===
 
 
 if __name__ == "__main__":
