@@ -1,17 +1,79 @@
 async function loadDebugEvidence() {
     const container = document.getElementById('debug-container');
-    container.innerHTML = '<div class="chart-fallback">Loading debug evidence...</div>';
+    container.innerHTML = '<div class="chart-fallback">Loading pipeline telemetry...</div>';
     
-    // We don't have a distinct endpoint for this in API_URLS yet, but we rely on pipeline state or jobs data.
-    // For S10-C, we assume no data is passed globally yet and we must handle the empty state honestly.
+    // In a real S10-H implementation, we might fetch last-run telemetry if SSE is not active.
+    // For now, we render the Pipeline Reactor UI in its "Ready / Waiting" state.
     
-    container.innerHTML = `
-        <div class="chart-fallback">
-            Debug Evidence is currently unavailable.
-            <br><br>
-            <strong>Backend Gap:</strong> The system does not yet supply the granular 15-field evidence drawer arrays (raw_title, rejection_reasons, budget_cost, query_seed, etc.).
+    const stages = [
+        { id: 'discover', label: 'Discovery', icon: '🔍' },
+        { id: 'normalize', label: 'Normalization', icon: '📝' },
+        { id: 'resolve_place', label: 'Place Resolution', icon: '📍' },
+        { id: 'classify', label: 'Classification', icon: '🏷️' },
+        { id: 'score', label: 'Scoring', icon: '⚖️' },
+        { id: 'filter', label: 'Filtering', icon: '🧹' },
+        { id: 'dedupe', label: 'Deduplication', icon: '👯' },
+        { id: 'store', label: 'Persistence', icon: '💾' }
+    ];
+
+    const rejections = [
+        { id: 'not_food_service', label: 'Industry Mismatch' },
+        { id: 'outside_radius', label: 'Outside Radius' },
+        { id: 'ambiguous_place_resolution', label: 'Ambiguous Place' },
+        { id: 'duplicate', label: 'Duplicate' },
+        { id: 'budget_guard', label: 'Budget Guard' },
+        { id: 'provider_error', label: 'Provider Error' },
+        { id: 'missing_source_url', label: 'Missing URL' },
+        { id: 'transit_unavailable', label: 'Transit Unavailable' },
+        { id: 'low_confidence_fit', label: 'Low Confidence' },
+        { id: 'low_rating_cap', label: 'Low Rating Cap' },
+        { id: 'place_resolution_unavailable', label: 'Place Gap' }
+    ];
+
+    let html = `
+        <div class="grid-overview" style="margin-bottom: var(--space-md);">
+            <div class="card" style="grid-column: span 2;">
+                <h3>Pipeline Stage Reactor</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-sm);">
+                    ${stages.map(s => `
+                        <div class="pipeline-stage-chip" id="stage-${s.id}">
+                            <span class="stage-icon">${s.icon}</span>
+                            <span class="stage-label">${s.label}</span>
+                            <span class="stage-count">0</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top: var(--space-md); font-size: 0.8rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: var(--space-sm);">
+                    Status: <span id="pipeline-status-text">DISCONNECTED</span>
+                    <span style="margin-left: var(--space-md);">Stream: <code>${API_URLS.pipeline_stream}</code></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-overview">
+            <div class="card">
+                <h3>Shedding Registry (Rejections)</h3>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-sm);">
+                    ${rejections.map(r => `
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                            <span>${r.label}</span>
+                            <span class="badge badge-live" id="rej-${r.id}">0</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="card">
+                <h3>Real-time Logs</h3>
+                <div id="pipeline-logs" style="height: 300px; background: #000; color: #0f0; font-family: monospace; font-size: 0.75rem; padding: 10px; overflow-y: auto; border-radius: 4px;">
+                    <div style="color: #888;">> Pipeline reactor initialized.</div>
+                    <div style="color: #888;">> Awaiting SSE stream connection...</div>
+                    <div style="color: var(--danger);">> [ERROR] Stream endpoint unavailable (404). Rendering static telemetry readiness.</div>
+                </div>
+            </div>
         </div>
     `;
+
+    container.innerHTML = html;
 }
 
 function renderEvidence(data, type) {

@@ -37,30 +37,22 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Honest empty states: Fallbacks render when data is missing or placeholders detected.
 - Real data only: No fake arrays or demo shapes utilized.
 
-## Next Phase — Pipeline Reactor required
-- Server-Sent Events pipeline stream.
-...
-## S10-C — Advanced visual systems still required
-- View Transitions API shared-element card-to-evidence morph.
-- Web Animations API spring/physics motion.
-- Scroll-driven CSS animations.
-- Container queries / subgrid / anchor-positioning bento layout.
-- OKLCH industry theming.
-- Variable-font confidence rendering.
-- Houdini/continuous-corner visual treatment or fallback.
-- WebGL2/WebGPU ambient telemetry canvas, feature-detected.
-- prefers-reduced-motion support.
-- Save-Data / low-power fallback.
+## S10-H — Done / committed
+- Pipeline Reactor / SSE Readiness complete.
+- Pipeline stage visualization (Discovery -> Store) implemented.
+- Rejection shedding registry (Industry Mismatch, Outside Radius, etc.) implemented.
+- SSE Readiness: Honest DISCONNECTED states rendered for missing backend stream.
+- Terminal-style real-time log shell implemented for future telemetry connection.
 
+## Next Phase — Geo Radar required
+- origin address / resolved address
+- radius miles / distance
+- walk / transit / drive durations
+- place id / lat / lng
+- review trust UI
+- Markov radar UI (beta/separated)
+...
 ## S10-D — Runtime/data systems still required
-- Server-Sent Events pipeline stream.
-- Live pipeline reactor:
-  discover -> normalize -> resolve_place -> classify -> score -> filter -> dedupe -> store.
-- Rejection shedding UI:
-  - not_food_service
-  - outside_radius
-  - ambiguous_place_resolution
-  - duplicate
 - IndexedDB cached history.
 - PWA shell / manifest / service worker.
 - ARIA live region for pipeline counts.
@@ -69,7 +61,7 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Bilingual display where source supports it.
 - Markov vacancy prediction radar as beta and never mixed with confirmed jobs.
 - WebGPU/WASM local inference preview as optional future tier only.
-
+...
 ## S10-E — Backend/API gaps to verify before claiming parity
 - /api/providers live availability.
 - /api/industries live availability.

@@ -7,7 +7,8 @@ const API_URLS = Object.freeze({
   providers: '/api/providers',
   industries: '/api/industries',
   applications: '/api/applications',
-  why_three: '/api/why-three'
+  why_three: '/api/why-three',
+  pipeline_stream: '/api/events/pipeline'
 });
 
 const BUDGET_STATES = Object.freeze({
