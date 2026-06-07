@@ -4,8 +4,7 @@ from .base import IndustryRoute
 food_service_route = IndustryRoute(
     key="food_service",
     label="Food Service & Restaurants",
-    description="Jobs in restaurants, cafes, bars, and other food preparation and service establishments.",
-    search_queries=[
+    queries=[
         "restaurant server jobs near Salt Lake City",
         "restaurant cook jobs near Salt Lake City",
         "line cook jobs near Salt Lake City",
@@ -17,7 +16,7 @@ food_service_route = IndustryRoute(
         "kitchen supervisor restaurant jobs near Salt Lake City",
         "barista cafe jobs near Salt Lake City",
     ],
-    match_keywords={
+    positive_terms={
         "restaurant", "waiter", "waitress", "server", "busser", "food runner",
         "host", "hostess", "cook", "line cook", "prep cook", "dishwasher",
         "dishwashing", "kitchen", "chef", "sous chef", "barista", "cafe",
@@ -26,10 +25,11 @@ food_service_route = IndustryRoute(
         "shift lead", "shift leader", "kitchen supervisor", "biscuit",
         "drink maker", "dish machine operator",
     },
-    negative_keywords={
+    negative_terms={
         "software engineer", "developer", "registered nurse", "warehouse", "cdl",
         "forklift", "security guard", "mechanic", "medical assistant",
         "dental assistant", "teacher", "account executive", "sales representative",
+        "rn", # Specifically protect against "rn" but term_present uses \b
     },
     role_families={
         "server": "front-of-house",
@@ -54,5 +54,5 @@ food_service_route = IndustryRoute(
         "director": "management",
         "lead": "management",
     },
-    required_credentials=["Utah Food Handler Permit"],
+    credentials=["Utah Food Handler Permit"],
 )
