@@ -40,10 +40,6 @@ class Config:
     MAX_RAW_JOBS_PER_RUN = int(os.environ.get("MAX_RAW_JOBS_PER_RUN", 35))
     MAX_AI_CALLS_PER_RUN = int(os.environ.get("MAX_AI_CALLS_PER_RUN", 8))
 
-    # Ingestion Security
-    INGEST_TOKEN_LEGACY = os.environ.get("INGEST_TOKEN_LEGACY", "") # To be deprecated
-    SCHEDULER_SA_EMAIL = f"job-hunter-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
-
     # HTTP Client Settings
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", 12.0))
 

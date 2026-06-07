@@ -11,3 +11,10 @@ __pycache__/
 *.zip
 debug_*.py
 full_debug.py
+.local/
+audits/
+*.patch
+*.backup
+.pytest_cache/
+.mypy_cache/
+env/

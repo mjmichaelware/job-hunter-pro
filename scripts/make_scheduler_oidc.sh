@@ -49,10 +49,11 @@ INGEST_URL="${SERVICE_URL}/api/ingest"
 SCHEDULER_CMD="gcloud scheduler jobs create http $JOB_NAME \
     --project $PROJECT_ID \
     --location $REGION \
-    --schedule \"$SCHEDULE\" \
-    --uri \"$INGEST_URL\" \
-    --http-method GET \
+    --schedule "$SCHEDULE" \
+    --uri "$INGEST_URL" \
+    --http-method POST \
     --oidc-service-account-email $SCHEDULER_SA \
+
     --oidc-token-audience $SERVICE_URL"
 
 if [[ $DRY_RUN -eq 1 ]]; then

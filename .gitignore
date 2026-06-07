@@ -11,3 +11,10 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+.local/
+audits/
+*.patch
+*.backup
+.pytest_cache/
+.mypy_cache/
+env/
