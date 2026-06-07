@@ -1,70 +1,28 @@
-# GEMINI.md — Job Hunter Pro Operating Instructions
+# Job Hunter Pro — Standing Rules (S10)
 
-You are working on Job Hunter Pro, a Flask app deployed on Google Cloud Run for Michael Ware.
+Authoritative S10 UI/UX spec: docs/AI_JOB_AGENT_5_UIUX_Handoff.md. It is binding.
+Read it in full each session via @ before acting. Do not work from memory or summary.
 
-Before making any recommendation or code change, read every byte of these project documents:
+## Scope
+- S10 web/UI layer only. Do not start S11/S12. Do not deploy.
+- S0–S9 backend exists. Do not rewrite it.
+- If a backend gap blocks the UI, report it honestly. Do not fake UI data to paper over it.
 
-- docs/AI_JOB_AGENT_1.txt
-- docs/AI_JOB_AGENT_2.txt
-- docs/AI_JOB_AGENT_3.txt
-- docs/AI_JOB_AGENT_4.txt
+## Hard constraints
+- No secrets in code, output, URLs, or logs.
+- No live external API calls and no SerpAPI spend on page load.
+- /api/jobs live and /api/ingest are never called on boot.
+- Live discovery is explicit user action only, behind a budget warning.
+- Zero fabricated data: no demo jobs, companies, metrics, charts, provider status, history, evidence, or budget numbers.
+- Empty, missing, blocked, stale, cached, and not-configured states must render honestly.
 
-If any of those four files are missing, stop and report that the project documents are incomplete.
+## Source truth
+- Discovery providers: SerpAPI, Adzuna, USAJobs, Jooble, Careerjet, The Muse, plus any already configured in the repo.
+- LLM providers: OpenAI, Gemini, Claude, Groq, xAI, and similar models are reasoning, enrichment, scoring, and classification only. They are never job discovery sources.
 
-## Non-negotiable rules
-
-1. Never hardcode, print, echo, log, or expose secrets.
-2. All keys and credentials live in Google Secret Manager only.
-3. Never guess or patch blindly.
-4. Always inspect the current code before modifying it.
-5. Always compile locally with python -m py_compile before deploy.
-6. Only after compile succeeds, deploy.
-7. After deploy, check /api/health.
-8. If health fails, check Cloud Run logs.
-9. Never claim LLM APIs search for jobs.
-10. OpenAI, Gemini, Claude, Groq, and xAI are enrichment/classification only.
-11. Discovery sources are SerpAPI, Adzuna, USAJobs, Jooble, Careerjet, and The Muse.
-12. Never burn SerpAPI on page load.
-13. Default UI calls must be usage, opportunities, history, and dry-run only.
-14. Never put a token in a Scheduler URL.
-15. /api/ingest is protected by Cloud Scheduler OIDC only.
-16. Never patch a large file with regex blindly.
-17. If a patch stack is corrupted, write a clean file and overwrite.
-18. Development environment is Android ARM64 Termux.
-19. Keep all terminal commands copy-paste safe for Termux.
-20. Follow stages S0 through S12 from the project documents.
-21. Do not skip stages.
-22. Do not deploy until S12.
-
-## Ownership boundaries
-
-Engine/backend/system code may be built in a boring, standard, deterministic way.
-
-Michael keeps creative control over:
-
-- UI/UX
-- frontend layouts
-- colors
-- spacing
-- cards
-- filters
-- animations
-- dashboard feel
-- visual copy
-- final user-facing design
-
-For S10 web/frontend work, create only semantic hooks, safe placeholders, and clean module boundaries unless Michael explicitly approves the visual direction.
-
-## Required workflow
-
-For every stage:
-
-1. Inspect files.
-2. State what exists.
-3. State what is missing.
-4. Make the smallest safe change.
-5. Run compile checks.
-6. Do not deploy unless the current approved stage requires it.
-7. Show proof.
-
-Do not use live paid APIs during inspection or page load.
+## Tool use
+- Read-only navigation tools are allowed, including search_file_content, glob, and read_file.
+- Grep/search_file_content is allowed for finding frontend entrypoints and proving boot paths.
+- Do not use whole-directory reads that may truncate. Read specific files or specific globs.
+- Preserve existing working files.
+- Edits must stay inside S10 UI/web scope unless direct inspection proves a tiny compatibility fix is required.

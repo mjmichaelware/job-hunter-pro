@@ -1,1 +1,182 @@
-<!-- S0 scaffold placeholder -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Hunter Pro</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+</head>
+<body>
+    <canvas id="webgpu-canvas"></canvas>
+    <aside id="sidebar">
+        <div id="logo-container">
+            <div id="logo-badge"></div>
+            <span>JOB HUNTER PRO</span>
+        </div>
+        <nav>
+            <button class="nav-tab active" data-tab="overview">Overview</button>
+            <button class="nav-tab" data-tab="live_jobs">Live Jobs</button>
+            <button class="nav-tab" data-tab="opportunities">Opportunities</button>
+            <button class="nav-tab" data-tab="history">History</button>
+            <button class="nav-tab" data-tab="debug_evidence">Debug Evidence</button>
+            <button class="nav-tab" data-tab="providers">Providers</button>
+            <button class="nav-tab" data-tab="budget">Budget</button>
+            <button class="nav-tab" data-tab="why_three">Why Three</button>
+        </nav>
+        <div id="sidebar-footer">
+            <div class="metric-label">System State</div>
+            <div id="system-status-badge" class="badge badge-safe">SAFE</div>
+        </div>
+    </aside>
+    <main id="main-content">
+        <header id="header">
+            <h1 id="header-title">System Overview</h1>
+            <div style="display:flex;gap:var(--space-sm);align-items:center;">
+                <button id="toggle-filters" class="badge badge-cached" style="cursor:pointer;">Filters</button>
+                <button id="trigger-discovery-btn" class="badge badge-live" style="cursor:pointer;display:none;">Live Discovery</button>
+            </div>
+        </header>
+
+
+        <!-- OVERVIEW TAB -->
+        <section id="tab-overview" class="tab-panel active">
+            <div class="grid-overview">
+                <div class="card" data-target="live_jobs">
+                    <div class="metric-label">Accepted Live Jobs</div>
+                    <div class="metric-num" id="overview-accepted-count">-</div>
+                </div>
+                <div class="card" data-target="opportunities">
+                    <div class="metric-label">Opportunities Radar</div>
+                    <div class="metric-num" id="overview-opp-count">-</div>
+                </div>
+                <div class="card" data-target="history">
+                    <div class="metric-label">Discovered Batches</div>
+                    <div class="metric-num" id="overview-batch-count">-</div>
+                </div>
+                <div class="card" data-target="budget">
+                    <div class="metric-label">Budget Efficiency</div>
+                    <div class="metric-num" id="overview-budget-burn">-</div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Pipeline Engine Stream</h3>
+                <div id="pipeline-stream" class="chart-wrapper">
+                    <div class="chart-fallback">Live stream inactive. Connect pipeline to watch ingestion flow.</div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- LIVE JOBS TAB -->
+        <section id="tab-live_jobs" class="tab-panel">
+            <div class="card">
+                <div id="jobs-container"></div>
+            </div>
+        </section>
+
+
+        <!-- OPPORTUNITIES TAB -->
+        <section id="tab-opportunities" class="tab-panel">
+            <div class="card">
+                <div id="opportunities-container"></div>
+            </div>
+        </section>
+
+
+        <!-- HISTORY TAB -->
+        <section id="tab-history" class="tab-panel">
+            <div class="card">
+                <table id="history-table">
+                    <thead>
+                        <tr>
+                            <th>Batch ID</th>
+                            <th>Timestamp</th>
+                            <th>Trigger</th>
+                            <th>Accepted</th>
+                            <th>Rejected</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-rows"></tbody>
+                </table>
+            </div>
+        </section>
+
+
+        <!-- DEBUG EVIDENCE TAB -->
+        <section id="tab-debug_evidence" class="tab-panel">
+            <div class="card">
+                <div id="debug-container"></div>
+            </div>
+        </section>
+
+
+        <!-- PROVIDERS TAB -->
+        <section id="tab-providers" class="tab-panel">
+            <div class="grid-overview" id="providers-container"></div>
+        </section>
+
+
+        <!-- BUDGET TAB -->
+        <section id="tab-budget" class="tab-panel">
+            <div class="grid-overview">
+                <div class="card">
+                    <div class="metric-label">Available Quota</div>
+                    <div class="metric-num" id="budget-left">-</div>
+                </div>
+                <div class="card">
+                    <div class="metric-label">Safe Load Protection</div>
+                    <div id="budget-safe-indicator" class="badge badge-safe">ACTIVE</div>
+                </div>
+            </div>
+            <div class="card">
+                <button id="dry-run-plan-btn" class="badge badge-cached" style="cursor:pointer;padding:12px 24px;">Generate Dry-Run Execution Plan</button>
+                <pre id="dry-run-output" style="margin-top:16px;font-size:0.85rem;background:rgba(0,0,0,0.3);padding:12px;border-radius:4px;display:none;"></pre>
+            </div>
+        </section>
+
+
+        <!-- WHY THREE TAB -->
+        <section id="tab-why_three" class="tab-panel">
+            <div class="card">
+                <h3>Resonance Match Metrics</h3>
+                <div id="why-three-container"></div>
+            </div>
+        </section>
+    </main>
+
+
+    <aside id="filter-drawer">
+        <h3>Intelligence Filters</h3>
+        <hr style="border-color:var(--border);margin:12px 0;">
+        <label>Industry</label>
+        <select id="filter-industry">
+            <option value="">All</option>
+            <option value="food_service">Food Service</option>
+            <option value="hospitality">Hospitality</option>
+            <option value="care_social">Care & Social</option>
+            <option value="sales">Sales</option>
+            <option value="customer_service">Customer Service</option>
+            <option value="retail_ops">Retail Operations</option>
+        </select>
+        <label>Radius (Miles)</label>
+        <input type="range" id="filter-radius" min="1" max="25" value="5">
+        <label>Minimum Match Score</label>
+        <input type="range" id="filter-match" min="0" max="100" value="60">
+    </aside>
+
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/state.js"></script>
+    <script src="/static/js/tabs.js"></script>
+    <script src="/static/js/filters.js"></script>
+    <script src="/static/js/render_jobs.js"></script>
+    <script src="/static/js/render_opportunities.js"></script>
+    <script src="/static/js/render_history.js"></script>
+    <script src="/static/js/render_overview.js"></script>
+    <script src="/static/js/render_debug_evidence.js"></script>
+    <script src="/static/js/render_providers.js"></script>
+    <script src="/static/js/render_budget.js"></script>
+    <script src="/static/js/render_why_three.js"></script>
+    <script src="/static/js/charts.js"></script>
+</body>
+</html>

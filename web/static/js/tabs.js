@@ -1,1 +1,1 @@
-// S0 scaffold placeholder
+document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.nav-tab').forEach(btn=>{btn.addEventListener('click',()=>{const target=btn.getAttribute('data-tab');AppState.setTab(target)})});document.querySelectorAll('.card[data-target]').forEach(card=>{card.addEventListener('click',()=>{const target=card.getAttribute('data-target');AppState.setTab(target)})});document.getElementById('toggle-filters').addEventListener('click',()=>{document.getElementById('filter-drawer').classList.toggle('open')});AppState.setTab('overview')});
