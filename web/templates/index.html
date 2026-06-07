@@ -26,6 +26,7 @@
         <div id="sidebar-footer">
             <div class="metric-label">System State</div>
             <div id="system-status-badge" class="badge badge-safe">SAFE</div>
+            <div style="font-size:0.65rem; margin-top:4px; opacity:0.7;">Opening this dashboard does not run live discovery.</div>
         </div>
     </aside>
     <main id="main-content">
@@ -34,7 +35,12 @@
             <div style="display:flex;gap:var(--space-sm);align-items:center;">
                 <div id="filter-count-badge" class="badge" style="display:none;background:var(--accent);">0 filters</div>
                 <button id="toggle-filters" class="badge badge-cached" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-drawer">Filters</button>
-                <button id="trigger-discovery-btn" class="badge badge-live" style="cursor:pointer;display:none;">Live Discovery</button>
+                <div id="live-action-guard" style="display:none; align-items:center; gap:var(--space-sm);">
+                    <span style="font-size:0.7rem; color:var(--accent); font-weight:bold;">May use discovery provider budget.</span>
+                    <button id="trigger-discovery-btn" class="badge badge-live" style="cursor:pointer;">Confirm Live Discovery</button>
+                    <button id="cancel-discovery-btn" class="badge" style="cursor:pointer; background:var(--surface2);">Cancel</button>
+                </div>
+                <button id="prepare-discovery-btn" class="badge badge-live" style="cursor:pointer;display:none;">Run Live Discovery</button>
             </div>
         </header>
 
@@ -196,9 +202,34 @@
                     <div class="metric-label">Safe Load Protection</div>
                     <div id="budget-safe-indicator" class="badge badge-safe">ACTIVE</div>
                 </div>
+                <div class="card">
+                    <div class="metric-label">Monthly Usage</div>
+                    <div class="metric-num" id="budget-monthly-usage">-</div>
+                </div>
+                <div class="card">
+                    <div class="metric-label">Estimated Action Cost</div>
+                    <div class="metric-num" id="budget-est-cost">-</div>
+                </div>
             </div>
-            <div class="card">
-                <button id="dry-run-plan-btn" class="badge badge-cached" style="cursor:pointer;padding:12px 24px;">Generate Dry-Run Execution Plan</button>
+            
+            <div class="grid-overview" style="margin-top:var(--space-md);">
+                <div class="card">
+                    <h3>Provider Quota Health</h3>
+                    <div id="provider-budget-list">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Budget Controls</h3>
+                    <div style="display:flex; flex-direction:column; gap:var(--space-md);">
+                        <button id="dry-run-plan-btn" class="badge badge-cached" style="cursor:pointer;padding:12px 24px;">Generate Dry-Run Execution Plan</button>
+                        <div id="dry-run-warning" style="font-size:0.75rem; opacity:0.8;">Safe: Does not spend provider budget.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:var(--space-md);">
+                <h3>Execution Plan / Dry-Run Output</h3>
                 <pre id="dry-run-output" style="margin-top:16px;font-size:0.85rem;background:rgba(0,0,0,0.3);padding:12px;border-radius:4px;display:none;"></pre>
             </div>
         </section>

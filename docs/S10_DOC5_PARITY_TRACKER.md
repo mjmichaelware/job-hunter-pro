@@ -18,35 +18,22 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - API Contract Reality Pass (S10-B) complete. `S10_API_CONTRACT_MATRIX.md` generated.
 - Core Renderer Truth Upgrade (S10-C) complete. All renderers hardened to prevent crashes on placeholder data, utilizing honest empty/unavailable states.
 - No fake data arrays utilized.
+## S10-D & S10-E — Done / committed
+- Advanced filter system complete (S10-D).
+- Evidence drawer system complete (S10-E).
 
-## S10-D — Done / committed
-- Advanced filter system complete.
-- Always visible: search mode, radius, industry, provider, status, sort, min match score.
-- Advanced drawer: walk, transit, rating, review, job type, pay, remote, batch, time, rejection, confidence, place status, app state, duplicate state.
-- UI: Chips with remove, reset all, filter count, toggle, accessibility fixes.
-- Local filtering only.
+## S10-F — Done / committed
+- Budget Reactor and Live Action Guard complete.
+- Budget states: safe, dry_run, live, cached, budget_guarded, blocked, not_configured, partial, failed.
+- Honest rendering for backend gaps ("Unavailable", "Backend Gap").
+- Live action guard with budget warning and explicit confirmation.
+- Safe boot: dashboard opening does not trigger live discovery.
+- Budget panel: quota, monthly usage, estimated cost, provider breakdown.
 
-## S10-E — Done / committed
-- Evidence drawer system complete.
-- Supported fields: raw_title, normalized_title, company, source, provider_id, industry_scores, status, rejection_reasons, dedupe_key, place_resolution, review_score, match_score, budget_cost, query_seed, discovery_mode, timestamp.
-- Morphing transition via View Transitions API.
-- Escape key dismissal and focus management.
-- Honest "Unavailable" rendering for backend gaps.
-
-## Next Phase — Provider UI & Budget Reactor required
-- Provider UI:
-  - discovery providers separated from reasoning providers
-  - configured/missing key state
-  - dormant/live/budget guarded state
-  - last used
-  - allowed actions
-- Budget reactor:
-  - real usage
-  - dry-run ghost burn
-  - live cost warning
-  - blocked over-budget state
-  - historical/cached fallback state
+## Next Phase — Charts & Pipeline required
 - Charts:
+  - funnel
+...
   - funnel
   - provider mix
   - budget usage

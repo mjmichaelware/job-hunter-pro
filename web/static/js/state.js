@@ -1,6 +1,7 @@
 // Imports will be added here once render_overview and render_why_three are created
 const AppState = {
   activeTab: 'overview',
+  budgetState: 'safe',
   filters: {
     // Always visible
     mode: '',
@@ -56,10 +57,40 @@ const AppState = {
   },
   async syncTabUI(tabId) {
     const triggerBtn = document.getElementById('trigger-discovery-btn');
+    const prepareBtn = document.getElementById('prepare-discovery-btn');
+    const guard = document.getElementById('live-action-guard');
+
     if (tabId === 'live_jobs' || tabId === 'budget') {
-      triggerBtn.style.display = 'inline-flex';
+      prepareBtn.style.display = 'inline-flex';
     } else {
-      triggerBtn.style.display = 'none';
+      prepareBtn.style.display = 'none';
+      guard.style.display = 'none';
+    }
+
+    if (prepareBtn && !prepareBtn.onclick) {
+      prepareBtn.onclick = () => {
+        prepareBtn.style.display = 'none';
+        guard.style.display = 'flex';
+      };
+    }
+
+    const cancelBtn = document.getElementById('cancel-discovery-btn');
+    if (cancelBtn && !cancelBtn.onclick) {
+      cancelBtn.onclick = () => {
+        guard.style.display = 'none';
+        prepareBtn.style.display = 'inline-flex';
+      };
+    }
+
+    if (triggerBtn && !triggerBtn.onclick) {
+      triggerBtn.onclick = async () => {
+        console.log('Confirmed live discovery trigger');
+        // This will be handled in later stages, for now just hide the guard
+        guard.style.display = 'none';
+        prepareBtn.style.display = 'inline-flex';
+        
+        if (typeof loadJobs === 'function') await loadJobs({ live: true });
+      };
     }
 
     // Dynamically call rendering functions based on the active tab

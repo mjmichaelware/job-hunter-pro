@@ -10,6 +10,18 @@ const API_URLS = Object.freeze({
   why_three: '/api/why-three'
 });
 
+const BUDGET_STATES = Object.freeze({
+  SAFE: 'safe',
+  DRY_RUN: 'dry_run',
+  LIVE: 'live',
+  CACHED: 'cached',
+  BUDGET_GUARDED: 'budget_guarded',
+  BLOCKED: 'blocked',
+  NOT_CONFIGURED: 'not_configured',
+  PARTIAL: 'partial',
+  FAILED: 'failed'
+});
+
 async function safeFetch(url) {
   try {
     const res = await fetch(url);
