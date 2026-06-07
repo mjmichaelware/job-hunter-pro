@@ -1,0 +1,6 @@
+description = "R4-R6 federated search, multi-industry pipeline, and applications"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R4_R6_BACKEND_CORE_PROMPT.md
+"""

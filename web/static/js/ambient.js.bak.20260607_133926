@@ -4,7 +4,7 @@
 
   if (saveData || reducedMotion) return;
 
-  const canvas = document.getElementById('webgpu-canvas');
+  const canvas = document.getElementById('ambient-canvas');
   if (!canvas || !canvas.getContext) return;
 
   const ctx = canvas.getContext('2d');

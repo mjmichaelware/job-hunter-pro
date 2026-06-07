@@ -1,0 +1,6 @@
+description = "Run R0 repair truth matrix for Job Hunter Pro"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R0_REPAIR_MATRIX_PROMPT.md
+"""

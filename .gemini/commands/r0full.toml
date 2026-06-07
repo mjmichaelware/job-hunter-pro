@@ -1,0 +1,6 @@
+description = "R0 repair matrix requiring all six Job Hunter Pro documents"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R0_ALL_SIX_DOCS_PROMPT.md
+"""

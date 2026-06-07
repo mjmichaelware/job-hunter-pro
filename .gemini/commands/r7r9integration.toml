@@ -1,0 +1,6 @@
+description = "R7-R9 OIDC, reasoning providers, and API/frontend contract"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R7_R9_INTEGRATION_SECURITY_FRONTEND_PROMPT.md
+"""

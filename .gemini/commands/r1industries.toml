@@ -1,0 +1,6 @@
+description = "R1 implement real six-industry taxonomy registry"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R1_INDUSTRIES_PROMPT.md
+"""

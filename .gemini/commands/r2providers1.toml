@@ -1,0 +1,6 @@
+description = "R2 implement The Muse and SerpAPI provider pass 1"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R2_PROVIDER_PASS_1_PROMPT.md
+"""

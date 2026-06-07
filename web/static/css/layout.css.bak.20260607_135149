@@ -3,8 +3,8 @@ body{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden;b
     transition: right 0.5s var(--spring-easing);
 }
 
-#filter-drawer.open, #evidence-drawer.open {
-    right: 0;
+.open {
+    right: 0 !important;
 }
 
 #main-content {

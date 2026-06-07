@@ -1,0 +1,6 @@
+description = "R3 implement remaining search providers"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R3_PROVIDER_PASS_2_PROMPT.md
+"""

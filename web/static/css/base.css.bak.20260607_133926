@@ -58,14 +58,13 @@
   }
 }
 
-body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
-  color-scheme: dark;
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-  }
+font-family: system-ui, -apple-system, sans-serif;
+background-color: var(--bg);
+color: var(--text);
+color-scheme: dark;
+line-height: 1.6;
+-webkit-font-smoothing: antialiased;
+}
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {

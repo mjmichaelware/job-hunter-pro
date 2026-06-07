@@ -1,0 +1,6 @@
+description = "R10B restore api.index live data parity after deploy regression"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R10B_LIVE_PARITY_HOTFIX_PROMPT.md
+"""

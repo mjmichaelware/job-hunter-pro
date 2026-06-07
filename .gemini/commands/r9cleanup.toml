@@ -1,0 +1,6 @@
+description = "R9C clean remaining audit blockers before R10 deploy"
+prompt = """
+Read and execute this prompt exactly:
+
+@docs/GEMINI_R9C_AUDIT_CLEANUP_PROMPT.md
+"""

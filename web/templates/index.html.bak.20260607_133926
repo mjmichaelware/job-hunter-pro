@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+  <canvas id="ambient-canvas" aria-hidden="true"></canvas>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,9 +9,10 @@
     <link rel="manifest" href="/static/manifest.json">
 </head>
 <body>
-    <canvas id="webgpu-canvas" aria-hidden="true"></canvas>
 <div id="app-status" class="sr-only" aria-live="polite" aria-atomic="true">Opening this dashboard does not run live discovery. Offline cached history may be stale.</div>
-<aside id="sidebar">
+
+    <canvas id="webgpu-canvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:-1;"></canvas>
+    <aside id="sidebar">
         <div id="logo-container">
             <div id="logo-badge"></div>
             <span>JOB HUNTER PRO</span>
