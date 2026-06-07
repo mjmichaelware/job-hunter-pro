@@ -36,12 +36,12 @@ function renderOpportunitiesList(data) {
         const rating = UI.safeField(o.rating, 'N/A');
         
         return `
-        <div class="card" style="margin-bottom:var(--space-sm); display:flex; justify-content:space-between; align-items:center;">
-            <div>
+        <div class="card clickable-card" data-id="${UI.escape(o.place_id || o.id || '')}" data-type="opportunity" style="margin-bottom:var(--space-sm); display:flex; justify-content:space-between; align-items:center; cursor: pointer;" role="button" tabindex="0">
+            <div style="pointer-events: none;">
                 <h5 style="font-weight:600;">${name}</h5>
                 <p style="font-size:0.8rem; color:var(--muted);">${addr}</p>
             </div>
-            <div style="text-align:right;">
+            <div style="text-align:right; pointer-events: none;">
                 <span class="badge badge-safe">Rating: ${rating}</span>
             </div>
         </div>`;

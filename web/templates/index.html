@@ -315,6 +315,18 @@
     </aside>
 
 
+    <aside id="evidence-drawer" aria-labelledby="evidence-title" role="dialog" aria-modal="true">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-md);">
+            <h3 id="evidence-title">Evidence Detail</h3>
+            <button id="close-evidence" class="badge" aria-label="Close evidence" style="cursor:pointer; background:var(--surface2);">✕</button>
+        </div>
+        <hr style="border-color:var(--border);margin:12px 0;">
+        <div id="evidence-content" style="overflow-y:auto; flex-grow:1;">
+            <!-- Content injected via JS -->
+        </div>
+    </aside>
+
+
     <script src="/static/js/api.js"></script>
     <script src="/static/js/state.js"></script>
     <script src="/static/js/tabs.js"></script>

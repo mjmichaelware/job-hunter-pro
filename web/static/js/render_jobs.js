@@ -129,8 +129,8 @@ function renderJobsList(data) {
         }
 
         return `
-        <div class="card" style="margin-bottom: var(--space-md); border-left: 4px solid var(--accent-${ind});">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div class="card clickable-card" data-id="${UI.escape(j.job_id || j.id || '')}" data-type="job" style="margin-bottom: var(--space-md); border-left: 4px solid var(--accent-${ind}); cursor: pointer;" role="button" tabindex="0">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; pointer-events: none;">
                 <div>
                     <h4 style="font-size:1.1rem; font-weight:700;">${title}</h4>
                     <p style="color:var(--muted); font-size:0.9rem;">${comp} &bull; ${addr}</p>

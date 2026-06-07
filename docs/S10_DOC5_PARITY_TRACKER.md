@@ -26,24 +26,14 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - UI: Chips with remove, reset all, filter count, toggle, accessibility fixes.
 - Local filtering only.
 
-## S10-E — Evidence Drawer System still required
-- Evidence drawer with all required fields:
-  - raw_title
-  - normalized_title
-  - company
-  - source
-  - provider_id
-  - industry_scores
-  - accepted/rejected status
-  - rejection_reasons
-  - dedupe_key
-  - place_resolution
-  - review_score
-  - match_score
-  - budget_cost
-  - query_seed
-  - discovery_mode
-  - timestamp
+## S10-E — Done / committed
+- Evidence drawer system complete.
+- Supported fields: raw_title, normalized_title, company, source, provider_id, industry_scores, status, rejection_reasons, dedupe_key, place_resolution, review_score, match_score, budget_cost, query_seed, discovery_mode, timestamp.
+- Morphing transition via View Transitions API.
+- Escape key dismissal and focus management.
+- Honest "Unavailable" rendering for backend gaps.
+
+## Next Phase — Provider UI & Budget Reactor required
 - Provider UI:
   - discovery providers separated from reasoning providers
   - configured/missing key state

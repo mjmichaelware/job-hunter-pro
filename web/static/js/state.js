@@ -89,6 +89,29 @@ const AppState = {
         if (typeof loadWhyThree === 'function') await loadWhyThree();
         break;
     }
+  },
+  showEvidence(id, type) {
+    let data = null;
+    const items = UI.getArray(this.cachedData[type === 'job' ? 'jobs' : 'opportunities']);
+    data = items.find(item => (item.job_id || item.place_id || item.id) == id);
+
+    if (data && typeof renderEvidence === 'function') {
+      renderEvidence(data, type);
+      const drawer = document.getElementById('evidence-drawer');
+      
+      const openDrawer = () => {
+        drawer.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        const closeBtn = document.getElementById('close-evidence');
+        if (closeBtn) closeBtn.focus();
+      };
+
+      if (document.startViewTransition) {
+        document.startViewTransition(() => openDrawer());
+      } else {
+        openDrawer();
+      }
+    }
   }
 };
 
