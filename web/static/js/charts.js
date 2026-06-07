@@ -1,10 +1,12 @@
-async function loadCharts(){
-    // This function will be responsible for rendering various charts
-    // based on data from different API endpoints (history, budget, etc.)
-    // For now, it's a placeholder.
-    console.log('loadCharts function called. Chart rendering logic to be implemented.');
+async function loadCharts() {
+    // Check for chart containers and enforce no-data / honest rendering
     const pipelineStream = document.getElementById('pipeline-stream');
+    
     if (pipelineStream) {
-        pipelineStream.innerHTML = '<div class="chart-fallback">Live stream inactive. Connect pipeline to watch ingestion flow.</div>';
+        pipelineStream.innerHTML = '<div class="chart-fallback">Live stream inactive. Server-Sent Events (SSE) endpoint is not currently wired in the backend.</div>';
     }
+
+    // Other charts (like provider mix, budget usage, etc.) would be handled here.
+    // Ensure we do not use Chart.js with fake data.
+    console.log('Charts module loaded: standing by for real chart data.');
 }

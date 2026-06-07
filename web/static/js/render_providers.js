@@ -1,17 +1,43 @@
-async function loadProviders(){const container=document.getElementById('providers-container');container.innerHTML='<div class="chart-fallback">Loading providers data...</div>';
-    // Implementation note: Render providers only from returned backend data based on API_URLS.providers
-    console.log('loadProviders function called.');
+async function loadProviders() {
+    const container = document.getElementById('providers-container');
+    container.innerHTML = '<div class="chart-fallback">Loading providers data...</div>';
+    
     const data = await safeFetch(API_URLS.providers);
-    if (!data || !data.providers || data.providers.length === 0) {
+    
+    if (UI.isPlaceholder(data)) {
+        container.innerHTML = `
+            <div class="chart-fallback">
+                Providers endpoint is currently a placeholder (Backend gap). 
+                Rendering offline/not-configured fallback state.
+            </div>
+            <div class="card" style="opacity: 0.7;">
+                <h4>Discovery APIs</h4>
+                <span class="badge badge-cached">MISSING KEY</span>
+            </div>
+            <div class="card" style="opacity: 0.7;">
+                <h4>Reasoning APIs (LLM)</h4>
+                <span class="badge badge-cached">MISSING KEY</span>
+            </div>
+        `;
+        return;
+    }
+
+    const providers = UI.getArray(data, 'providers', 'data');
+    if (providers.length === 0) {
         container.innerHTML = '<div class="chart-fallback">No providers configured or found.</div>';
         return;
     }
-    // Example rendering:
-    container.innerHTML = data.providers.map(p => `
+
+    container.innerHTML = providers.map(p => {
+        const name = UI.safeField(p.name, 'Unknown Provider');
+        const type = UI.safeField(p.type, 'Unknown Type');
+        const status = UI.safeField(p.status, 'unavailable');
+        
+        return `
         <div class="card">
-            <h4>${p.name}</h4>
-            <p>Type: ${p.type}</p>
-            <span class="badge badge-${p.status}">${p.status.toUpperCase()}</span>
-        </div>
-    `).join('');
+            <h4>${name}</h4>
+            <p>Type: ${type}</p>
+            <span class="badge badge-${status === 'active' || status === 'safe' ? 'safe' : 'cached'}">${status.toUpperCase()}</span>
+        </div>`;
+    }).join('');
 }

@@ -14,7 +14,12 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Known unsafe debug scripts disabled.
 - Changed Python files compile.
 
-## S10-B — Core UI parity still required
+## S10-B & S10-C — Done / committed
+- API Contract Reality Pass (S10-B) complete. `S10_API_CONTRACT_MATRIX.md` generated.
+- Core Renderer Truth Upgrade (S10-C) complete. All renderers hardened to prevent crashes on placeholder data, utilizing honest empty/unavailable states.
+- No fake data arrays utilized.
+
+## S10-D — Core UI parity still required
 - Advanced filter drawer:
   - search mode
   - radius/location
