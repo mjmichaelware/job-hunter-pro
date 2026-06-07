@@ -26,3 +26,22 @@ Read it in full each session via @ before acting. Do not work from memory or sum
 - Do not use whole-directory reads that may truncate. Read specific files or specific globs.
 - Preserve existing working files.
 - Edits must stay inside S10 UI/web scope unless direct inspection proves a tiny compatibility fix is required.
+
+---
+
+# Document 6 — S10 UI/UX Session Masterplan
+
+Authoritative S10 session-control document:
+docs/AI_JOB_AGENT_6_S10_UIUX_SESSION_MASTERPLAN.md
+
+For every S10 UI/UX session, read Document 5 and Document 6 before acting:
+
+- docs/AI_JOB_AGENT_5_UIUX_Handoff.md
+- docs/AI_JOB_AGENT_6_S10_UIUX_SESSION_MASTERPLAN.md
+
+Document 5 is the UI/UX source authority.
+Document 6 is the staged execution/session authority.
+
+Do not claim S10 is complete until Document 6 S10-M passes.
+Do not deploy until S12.
+Do not skip S10 sessions.
