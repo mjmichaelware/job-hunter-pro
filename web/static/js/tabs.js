@@ -2,11 +2,64 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleBtn = document.getElementById('toggle-filters');
   const drawer = document.getElementById('filter-drawer');
   const closeBtn = document.getElementById('close-filters');
+  const backdrop = document.getElementById('drawer-backdrop');
+  const sidebar = document.getElementById('sidebar');
+  const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+  const evidenceDrawer = document.getElementById('evidence-drawer');
+  const closeEvidenceBtn = document.getElementById('close-evidence');
+
+  function toggleBackdrop(show) {
+    if (backdrop) {
+      backdrop.classList.toggle('active', show);
+    }
+  }
+
+  function toggleDrawer(open) {
+    const isOpen = open !== undefined ? open : !drawer.classList.contains('open');
+    drawer.classList.toggle('open', isOpen);
+    toggleBtn.setAttribute('aria-expanded', isOpen);
+    toggleBackdrop(isOpen);
+
+    if (isOpen) {
+      const firstInput = drawer.querySelector('select, input, button:not(#close-filters)');
+      if (firstInput) firstInput.focus();
+    } else {
+      toggleBtn.focus();
+    }
+  }
+
+  function toggleSidebar(open) {
+    const isOpen = open !== undefined ? open : !sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', isOpen);
+    toggleBackdrop(isOpen);
+  }
+
+  function toggleEvidence(open) {
+    const isOpen = open !== undefined ? open : !evidenceDrawer.classList.contains('open');
+    evidenceDrawer.classList.toggle('open', isOpen);
+    evidenceDrawer.setAttribute('aria-hidden', !isOpen);
+    toggleBackdrop(isOpen);
+  }
+
+  if (mobileMenuToggle) {
+    mobileMenuToggle.addEventListener('click', () => toggleSidebar());
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener('click', () => {
+      toggleDrawer(false);
+      toggleSidebar(false);
+      toggleEvidence(false);
+    });
+  }
 
   document.querySelectorAll('.nav-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.getAttribute('data-tab');
       AppState.setTab(target);
+      if (window.innerWidth <= 1024) {
+        toggleSidebar(false);
+      }
     });
   });
 
@@ -32,40 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  function toggleDrawer(open) {
-    const isOpen = open !== undefined ? open : !drawer.classList.contains('open');
-    drawer.classList.toggle('open', isOpen);
-    toggleBtn.setAttribute('aria-expanded', isOpen);
-
-    if (isOpen) {
-      // Move focus to the first interactive element in the drawer
-      const firstInput = drawer.querySelector('select, input, button:not(#close-filters)');
-      if (firstInput) firstInput.focus();
-    } else {
-      // Return focus to the toggle button
-      toggleBtn.focus();
-    }
-  }
-
   toggleBtn.addEventListener('click', () => toggleDrawer());
   if (closeBtn) {
     closeBtn.addEventListener('click', () => toggleDrawer(false));
-  }
-
-  // Evidence Drawer toggle logic
-  const evidenceDrawer = document.getElementById('evidence-drawer');
-  const closeEvidenceBtn = document.getElementById('close-evidence');
-
-  function toggleEvidence(open) {
-    const isOpen = open !== undefined ? open : !evidenceDrawer.classList.contains('open');
-    evidenceDrawer.classList.toggle('open', isOpen);
-    evidenceDrawer.setAttribute('aria-hidden', !isOpen);
-    
-    if (!isOpen) {
-      // Return focus to whatever triggered it? 
-      // For now, let's just use the last focused element if we tracked it, 
-      // but simple focus return to body or main-content is safer if we don't track.
-    }
   }
 
   if (closeEvidenceBtn) {
@@ -100,6 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       if (drawer.classList.contains('open')) {
         toggleDrawer(false);
+      }
+      if (sidebar.classList.contains('open')) {
+        toggleSidebar(false);
       }
       if (evidenceDrawer.classList.contains('open')) {
         toggleEvidence(false);

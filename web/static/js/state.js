@@ -185,8 +185,11 @@ const AppState = {
       const openDrawer = () => {
         renderEvidence(data, type);
         const drawer = document.getElementById('evidence-drawer');
+        const backdrop = document.getElementById('drawer-backdrop');
+        
         drawer.classList.add('open');
         drawer.setAttribute('aria-hidden', 'false');
+        if (backdrop) backdrop.classList.add('active');
         
         const closeBtn = document.getElementById('close-evidence');
         if (closeBtn) closeBtn.focus();
