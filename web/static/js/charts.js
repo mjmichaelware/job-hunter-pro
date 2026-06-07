@@ -197,9 +197,9 @@ async function loadCharts() {
   if (pipelineStream) {
     pipelineStream.innerHTML = `
       <div class="chart-fallback">
-        <div style="font-size: 1.2rem; margin-bottom: 8px;">📡 Readiness: SSE DISCONNECTED</div>
-        <div style="font-size: 0.8rem; opacity: 0.8;">The Pipeline Engine Stream requires a persistent EventSource connection to <code>${API_URLS.pipeline_stream}</code>.</div>
-        <div style="font-size: 0.75rem; margin-top: 12px; font-family: monospace; color: var(--danger);">[404] Endpoint Not Found - Backend SSE logic is not yet deployed.</div>
+        <div style="font-size: 1.2rem; margin-bottom: 8px;">📡 Pipeline stream unavailable</div>
+        <div style="font-size: 0.8rem; opacity: 0.8;">Live pipeline streaming is not enabled in this build. Static dashboard data remains authoritative.</div>
+        <div style="font-size: 0.75rem; margin-top: 12px; font-family: monospace; color: var(--muted);">SSE endpoint is not mounted in this build; no live pipeline connection is attempted.</div>
       </div>
     `;
   }
