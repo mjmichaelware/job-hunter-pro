@@ -1,14 +1,17 @@
-def classify(job: dict) -> dict:
-    # Use full candidate meaning (title + description), not only title keywords.
-    text = f"{job.get('title', '')} {job.get('description', '')}".lower()
-    industry = "unknown"
+from typing import Dict, Any, Optional
+from industries import classify_text
+
+def classify(job: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Classifies a job into one of the registered industries.
+    Uses deterministic text matching from the industries package.
+    """
+    # Combine title and description for classification
+    text = f"{job.get('title', '')} {job.get('description', '')}"
     
-    if "software" in text or "code" in text or "developer" in text:
-        industry = "software"
-    elif "sale" in text or "account executive" in text:
-        industry = "sales"
-    elif "care" in text or "nurse" in text:
-        industry = "healthcare"
-        
-    job["industry"] = industry
+    industry_key = classify_text(text)
+    
+    # Store result in job dict
+    job["industry"] = industry_key or "unknown"
+    
     return job

@@ -12,7 +12,7 @@
 ### Current Live Truth (Audit Counts)
 - STUB_COUNT: 0
 - PLACEHOLDER_ENDPOINT_COUNT: 0
-- RETURN_EMPTY_PROVIDER_COUNT: 7
+- RETURN_EMPTY_PROVIDER_COUNT: 0
 - PROVIDER_STUB_COUNT: 10
 - PASS_COUNT: 5
 - NOT_IMPLEMENTED_COUNT: 0
@@ -27,16 +27,15 @@
 - v5 pipeline logic (core/pipeline)
 - Multi-industry taxonomy (industries/)
 - Provider registry (providers/)
+- Federated search with budget/cache (search/federated.py)
+- Multi-industry pipeline wiring (pipeline/run.py)
+- Application tracker CRUD (api/applications.py)
 
 ### Stubbed / Fake / Placeholder
 - Reasoning providers (return provider_stub)
-- Search providers (return [])
 - OIDC ingest (contains pass stubs)
-- Application tracker (CRUD not live)
 
 ### Built But Unwired
-- Multi-industry execution path
-- Federated search budget guards
 - LLM enrichment pipeline
 
 ### Missing Entirely
@@ -53,17 +52,17 @@
 | R1 | Industries | industries/* | industries/*.py | PYTHONPATH=. python3 tests/test_industries_registry.py | Complete | Low |
 | R2 | Provider Engine P1 | providers/search/* | providers/search/themuse.py, providers/search/serpapi_jobs.py, providers/search/serpapi_organic.py | PYTHONPATH=. python3 tests/test_provider_search_pass1.py | Complete | Medium |
 | R3 | Provider Engine P2 | providers/search/* | providers/search/adzuna.py, providers/search/usajobs.py, providers/search/jooble.py, providers/search/careerjet.py | PYTHONPATH=. python3 tests/test_provider_search_pass2.py | Complete | Medium |
-| R4 | Federated Search | search/* | search/federated.py, search/budget.py | python3 -m api.jobs | Planned | High |
-| R5 | Multi-Industry Pipeline | pipeline/* | pipeline/run.py | python3 pipeline/run.py | Planned | High |
-| R6 | App Tracker | models/application.py | store/applications_repo.py | pytest tests/test_applications.py | Planned | Low |
+| R4 | Federated Search | search/* | search/federated.py, search/budget.py, search/usage_tracker.py, store/cache_repo.py | PYTHONPATH=. python3 tests/test_federated_search.py | Complete | High |
+| R5 | Multi-Industry Pipeline | pipeline/* | pipeline/run.py, pipeline/normalize.py, pipeline/classify.py, pipeline/dedupe.py, pipeline/reject.py, pipeline/score_match.py, pipeline/score_review.py | PYTHONPATH=. python3 tests/test_multi_industry_pipeline.py | Complete | High |
+| R6 | App Tracker | models/application.py | store/applications_repo.py, api/applications.py, app.py | PYTHONPATH=. python3 tests/test_applications_api.py | Complete | Low |
 | R7 | OIDC Ingest | ingest/* | ingest/oidc.py, ingest/scheduler_job.py | python3 ingest/oidc.py | Planned | High |
 | R8 | LLM Enrichment | pipeline/enrich.py | pipeline/run.py | python3 pipeline/run.py | Planned | Medium |
 | R9 | API+Frontend Contract | api/*, web/static/js/* | api/index.py, web/static/js/api.js | curl /api/health | Planned | Medium |
 | R10 | Final Deploy Proof | scripts/deploy.sh | scripts/deploy.sh | scripts/deploy.sh | Planned | High |
 
-**Confirm No Deploy:** No deployment actions were taken during R0-R3 sessions.
-**Confirm No Git Push:** No git push actions were taken during R0-R3 sessions.
-**Confirm No API Spend:** No external job discovery APIs or SerpAPI calls were made during R3 (mocked in tests).
+**Confirm No Deploy:** No deployment actions were taken during R0-R6 sessions.
+**Confirm No Git Push:** No git push actions were taken during R0-R6 sessions.
+**Confirm No API Spend:** No external job discovery APIs or SerpAPI calls were made during R4-R6 (mocked in tests).
 
 ### R1 Proof
 - `python3 -m py_compile industries/*.py tests/test_industries_registry.py` -> Success
@@ -80,3 +79,9 @@
 - `PYTHONPATH=. python3 tests/test_provider_search_pass2.py` -> 6 tests passed (all mocked)
 - `python3 scripts/current_truth_audit.py` -> Audited (RETURN_EMPTY_PROVIDER_COUNT is now 0)
 
+### R4-R6 Proof
+- `python3 -m py_compile search/*.py store/*.py pipeline/*.py api/*.py tests/*.py` -> Success
+- `PYTHONPATH=. python3 tests/test_federated_search.py` -> 3 tests passed
+- `PYTHONPATH=. python3 tests/test_multi_industry_pipeline.py` -> 2 tests passed (6 industries verified)
+- `PYTHONPATH=. python3 tests/test_applications_api.py` -> 2 tests passed (CRUD verified)
+- `python3 scripts/current_truth_audit.py` -> Audited

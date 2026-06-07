@@ -114,122 +114,12 @@ def create_app():
             "ui": "web/templates/index.html",
             "static": "web/static",
             "api_backend": "api.index:app",
-            "placeholder_blueprint_registered": False,
+            "placeholder_blueprint_registered": True,
             "truth": "S10 cockpit is served from web/. Real API traffic is dispatched to api.index.",
         })
 
-    @app.get("/api/providers")
-    @app.get("/api/providers/status")
-    @app.get("/api/search/providers/status")
-    def providers():
-        cfg = real_api.Config
-        serpapi_status = real_api.serpapi_account_status()
-
-        providers = [
-            {
-                "name": "SerpAPI Jobs",
-                "type": "discovery",
-                "configured": _configured(cfg.SERPAPI_KEY),
-                "status": "configured" if _configured(cfg.SERPAPI_KEY) else "missing_key",
-                "live_capable": bool(_configured(cfg.SERPAPI_KEY) and real_api.serpapi_budget_allows_search()),
-                "notes": "Google Jobs retrieval. /api/jobs without dry_run may spend SerpAPI quota.",
-            },
-            {
-                "name": "Google Maps / Places",
-                "type": "geo_places",
-                "configured": _configured(cfg.GOOGLE_MAPS_API_KEY),
-                "status": "configured" if _configured(cfg.GOOGLE_MAPS_API_KEY) else "missing_key",
-                "live_capable": _configured(cfg.GOOGLE_MAPS_API_KEY),
-                "notes": "Geocoding, Places Text Search, Nearby Search, Place Details, Distance Matrix.",
-            },
-            {
-                "name": "Groq",
-                "type": "reasoning",
-                "configured": _configured(cfg.GROQ_API_KEY),
-                "status": "configured" if _configured(cfg.GROQ_API_KEY) else "missing_key",
-                "live_capable": False,
-                "notes": "Key present; api.index does not use this as a job discovery provider.",
-            },
-            {
-                "name": "OpenAI",
-                "type": "reasoning",
-                "configured": _configured(cfg.OPENAI_API_KEY),
-                "status": "configured" if _configured(cfg.OPENAI_API_KEY) else "missing_key",
-                "live_capable": False,
-                "notes": "Key present; api.index does not use this as a job discovery provider.",
-            },
-            {
-                "name": "Gemini",
-                "type": "reasoning",
-                "configured": _configured(cfg.GEMINI_API_KEY),
-                "status": "configured" if _configured(cfg.GEMINI_API_KEY) else "missing_key",
-                "live_capable": False,
-                "notes": "Key present; api.index does not use this as a job discovery provider.",
-            },
-            {
-                "name": "Claude",
-                "type": "reasoning",
-                "configured": _configured(cfg.ANTHROPIC_API_KEY),
-                "status": "configured" if _configured(cfg.ANTHROPIC_API_KEY) else "missing_key",
-                "live_capable": False,
-                "notes": "Key present; api.index does not use this as a job discovery provider.",
-            },
-            {
-                "name": "xAI / Grok",
-                "type": "reasoning",
-                "configured": _configured(cfg.XAI_API_KEY),
-                "status": "configured" if _configured(cfg.XAI_API_KEY) else "missing_key",
-                "live_capable": False,
-                "notes": "Key present; api.index does not use this as a job discovery provider.",
-            },
-        ]
-
-        return jsonify({
-            "status": "ok",
-            "source": "api.index.Config + api.index.serpapi_account_status",
-            "providers": providers,
-            "serpapi": serpapi_status,
-            "budget": {
-                "serpapi_budget_mode": cfg.SERPAPI_BUDGET_MODE,
-                "serpapi_min_searches_left": cfg.SERPAPI_MIN_SEARCHES_LEFT,
-                "max_serp_queries": cfg.MAX_SERP_QUERIES,
-                "max_raw_jobs": cfg.MAX_RAW_JOBS,
-                "max_ai_calls": cfg.MAX_AI_CALLS,
-            },
-            "truth": "LLM keys are reasoning/enrichment only unless a real web-search/grounding provider is implemented.",
-        })
-
-    @app.get("/api/industries")
-    def industries():
-        return jsonify({
-            "status": "ok",
-            "source": "compatibility boundary over current api.index backend",
-            "active_backend_scope": "food_service_only",
-            "industries": [
-                {
-                    "key": "food_service",
-                    "label": "Food Service",
-                    "enabled": True,
-                    "status": "active_in_api_index",
-                    "source": "api.index FOOD_TERMS / ROLE_QUERIES / ROLE_GROUPS",
-                    "role_families": ["front-of-house", "back-of-house", "management", "food-service"],
-                },
-                {"key": "hospitality", "label": "Hospitality", "enabled": False, "status": "planned_not_wired_in_api_index"},
-                {"key": "care_social", "label": "Care & Social Services", "enabled": False, "status": "planned_not_wired_in_api_index"},
-                {"key": "sales", "label": "Sales", "enabled": False, "status": "planned_not_wired_in_api_index"},
-                {"key": "customer_service", "label": "Customer Service", "enabled": False, "status": "planned_not_wired_in_api_index"},
-                {"key": "retail_ops", "label": "Retail Operations", "enabled": False, "status": "planned_not_wired_in_api_index"},
-            ],
-        })
-
-    @app.get("/api/applications")
-    def applications():
-        return jsonify({
-            "status": "ok",
-            "configured": False,
-            "applications": [],
-            "message": "Application tracker storage is not implemented in current api.index. Returning honest empty state.",
-        })
+    from api import api_bp
+    app.register_blueprint(api_bp)
 
     @app.route("/api/ingest", methods=["POST"])
     def ingest():
