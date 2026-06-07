@@ -1,0 +1,834 @@
+﻿AI JOB AGENT 1.0
+Project Checkpoint 1 (ChatGPT)
+
+
+PROJECT HANDOFF: Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform
+
+
+User/project owner: Michael Ware, GitHub repo "mjmichaelware/job-hunter-pro", Google Cloud project "ai-job-agent-498702", Cloud Run service "job-hunter-pro", region "us-central1", current public URL observed repeatedly as "https://job-hunter-pro-5t3wttw2ua-uc.a.run.app". Development environment: Android ARM64 Termux, "gcloud" installed in "~/google-cloud-sdk", repo in "~/job-hunter-pro", Python/Flask app deployed to Cloud Run using Buildpacks/Gunicorn. User strongly prefers single copy-paste terminal blocks, minimal whitespace, no incremental guessing, no fake confidence, and wants computer-science-standard proof loops: inspect local code → compile → commit/push → deploy → health check → endpoint check → logs if failure. Never expose API keys or secrets in chat. User has many API keys stored in Secret Manager, including "GOOGLE_MAPS_API_KEY", "SERPAPI_KEY", "GROQ_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY"; "INGEST_TOKEN" was proposed/created in earlier orchestration work but should be replaced with Scheduler OIDC if scheduler ingestion is implemented.
+
+
+CURRENT CONFIRMED APPLICATION STATE: The project began as a modular Flask/static frontend with CSS files under "static/css" and JS under "static/js/main.js". Backend is "api/index.py". Requirements include Flask, Gunicorn, Requests, python-dotenv; later proposed secure GCS/OIDC version requires "google-auth". Cloud Run is deployed from source with "gcloud run deploy job-hunter-pro --source . --region us-central1 --allow-unauthenticated". Earlier deployment issues included missing "gcloud", Git identity missing, Cloud Run secret permission denial, Python 3.14/protobuf/firestore import boot failures, "/tmp" permission issues in Termux, bad "--set-env-vars" syntax with commas/spaces, 404 for "/api/jobs", and bad regex patch causing redeploy of old code. These were debugged through terminal proof. Confirmed working phase: "ai_places_resolver_v3_definitive_food_fix" successfully deployed and produced 11 accepted jobs from 21 raw jobs and 20 nearby restaurants. Confirmed after v5 feature patch: "/api/health" returned "version:"ai_places_resolver_v5_review_filter_intelligence"", filters/review layer existed, and UI rendered “Live restaurant jobs with AI place resolution, review intelligence, chef/public web research, and flexible filtering.” The user later reported “Service Unavailable again” after attempted orchestration/dashboard changes; no definitive logs were provided after that report. Treat last stable confirmed code as v5 unless repository inspection proves v7/v8/v9 is now deployed. Do not assume latest proposed recovery block ran.
+
+
+CONFIRMED FUNCTIONAL ENDPOINTS AT WORKING v5: "/api/health" returned AI provider flags: "groq_enabled:true", "openai_enabled:true", "gemini_enabled:true", "claude_enabled:true", "grok_xai_enabled:true", "maps_enabled:true", "serpapi_enabled:true", "origin_geocoded:true", "max_radius_miles:2.5", "max_transit_minutes:35", "nearby_restaurant_count:20", and version "ai_places_resolver_v5_review_filter_intelligence". "/api/jobs" returned accepted live jobs from SerpAPI/Google Jobs + Google Places + Maps transit/radius + review intelligence. "/api/debug/jobs" returned accepted/rejected evidence in earlier versions. "/api/research/place" was added in v5 to inspect Place Details. UI filters added: min rating, max radius, max transit, min review score, role, house/front-back-management, keyword. User saw frontend showing only 3 jobs when filters were set roughly: min rating 1.0, max radius 5, max transit 45, min review score 10, all roles, all house. UI text: “Showing 3 jobs. Unfiltered: 3. Raw scanned: 5. Nearby restaurants: 20.” This means later budget/env settings likely limited "MAX_SERP_QUERIES" and "MAX_RAW_JOBS", reducing live job discovery to protect SerpAPI quota.
+
+
+CONFIRMED IMPORTANT BUGS/FINDINGS: 1) Early logic falsely rejected valid food-service jobs as "not_food_service" because the negative keyword list used substring matching, e.g. "rn" could match inside ordinary words; v3 fixed this with exact token/phrase matching. 2) Google Places resolution initially accepted generic AI queries like “Salt Lake City hotel,” causing wrong place resolution, e.g. Grand America seasonal pool server resolved to Quality Inn. v3 improved place resolution by prioritizing explicit company/address queries. 3) Address extraction remained too aggressive and sometimes extracted sentence fragments like “13 has become one of Salt Lake City’s most recognized...” or “90 days of employment. Must...” as addresses. A v4 patch was proposed to make address extraction stricter and dedupe accepted jobs, but no successful confirmation is shown. 4) Duplicate jobs appeared, e.g. Cafe Staff duplicates from multiple sources. Dedupe should use canonical keys: title + normalized restaurant/place/address, not just job ID/source URL. 5) "lru_cache" was used on runtime functions ("geocode", "places_text_search", "place_details", "transit_to", "nearby_opportunities_cached", "serpapi_account_status"), but user correctly identified that Cloud Run instances scale to zero and in-process cache is not durable; it helps only within a warm container and should not be counted as persistent API savings. 6) Proposed scheduler with "INGEST_TOKEN" in URL is insecure because token appears in shell history, process list, Scheduler URI, and GCP console. Correct design is Cloud Scheduler HTTP target with OIDC service account allowed as Cloud Run invoker, and "/api/ingest" verifies OIDC, not URL token. 7) Manual metadata token access for GCS without caching/refresh logic is brittle; correct design uses "google-auth" "AuthorizedSession" so tokens refresh automatically. 8) "raw_job_queries()" calling nearby Places on every cold start causes latency and API usage; better: precomputed opportunity batches, Cloud Storage/DB cache, and scheduler ingestion. 9) SerpAPI budget is critical: user stated only about 200 SerpAPI searches left. Every 5 minutes is impossible if each batch uses SerpAPI. One week = 2016 five-minute intervals, so live SerpAPI every 5 minutes would burn quota instantly. Budget mode should use Google Places and stored history for broad browsing, SerpAPI only for controlled discovery batches.
+
+
+CURRENT USER FRUSTRATION/REQUIREMENTS: User does not want a tiny toy app showing 3–11 jobs. User expects a full application: beautiful landing page, sidebars, menus, tables, charts, graphs, interactive filters, marketing/about/readme sections, explanation of what the app does, persistent data, batch browsing, time-range browsing, and multi-provider intelligence. User wants “work backwards” from desired system, use every useful Google/API feature without waste, and maximize free/low-cost surfaces. User wants strict but flexible filter system: rating 4.5+, radius within 1 mile, max transit, role filters, front-of-house/back-of-house/management, keyword search, chef/public info search, good/bad review consistency scoring, public review aggregation, employer reputation, accepted/rejected debug evidence. User wants many industries later, not just restaurants. He wants the platform expanded into a generalized local opportunity intelligence engine.
+
+
+IMPORTANT CLARIFICATION: SerpAPI is not the only possible search source. It is currently the main structured Google/Google Jobs retrieval layer in the app, but OpenAI, Gemini, Claude, and Grok do not “search” automatically just because keys exist. They must be explicitly called with their search/grounding tools. Normal chat/completions calls reason over provided text; they are not retrieval unless using web-search/grounding tool variants. Desired future design must include a federated discovery router: SerpAPI Google Jobs, SerpAPI organic search, Google Custom Search/Programmable Search if enabled, Gemini Grounding with Google Search/Maps, OpenAI web search, Claude web search, xAI/Grok web/X search, Google Places/Maps, and later direct job-board APIs where legally/technically available. LLMs should not hallucinate listings. They should produce candidate queries, extract entities, classify/dedupe/score, and cite/store source URLs. Discovery providers retrieve; LLM providers validate/enrich/explain.
+
+
+CONFIRMED GOOGLE SERVICES ENABLED/USED OR PROPOSED: Cloud Run, Cloud Build, Artifact Registry, Secret Manager, IAM, IAM Credentials, Service Usage, Cloud Resource Manager, Cloud Scheduler, Cloud Storage, Logging, Monitoring, Places Backend, Geocoding Backend, Distance Matrix Backend, Routes API, Address Validation, Time Zone, Geolocation, Vertex AI, Generative Language/Gemini, Discovery Engine, Natural Language, Document AI, Custom Search, Knowledge Graph Search, Firestore, BigQuery, Cloud SQL, Pub/Sub, Cloud Tasks, Workflows, Eventarc. Not all are currently integrated in code. Enabled APIs do not create features automatically. Required architecture must choose appropriate service per function. Use free/low-cost first; avoid enabling/using expensive surfaces unnecessarily without budget guard.
+
+
+CURRENT/RECENT DESIRED ARCHITECTURE: A persistent, budget-aware, multi-provider, multi-industry job/opportunity intelligence system. Frontend should not run live SerpAPI on page load. Homepage should load cached/stored history and Google Places opportunities first. Live discovery should require explicit user action or scheduled ingestion. Batch ingestion should run on a schedule appropriate to quota: currently every 6 hours or manual, not every 5 minutes. Persistent storage should store timestamped batches with accepted jobs, rejected jobs, rejection reasons, raw counts, query counts, provider usage, source URLs, resolved places, review scores, filters, created timestamp, and version. Low-cost implementation can use Cloud Storage JSON batch archives. Stronger scalable version should use Cloud SQL Postgres or Firestore/BigQuery depending query needs. User explicitly wants ability to inspect “batch from 2:00,” “batch from 2:35,” “all batches between 2–4 PM,” “last 24 hours,” accepted/rejected/all, role filters, rating/radius/transit filters. Needed endpoints: "/api/health", "/api/usage", "/api/jobs?dry_run=1", "/api/jobs", "/api/debug/jobs", "/api/opportunities", "/api/research/place", "/api/ingest", "/api/batches", "/api/batch/<id>", "/api/history?hours=24", "/api/history?from=&to=", "/api/search/providers/status", "/api/search/federated", "/api/why-three". "/api/ingest" should be protected by Cloud Scheduler OIDC or authenticated internal service call, not plaintext token.
+
+
+DATA MODEL NEEDED FOR FULL VERSION: Core entities: "providers", "search_runs", "batches", "queries", "raw_results", "jobs", "job_snapshots", "places", "place_snapshots", "reviews", "review_sources", "people"/"chefs", "companies", "rejections", "scores", "applications", "user_filters", "industry_taxonomies", "api_usage". If using Cloud Storage JSON initially, one batch JSON should include: "batch_schema", "created_at_utc", "source_version", "trigger" manual/scheduler, "budget", "providers_used", "rules", "counts", "queries", "accepted", "rejected", "opportunities", "errors". If using SQL, suggested tables: "job_batches(id, created_at, trigger, version, provider_budget_json, counts_json)", "search_queries(id,batch_id,provider,query,industry,location,cost_units,status)", "raw_results(id,batch_id,provider,source_url,title,snippet,payload_json,hash)", "places(id,place_id,name,address,lat,lng,types_json,latest_rating,latest_review_count)", "jobs(id,canonical_key,title,company,industry,role_family,role_tags_json,latest_source_url,place_id)", "job_snapshots(id,job_id,batch_id,salary,description,commute_seconds,radius_miles,match_score,review_score,consistency_score,risk_level,payload_json)", "rejections(id,batch_id,raw_result_id,job_id,reason,details_json)", "reviews(id,place_id,provider,rating,text,author,relative_time,source_url,created_at)", "people(id,name,type,source_url,place_id,evidence_json)", "applications(id,job_id,status,notes,created_at,updated_at)", "api_usage(id,provider,endpoint,estimated_cost_units,timestamp,success,error)".
+
+
+CURRENT JOB PIPELINE THAT WORKED: "SerpAPI Google Jobs query" → "normalize job" → "resolve actual restaurant/place using explicit address or Google Places Text Search" → "Google Maps Distance Matrix transit from 28 E Bryan Ave" → "radius using geocode/haversine" → "food-service phrase match" → "rejection reasons" → "review intelligence from Google Place Details" → "role tags/role family" → "filter UI" → display. This must be preserved but made persistent and federated. Rejection reasons should include: "not_food_service", "no_exact_restaurant_address_resolved", "radius_unavailable", "outside_radius_Xmi", "transit_unavailable", "transit_too_long_Xmin", "duplicate", "provider_error", "budget_guard", "missing_source_url", "ambiguous_place_resolution". Accepted/rejected should always be inspectable.
+
+
+JOB/PLACE SEARCH ISSUE: User expects hundreds of results. Reality: strict job listings within 2.5 miles + under 35 minutes + food only + limited SerpAPI budget can produce only a handful of accepted live jobs at one moment. To provide hundreds of useful opportunities, system must distinguish “job listings” from “restaurant opportunities.” "Google Places opportunities" can show many nearby restaurants/businesses that may not have job posts. "SerpAPI/other search providers" discover actual postings. "History/batches" accumulate over time. UI should explain this clearly: “live accepted jobs” vs “nearby hiring targets/opportunities” vs “historical discovered jobs” vs “rejected/needs review.” For current low SerpAPI budget, homepage should show opportunities and history first, not burn live search.
+
+
+SERPAPI BUDGET POLICY: User has about 200 searches left and wants app usable for a week without charges. Safe policy: 4 SerpAPI searches per scheduled batch × 4 batches/day = 16/day × 7 days = 112/week, leaving manual/search overhead. If only 200 searches remain, avoid live discovery on every page load. Add "/api/usage" to call SerpAPI Account API and show "total_searches_left", monthly usage, plan info. SerpAPI Account API should be called sparingly but does not count as search quota. Add guard: if "total_searches_left <= SERPAPI_MIN_SEARCHES_LEFT" (e.g. 40), skip SerpAPI discovery and return budget-guard status. Disable SerpAPI-powered public review web search by default. Use Google Place Details reviews first. Public web review search should be manual or cached.
+
+
+MULTI-PROVIDER SEARCH EXPANSION NEEDED: Create provider router with provider status and budgets. Proposed endpoints: "/api/search/providers/status", "/api/search/serpapi/jobs", "/api/search/serpapi/web", "/api/search/google-custom", "/api/search/gemini-grounded", "/api/search/openai-web", "/api/search/claude-web", "/api/search/grok-web", "/api/search/federated". Each provider returns normalized "SearchResult": "provider", "query", "title", "url", "snippet", "published_date", "source_name", "raw_json", "confidence", "cost_units". Federated search dedupes by URL/title/company/place, resolves places, classifies industry/role, and stores evidence. OpenAI/Gemini/Claude/Grok should be used as search providers only if implemented with their web-search/grounding APIs/tools; otherwise use them for reasoning only. Each provider must have on/off env flags: "ENABLE_OPENAI_WEB_SEARCH", "ENABLE_GEMINI_GROUNDING", "ENABLE_CLAUDE_WEB_SEARCH", "ENABLE_XAI_WEB_SEARCH", "ENABLE_SERPAPI_GOOGLE_JOBS", "ENABLE_SERPAPI_ORGANIC", "ENABLE_GOOGLE_CUSTOM_SEARCH". Add quotas: max calls per batch per provider. Add "/api/usage" provider table.
+
+
+LLM REASONING EXPANSION NEEDED: Use LLMs for extraction/classification after retrieval: extract actual business name, chain vs local, role category, front/back/management, salary, schedule, required permits, warning signs, chef names, hiring manager names, application link, likely duplicate, confidence score, source evidence. Use multi-model consensus only for uncertain cases; do not call every LLM on every job. Cheap deterministic first, then one model, then multi-model fallback. Example policy: deterministic extraction; if place ambiguous or source snippet weak, call Gemini/OpenAI; if disagreement, call Claude/Grok as validator; store model outputs with provider and confidence. Avoid hallucination: all claims need source evidence or mark "unknown".
+
+
+REVIEW/REPUTATION INTELLIGENCE NEEDED: For each place/job, gather Google Place rating, review count, sample reviews, business status, website, Google Maps URL, phone, price level, types. If budget allows, gather public web review snippets from SerpAPI organic or other web search providers: Reddit, Yelp, Glassdoor, Indeed, news, local articles, restaurant pages, chef bios. Score "review_score", "consistency_score", "risk_level", "positive_signal_count", "negative_signal_count", and "evidence_links". Current v5 simplistic score often gave 100/100 for low-ish ratings like IHOP 3.7 because formula overweighted volume/positive terms; scoring should be improved: rating baseline should cap score; low ratings should not score perfect. Suggested formula: rating component 60%, review count confidence 15%, sentiment 15%, consistency 10%; add penalties for negative workplace terms and unresolved contradictions. Include “review score is not moral truth; it is a heuristic from public data.”
+
+
+UI/UX TARGET: Full app, not raw API page. Required layout: landing/hero section with “Job Hunter Pro” branding and clear explanation, side navigation, dashboard stats cards, filter panel, job cards, opportunities table, history/batches table, charts/graphs, provider usage/budget panel, debug/rejection panel, about/readme/documentation, “how it works” pipeline diagram. User wants polished CSS, interactive, visually appealing. Existing CSS has dark glassmorphism, gradient hero, sidebar, cards, tables, responsive mobile, reveal animations, tags, buttons. Continue from this but make it production-clean. UI should separate tabs/views: Overview, Live Jobs, Opportunities, History, Debug, Providers, Budget, About. Do not automatically burn SerpAPI on load. Show prominent “Live Discovery spends quota” warning. Default load should call "/api/usage", "/api/opportunities", "/api/history", "/api/jobs?dry_run=1". Button “Run live discovery” calls "/api/jobs". Button “Run ingest batch” should not exist publicly unless authenticated. Charts desired: count by role, count by source provider, accepted vs rejected, jobs over time, ratings distribution, radius distribution, commute distribution, API budget remaining. Without frontend chart library, use CSS/HTML bars initially; later add lightweight Chart.js if acceptable. Tables should be sortable/filterable client-side or via backend query params.
+
+
+FILTERS NEEDED NOW AND FUTURE: Current filters: min rating, max radius, max transit, min review score, role, house, keyword. Add: industry, source provider, salary min/max, posted date, schedule, full/part time, experience required, permits required, risk level, review score range, consistency score range, apply source, place open/closed, business status, chain/local, distance walking/transit/driving, “has apply link,” “has exact address,” “has chef info,” “new since last batch,” “seen in N batches,” “rejected reason,” “show accepted/rejected/all.” Time filters: latest batch, specific batch ID, last N hours/days, from/to ISO datetime, local timezone display America/Denver. For multi-industry expansion, add industry filter with taxonomies.
+
+
+MULTI-INDUSTRY EXPANSION: The current restaurant-specific system should generalize into an opportunity intelligence platform. Industries to support later: restaurants/food service, hospitality/hotels, behavioral health/peer support, recovery centers, social services/case management, customer service/call centers, retail, warehouses/logistics, delivery/driver if user wants, entry-level healthcare support, education/youth support, trades/apprenticeships, tech/admin. Each industry needs role taxonomy, location-resolution strategy, source strategy, risk/review sources, licensing/credential requirements, and filters. Example restaurant roles: server, busser, host, dishwasher, cook, prep cook, line cook, kitchen supervisor, barista, food runner, steward. Behavioral health roles: peer support specialist, case aide, behavioral health technician, recovery coach, residential support, intake coordinator; filters: credential required  CPSS/BHT/RBT/CPR, background restrictions, population served, shift type, proximity/transit. Customer service roles: inbound support, sales agent, call center, scheduling coordinator; filters: remote/hybrid, base pay, commission, hours. Hospitality roles: hotel restaurant, banquet server, steward, front desk, housekeeping, pool server, F&B. Each industry must have source queries, keywords, negative keywords, and role-family rules. Do not force restaurant-only filtering once multi-industry mode is enabled.
+
+
+SECURITY/DEPLOYMENT REQUIREMENTS: Keep secrets in Secret Manager only. Never print or paste secret values. Do not put ingest tokens in URLs. Use Cloud Scheduler OIDC with service account job-hunter-scheduler@ai-job-agent-498702.iam.gserviceaccount.com granted roles/run.invoker on Cloud Run service. /api/ingest should verify OIDC audience equals Cloud Run URL and email equals Scheduler SA. Public app can remain unauthenticated, but mutation/scheduled endpoints should be authenticated. Use google-auth for GCS access, not raw metadata tokens. Give Cloud Run runtime SA storage object admin for batch bucket. Keep .gcloudignore excluding .git, venv, env files, debug scripts, pycache. Use gunicorn api.index:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0. After every deploy: curl /api/health; if not HTTP 200, read gcloud run services logs read job-hunter-pro --region us-central1 --limit 160. Use python -m py_compile api/index.py before deploy.
+
+
+KNOWN CLOUD RUN ISSUE PATTERN: “Service Unavailable” after a deploy means container boot or worker failed. Common causes in this project: syntax error, missing dependency, import error, incompatible Google library, worker timeout, memory issue, route patch duplication, undefined function after patch, raw metadata/GCS auth issue. Recovery standard: do not guess. Run logs; inspect traceback; compile locally; grep version marker; deploy clean known-good single-file backend if patch stack is corrupted. Avoid repeated regex patches into a large file unless markers are reliable. The clean-v8/v9 overwrite approach was suggested but not confirmed. Next AI should first inspect current api/index.py, requirements.txt, Procfile, static/js/main.js, static/css/main.css, run python -m py_compile api/index.py, then check Cloud Run logs and /api/health.
+
+
+IMMEDIATE NEXT STEPS RECOMMENDED: 1) Stop live UI from burning SerpAPI; ensure homepage default only calls usage/opportunities/history/dry-run. 2) Diagnose current Service Unavailable: run Cloud Run logs, local compile, inspect current deployed version. 3) Restore a clean stable backend, preferably v9 design: secure OIDC ingest, google-auth GCS, budget-aware SerpAPI, opportunities/history endpoints. 4) Confirm health HTTP 200 and version marker. 5) Confirm /api/jobs?dry_run=1 does not spend SerpAPI. 6) Confirm /api/opportunities?max_radius=5 returns many Google Places opportunities. 7) Confirm /api/batches and /api/history?hours=24 work, even if empty. 8) Create/update Cloud Scheduler with OIDC, not token URL. 9) Run one manual OIDC-authenticated scheduler job or use gcloud scheduler jobs run job-hunter-ingest --location us-central1; confirm a batch stored. 10) Add multi-provider search router and provider status. 11) Add persistent SQL/Firestore/BigQuery if Cloud Storage JSON becomes insufficient. 12) Improve review score formula. 13) Build polished frontend with dashboard tabs and no quota-burning default calls. 14) Expand taxonomy to multi-industry.
+
+
+WHAT THE NEXT AI SHOULD NOT DO: Do not claim SerpAPI is the only search option. Do not claim LLM APIs search unless their search/grounding endpoints are implemented. Do not run live /api/jobs repeatedly while user has limited SerpAPI quota. Do not put secrets in command output, Scheduler URLs, or code. Do not keep telling user conceptual steps without terminal blocks when they ask for implementation. Do not patch blindly without compile/grep/proof. Do not use excessive whitespace or long apologies. Do not promise “definitive” without log/health proof. Do not confuse Groq and Grok: GROQ_API_KEY is Groq model hosting; XAI_API_KEY is xAI/Grok.
+
+
+DESIRED FINAL PRODUCT STATEMENT: Job Hunter Pro should become a persistent AI-orchestrated opportunity intelligence dashboard. It should continuously and budget-safely discover local jobs/opportunities across many industries, resolve exact physical locations, score commute/radius from the user’s origin, enrich with Google Places ratings/reviews and public web evidence, use LLMs for extraction/classification/consensus, store timestamped batches, show history/time ranges, expose accepted and rejected evidence, and provide a beautiful interactive UI with filters, tables, charts, side navigation, provider budgets, and research panels. The system should separate “job listings” from “nearby opportunities,” because Google Places can reveal hundreds of possible targets while SerpAPI and web-search providers reveal actual posted openings. The app should maximize useful free/low-cost Google services and use paid/quota APIs only under explicit budget controls.﻿AI JOB AGENT 2.0
+Project Blueprint (2) (Claude)
+
+
+PROJECT BLUEPRINT: Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform
+
+
+# Job Hunter Pro — Decoupled Architecture Blueprint
+Derived by working backwards from the handoff doc, the six industry routes,
+the provider list, the UI tabs, budget rules, and Michael's resume.
+2026 standard: single responsibility per file. One concern, one module.
+
+
+Cloud Run service `job-hunter-pro` / project `ai-job-agent-498702` / region us-central1.
+Firestore Native (default DB, nam5, free tier) confirmed live.
+
+
+================================================================================
+TOP-LEVEL TREE
+================================================================================
+
+
+job-hunter-pro/
+├── app.py                      # gunicorn entrypoint: builds Flask app via factory, mounts blueprints
+├── requirements.txt
+├── Procfile                    # web: gunicorn app:app ...
+├── .gcloudignore
+├── env/
+│   └── cloudrun.env.yaml       # non-secret env (radius, transit, budgets); secrets stay in Secret Manager
+│
+├── core/                       # cross-cutting, no business logic
+│   ├── __init__.py
+│   ├── config.py               # Config from env. NO secret values in code.
+│   ├── logging.py              # logger setup
+│   ├── clock.py                # utc_now_iso, America/Denver display helpers
+│   ├── http.py                 # shared requests.Session, timeouts, retry
+│   └── errors.py               # typed exceptions (ProviderError, BudgetGuard, ResolveError)
+│
+├── geo/                        # location/distance — Google Maps family, one file per API
+│   ├── __init__.py
+│   ├── geocode.py              # address -> lat/lng (Geocoding API)
+│   ├── places_text.py          # Places Text Search (resolve a named business)
+│   ├── places_nearby.py        # Places Nearby (opportunity discovery, paginated)
+│   ├── place_details.py        # Place Details (rating, reviews, status, phone, url)
+│   ├── distance.py             # Distance Matrix (transit/walk/drive seconds)
+│   └── haversine.py            # pure-math radius fallback
+│
+├── industries/                 # ONE FILE PER INDUSTRY ROUTE (decoupled taxonomy)
+│   ├── __init__.py             # registry: load all routes, lookup by key
+│   ├── base.py                 # IndustryRoute dataclass: queries, match, negative, role_families, resolution_strategy, credentials, background_sensitive
+│   ├── food_service.py
+│   ├── hospitality.py
+│   ├── sales.py
+│   ├── customer_service.py
+│   ├── care_social.py
+│   └── retail_ops.py
+│
+├── providers/                  # ONE FILE PER SOURCE (decoupled fetchers)
+│   ├── __init__.py             # registry + available/dormant (key presence) logic
+│   ├── base.py                 # Provider ABC -> returns list[SearchResult]; declares required keys
+│   ├── search/                 # STRUCTURED JOB DISCOVERY (retrieval)
+│   │   ├── __init__.py
+│   │   ├── serpapi_jobs.py
+│   │   ├── serpapi_organic.py  # budget-gated, off by default
+│   │   ├── adzuna.py
+│   │   ├── usajobs.py
+│   │   ├── jooble.py
+│   │   ├── themuse.py          # no key -> available day one
+│   │   └── careerjet.py
+│   └── reasoning/              # LLM ENRICHMENT ONLY — never discovery, never hallucinated listings
+│       ├── __init__.py
+│       ├── base.py             # LLMProvider ABC: classify(), extract(), score() over GIVEN text
+│       ├── openai.py
+│       ├── gemini.py
+│       ├── claude.py
+│       ├── groq.py
+│       └── xai.py
+│
+├── models/                     # data shapes (dataclasses) — the ~18 entities from the doc
+│   ├── __init__.py
+│   ├── search_result.py        # provider,query,title,url,snippet,published,source,raw,confidence,cost_units
+│   ├── job.py                  # canonical_key,title,company,industry,role_family,role_tags,source_url,place_id
+│   ├── job_snapshot.py         # salary,description,commute_seconds,radius_miles,match,review_score,consistency,risk
+│   ├── place.py                # place_id,name,address,lat,lng,types,rating,review_count
+│   ├── review.py
+│   ├── rejection.py            # reason + details
+│   ├── batch.py                # schema,created_at,trigger,budget,providers_used,rules,counts
+│   ├── application.py          # job_id,status,notes,timestamps (Michael's own apply tracker)
+│   ├── api_usage.py
+│   └── enums.py                # RoleFamily, RiskLevel, Trigger, RejectionReason
+│
+├── store/                      # PERSISTENCE — Firestore Native, one repository per collection
+│   ├── __init__.py
+│   ├── firestore_client.py     # google-cloud-firestore client (default DB)
+│   ├── repository.py           # generic CRUD base
+│   ├── jobs_repo.py
+│   ├── batches_repo.py
+│   ├── places_repo.py
+│   ├── reviews_repo.py
+│   ├── applications_repo.py
+│   ├── usage_repo.py
+│   └── cache_repo.py           # persistent query cache: hash(query+provider+industry) -> results+ts. STOPS re-spend.
+│
+├── pipeline/                   # the proven funnel, preserved + made multi-industry
+│   ├── __init__.py
+│   ├── normalize.py            # raw provider result -> Job + JobSnapshot
+│   ├── resolve_place.py        # explicit address OR places_text; ambiguity -> rejection reason
+│   ├── score_match.py          # match score
+│   ├── score_review.py         # FIXED formula: rating 60% / count 15% / sentiment 15% / consistency 10%, caps low ratings
+│   ├── classify.py             # industry + role_family (deterministic first, LLM fallback)
+│   ├── dedupe.py               # canonical key: title + normalized place + address
+│   ├── reject.py               # all rejection reasons from the doc
+│   └── run.py                  # orchestrates one full discovery run -> Batch
+│
+├── search/                     # federation + budget
+│   ├── __init__.py
+│   ├── federated.py            # fan out across AVAILABLE search providers, merge, dedupe
+│   ├── budget.py               # SerpAPI guard (min_searches_left), per-provider quotas, cache-first
+│   └── usage_tracker.py        # record api_usage per call
+│
+├── ingest/
+│   ├── __init__.py
+│   ├── oidc.py                 # verify Cloud Scheduler OIDC (audience + SA email). No URL tokens.
+│   └── scheduler_job.py        # the /api/ingest handler logic -> run pipeline -> store batch
+│
+├── api/                        # HTTP layer — thin blueprints, NO business logic
+│   ├── __init__.py
+│   ├── health.py               # /api/health
+│   ├── usage.py                # /api/usage  (+ SerpAPI account, never counts as search)
+│   ├── jobs.py                 # /api/jobs, /api/jobs?dry_run=1, /api/debug/jobs
+│   ├── opportunities.py        # /api/opportunities (Places, no SerpAPI)
+│   ├── history.py              # /api/history?hours= , ?from=&to= , /api/batches, /api/batch/<id>
+│   ├── research.py             # /api/research/place
+│   ├── providers.py            # /api/providers/status, /api/search/federated
+│   ├── industries.py           # /api/industries, /api/search?industry=
+│   ├── applications.py         # /api/applications  (apply tracker CRUD)
+│   ├── ingest.py               # /api/ingest  (OIDC-protected)
+│   └── why_three.py            # /api/why-three  (budget explainer)
+│
+├── web/                        # FRONTEND — decoupled per tab/concern
+│   ├── templates/
+│   │   ├── index.html          # shell + sidebar + tab mount points
+│   │   └── partials/           # about, how-it-works pipeline diagram
+│   └── static/
+│       ├── css/
+│       │   ├── base.css        # tokens, dark glassmorphism
+│       │   ├── layout.css      # sidebar, shell, grid
+│       │   ├── components.css  # cards, tables, tags, buttons
+│       │   └── charts.css      # CSS/HTML bar charts
+│       └── js/
+│           ├── api.js          # fetch wrappers
+│           ├── state.js        # filter state, no localStorage
+│           ├── filters.js      # ~25 filters incl industry, provider, salary, date, risk
+│           ├── render_jobs.js
+│           ├── render_opportunities.js
+│           ├── render_history.js
+│           ├── render_providers.js
+│           ├── render_budget.js
+│           ├── charts.js       # role/provider/accepted-rejected/over-time/ratings/radius/commute/budget
+│           └── tabs.js         # Overview, Live Jobs, Opportunities, History, Debug, Providers, Budget, About
+│
+├── scripts/                    # operator helpers (terminal, no hardcoded secrets)
+│   ├── add_key.sh              # add_key.sh PROVIDER VALUE -> Secret Manager + redeploy revision
+│   ├── deploy.sh               # build + deploy + health proof + log-on-fail
+│   ├── seed_industries.sh      # push industry routes into Firestore
+│   └── make_scheduler_oidc.sh  # create SA, grant run.invoker, create OIDC scheduler job
+│
+└── tests/                      # compile + unit proof per module
+    ├── test_providers_registry.py
+    ├── test_industries_registry.py
+    ├── test_pipeline_reject.py
+    ├── test_score_review.py
+    └── test_dedupe.py
+
+
+================================================================================
+FIRESTORE COLLECTIONS (Native mode, default DB)
+================================================================================
+batches/{batch_id}            created_at, trigger, version, budget, providers_used, rules, counts
+jobs/{canonical_key}          title, company, industry, role_family, role_tags, source_url, place_id, first_seen, last_seen, seen_count
+jobs/{key}/snapshots/{ts}     salary, description, commute_seconds, radius_miles, match, review_score, consistency, risk, batch_id
+places/{place_id}             name, address, lat, lng, types, rating, review_count, business_status, updated_at
+places/{place_id}/reviews/{id} rating, text, author, relative_time, source_url
+rejections/{batch_id}/{id}    reason, details, raw_title, raw_company
+applications/{job_id}         status, notes, created_at, updated_at   (Michael's tracker)
+api_usage/{ts}                provider, endpoint, cost_units, success, error
+industries/{key}              label, queries, match, negative, role_families, credentials, background_sensitive
+cache/{hash}                  provider, query, industry, results, created_at, ttl   (stops API re-spend)
+
+
+================================================================================
+KEY DECOUPLING RULES
+================================================================================
+1. api/ files contain ZERO business logic — they call pipeline/, search/, store/.
+2. Each provider is one file, behind providers/base.py ABC. Adding a source = one new file + registry line.
+3. Each industry is one file, behind industries/base.py. Adding an industry = one new file.
+4. LLMs live in providers/reasoning/ and can ONLY classify/extract/score over text we pass them.
+   They are physically separated from providers/search/ so they can never be wired as discovery. No hallucinated jobs.
+5. store/ is the only layer that talks to Firestore. Swap to Postgres later = change store/ only.
+6. budget.py is consulted before every paid call; cache_repo checked before every external fetch.
+7. Nothing hardcodes a secret. Providers read keys at runtime and go dormant if absent.
+
+
+================================================================================
+BUILD ORDER (each step compiles/tests before the next; nothing deploys until late)
+================================================================================
+S1  core/ + models/            (pure, no I/O) -> unit-compilable immediately
+S2  industries/ (6 routes)     + tests/test_industries_registry
+S3  providers/ registry + base + them_use + adzuna + serpapi  + tests
+S4  geo/ (Maps family)
+S5  store/ (Firestore repos + cache_repo)
+S6  pipeline/ (normalize->resolve->score->classify->dedupe->reject->run) + tests
+S7  search/ (federated + budget + usage)
+S8  ingest/ (oidc + scheduler handler)
+S9  api/ (thin blueprints) + app.py factory  -> FIRST local boot check
+S10 web/ (css, js, templates, charts, 8 tabs)
+S11 scripts/ (add_key, deploy, scheduler_oidc, seed)
+S12 deploy via scripts/deploy.sh -> health 200 -> endpoint proofs -> scheduler -> one stored batch﻿AI JOB AGENT 3.0
+Project AIM (3) (Gemini)
+
+
+PROJECT AIM: Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform / Fully Autonomous, Predictive, Multi-Industry Intelligence, Headless Execution, and Edge-Inference P2P Swarm Engine
+
+
+
+
+### [HANDOFF_DOC_4.0::OMEGA_CONGLOMERATE_BLUEPRINT]
+**TARGET_STATE:** Fully Autonomous, Predictive, Multi-Industry Intelligence, Headless Execution, and Edge-Inference P2P Swarm Engine.
+**RUNTIME_ENVIRONMENT:** Android ARM64 Termux cross-compiling to Google Cloud Run (ai-job-agent-498702) us-central1.
+**SYSTEM_THESIS:** Absolute integration of all prior documentation, zero-loss data synthesis, strict sub-module decoupling, and terminal-state autonomous workflows spanning deterministic discovery, stochastic prediction, and headless application payload delivery.
+### I. OMNI-TOPOLOGY: THE DECOUPLED FILESYSTEM MATRIX
+Combining the 110-file standard with Eventarc, WASM, and CRDT sub-systems. Single responsibility enforced at the byte level.
+```text
+job-hunter-pro/
+├── app.py                      # Flask factory + SSE streaming context + CRDT peer signaling router
+├── requirements.txt            # gunicorn, requests, opentelemetry, neo4j, playwright, numpy, scipy
+[span_5](start_span)├── .gcloudignore               # Excludes .env, TRASH_BIN/, .git/[span_5](end_span)
+├── env/
+│   └── cloudrun.env.yaml       # Radius, transit, max_searches. [span_6](start_span)NO SECRETS[span_6](end_span).
+├── core/
+│   ├── config.py               # Env injest. FinOps kill-switch state tracking.
+[span_7](start_span)│   ├── clock.py                # America/Denver TZ scaling + NTP sync[span_7](end_span).
+│   ├── tracing.py              # OpenTelemetry traceparent injection.
+[span_8](start_span)│   └── errors.py               # ProviderError, BudgetGuard, ResolveError, ATSDOMMutationError[span_8](end_span).
+├── geo/
+[span_9](start_span)│   ├── geocode.py              # Google Maps Geocoding API integration[span_9](end_span).
+[span_10](start_span)│   ├── places_text.py          # Solves the "Grand America" vs "Quality Inn" resolution bug[span_10](end_span).
+[span_11](start_span)│   ├── places_nearby.py        # Broad geospatial opportunity sweeping (zero job-post dependency)[span_11](end_span).
+[span_12](start_span)│   ├── distance.py             # Distance Matrix (transit < 35m boundaries)[span_12](end_span).
+[span_13](start_span)│   └── haversine.py            # Geometric pure-math fallback executing $d = 2R \arcsin(...)$[span_13](end_span).
+├── industries/
+[span_14](start_span)│   ├── base.py                 # Protocol Classes for role_families, licensing, deterministic_whitelist_regex[span_14](end_span).
+[span_15](start_span)│   ├── food_service.py         # Fixes 'rn' substring bug via strict token boundaries[span_15](end_span).
+[span_16](start_span)│   ├── care_social.py          # BHT/CPSS licensing enforcement[span_16](end_span).
+[span_17](start_span)│   ├── hospitality.py          # Hotel F&B, banquet operations[span_17](end_span).
+[span_18](start_span)│   └── customer_service.py     # Remote/hybrid boundary checking[span_18](end_span).
+├── providers/
+│   ├── registry.py             # Dormancy logic. [span_19](start_span)If SecretManager key drops, provider suspends[span_19](end_span).
+│   ├── search/                 # STRICT RETRIEVAL ONLY. [span_20](start_span)No LLM hallucination[span_20](end_span).
+│   │   ├── serpapi_jobs.py     # Google Jobs backend. [span_21](start_span)[span_22](start_span)[span_23](start_span)Gated by min_searches_left constraints[span_21](end_span)[span_22](end_span)[span_23](end_span).
+│   │   ├── utah_open_data.py   # Regional JSON scraping (zero API cost).
+│   │   ├── asn_dark_funnel.py  # BGP ASN Shodan enterprise staging portal discovery.
+[span_24](start_span)│   │   └── themuse.py          # Keyless day-one retrieval fallback[span_24](end_span).
+[span_25](start_span)[span_26](start_span)│   └── reasoning/              # PHYSICAL SEPARATION: Classification/Extraction/Consensus only[span_25](end_span)[span_26](end_span).
+│       ├── wasm_edge.py        # Local SLM WebGPU execution (zero cost).
+[span_27](start_span)│       ├── gemini.py           # Grounding web-search capabilities enabled[span_27](end_span).
+[span_28](start_span)│       ├── claude.py           # Multi-model consensus validator for ambiguous JSON payloads[span_28](end_span).
+[span_29](start_span)[span_30](start_span)│       └── groq.py             # High-speed deterministic extraction[span_29](end_span)[span_30](end_span).
+├── store/                      # PERSISTENCE MULTI-MODAL LAYER
+[span_31](start_span)│   ├── firestore_client.py     # Native Mode NoSQL transaction handlers[span_31](end_span).
+│   ├── graph_rag_client.py     # Neo4j AuraDB bipartite topology integration.
+│   ├── cache_repo.py           # Hash(query+provider+industry) ttl caching. [span_32](start_span)Stops re-spend[span_32](end_span).
+│   └── crdt_sync.py            # Yjs/Automerge peer-to-peer state merging across Termux/Desktop nodes.
+├── pipeline/
+│   ├── stochastic_forecast.py  # Continuous-time Markov chain execution for attrition prediction.
+[span_33](start_span)[span_34](start_span)│   ├── resolve_place.py        # Strict addressing matching; triggers 'ambiguous_place_resolution' rejection[span_33](end_span)[span_34](end_span).
+[span_35](start_span)│   ├── score_review.py         # Capped heuristic: 60% rating, 15% count, 15% sentiment, 10% consistency[span_35](end_span).
+[span_36](start_span)[span_37](start_span)│   ├── dedupe.py               # SHA-256 canonical hashing (title + normalized_address)[span_36](end_span)[span_37](end_span).
+[span_38](start_span)[span_39](start_span)│   └── reject.py               # 11-point rejection schema tracking[span_38](end_span)[span_39](end_span).
+├── execution/
+│   └── headless_agent.py       # Playwright Stealth DOM mutation. Injects Michael Ware's resume payload automatically.
+├── search/
+[span_40](start_span)[span_41](start_span)│   ├── federated.py            # Fan-out router across 14 Tier 1/2/3 endpoints[span_40](end_span)[span_41](end_span).
+[span_42](start_span)[span_43](start_span)│   └── budget.py               # SerpAPI quota guard limits (112/week cap execution)[span_42](end_span)[span_43](end_span).
+├── ingest/
+│   ├── oidc.py                 # Strictly verifies Audience + Service Account Email. [span_44](start_span)[span_45](start_span)Replaces plaintext URLs[span_44](end_span)[span_45](end_span).
+│   └── async_eventarc.py       # Decoupled ingestion listening for Firestore document.v1.written events.
+[span_46](start_span)├── api/                        # HTTP BOUNDARY (NO BUSINESS LOGIC)[span_46](end_span)
+[span_47](start_span)│   ├── jobs.py                 # /api/jobs, /api/jobs?dry_run=1[span_47](end_span).
+[span_48](start_span)[span_49](start_span)│   ├── opportunities.py        # /api/opportunities (Places text sweep)[span_48](end_span)[span_49](end_span).
+[span_50](start_span)[span_51](start_span)│   ├── history.py              # /api/history?hours=24, /api/batches[span_50](end_span)[span_51](end_span).
+│   └── streaming.py            # Server-Sent Events (SSE) `/api/pipeline/stream/<id>`.
+├── web/
+[span_52](start_span)[span_53](start_span)│   ├── templates/index.html    # Decoupled UI tabs: Overview, Live Jobs, History, Debug, Budget[span_52](end_span)[span_53](end_span).
+│   └── static/
+[span_54](start_span)[span_55](start_span)│       ├── css/base.css        # Dark glassmorphism, gradient hero UI tokens[span_54](end_span)[span_55](end_span).
+[span_56](start_span)[span_57](start_span)│       └── js/                 # API fetch wrappers, IndexedDB storage sync, CSS HTML bar charts[span_56](end_span)[span_57](end_span).
+└── scripts/
+    [span_58](start_span)├── deploy_gcp.sh           # Secret Manager injection + Cloud Build CI/CD compilation[span_58](end_span).
+    [span_59](start_span)[span_60](start_span)└── scheduler_oidc.sh       # Provisions job-hunter-scheduler IAM roles[span_59](end_span)[span_60](end_span).
+
+
+```
+### II. OMNI-DATA ONTOLOGY: PYDANTIC V2 & GRAPH SCHEMA SYNTHESIS
+A convergence of flat NoSQL analytics tracking and Neo4j Graph relationships for hyper-accurate matching.
+#### 1. Pydantic V2 Unified State Models
+```python
+from pydantic import BaseModel, Field, HttpUrl, confloat, conint
+from typing import Dict, List, Optional, Literal
+from datetime import datetime
+
+
+class MasterJobSnapshot(BaseModel):
+    canonical_key: str = Field(..., min_length=64, max_length=64, description="SHA-256 Title+Address dedupe hash")
+    place_id: str = Field(..., description="Google Places strict entity resolution anchor")
+    industry_taxonomy: Literal["food_service", "hospitality", "care_social", "sales", "customer_service"]
+    source_url: HttpUrl = Field(..., description="Target for Headless Playwright ATS injection")
+    commute_matrix_seconds: conint(ge=0) = Field(...)
+    haversine_radius_miles: confloat(ge=0.0) = Field(...)
+    review_heuristic_score: confloat(ge=0.0, le=100.0) = Field(...) # Based on 60/15/15/10 logic
+    rejection_flags: List[str] = Field(default_factory=list) # e.g., 'not_food_service', 'outside_radius_Xmi'
+    ats_application_status: Literal["PREDICTED", "DISCOVERED", "INJECTED", "INTERVIEWING", "REJECTED"]
+    telemetry: Dict[str, Any] = Field(default_factory=dict, description="OpenTelemetry cross-span traces")
+
+
+class BatchIngestionPayload(BaseModel):
+    batch_id: str = Field(...)
+    trigger_type: Literal["MANUAL", "SCHEDULER_OIDC", "CRDT_PEER_SYNC"]
+    budget_state: float = Field(..., description="Remaining API quota units post-execution")
+    metrics: Dict[str, int] = Field(default_factory=dict, description="Counts of raw, accepted, rejected, opportunities")
+
+
+```
+#### 2. Neo4j Cypher Bipartite Topology (The Michael Ware Resonance Match)
+Replaces substring rn bugs with multi-dimensional cognitive mapping.
+```cypher
+// Candidate Capability Schema Injection
+CREATE (mw:Candidate {name: "Michael Ware", origin_lat: 40.71, origin_lng: -111.89})
+CREATE (sk1:Skill {name: "De-escalation", tier: "Advanced"})
+CREATE (sk2:Skill {name: "Inventory Expo Flow", tier: "Expert"})
+CREATE (sk3:Language {code: "RU", level: "B1"})
+
+
+CREATE (mw)-[:POSSESSES {weight: 0.95, evidence_source: "August Sun LLC 2025"}]->(sk1)
+CREATE (mw)-[:POSSESSES {weight: 0.99, evidence_source: "Liberty Park Amusement 2026"}]->(sk2)
+
+
+// Intelligent Opportunity Resolution Routing
+MATCH (c:Candidate)-[p:POSSESSES]->(s:Skill)<-[r:REQUIRES {criticality: "HIGH"}]-(o:Opportunity)
+MATCH (o)-[:LOCATED_IN]->(geo:Zone)
+[span_63](start_span)WHERE point.distance(c.location, geo.centroid) < 4023.36 // 2.5 miles max_radius[span_63](end_span)
+RETURN o.canonical_key, SUM(p.weight * r.weight) AS Neural_Resonance_Score
+ORDER BY Neural_Resonance_Score DESC LIMIT 10;
+
+
+```
+### III. STOCHASTIC PREDICTION & PURE-MATH FALLBACKS
+Replacing reactive quota-burning with mathematical models that execute before jobs hit aggregators.
+#### 1. Continuous-Time Markov Chain Attrition Engine
+Estimates probability of imminent vacancies at targets (e.g., Urban Hill, Carson Kitchen) by calculating the transition matrix P(t):
+Where generator matrix Q processes sentiment volatility and recent review drop-offs. If \mathbb{P}(\text{Vacancy} \mid 14\text{ Days}) > 0.85, the state flips to PREDICTED, triggering proactive headless operations.
+#### 2. Haversine Spatial Geometric Engine
+When Maps Distance Matrix fails or rate-limits, execute zero-cost pure-math great-circle distance d:
+
+
+*Where R = 3958.8 miles. Ensures distance boundaries remain intact during API budget locks.*
+### IV. DECENTRALIZED DATA INGESTION & PIPELINE TOPOLOGY
+A three-tier firewall against API exhaustion, utilizing Cloud Tasks, Eventarc, and P2P Swarming.
+#### 1. CRDT Peer-to-Peer Swarm Discovery (Zero-IP Ban)
+Job Hunter Pro UI running on Termux and Chrome simultaneously negotiate WebRTC DataChannels.
+ * **Node A (Mobile):** Scrapes Utah Workforce UI JSON.
+ * **Node B (Desktop):** Scrapes Adzuna API.
+ * **Yjs/Automerge:** Interlocks the JSON trees client-side. The merged, deduplicated payload is pushed to Firestore Native in a single batch, reducing cloud write operations by 70%.
+#### 2. Eventarc & Cloud Tasks Rate-Limiting
+```bash
+# 1. [span_68](start_span)Throttle outward aggregator discovery to protect SerpApi quotas (min_searches_left guard)[span_68](end_span).
+gcloud tasks queues create serpapi-federated-guard --max-dispatches-per-second=2 --max-attempts=2
+
+
+# 2. Asynchronous Firestore pipeline enrichment trigger (Decouples API response from LLM inference).
+gcloud eventarc triggers create async-enrichment-loop \
+    --location="us-central1" \
+    --destination-run-service="job-hunter-pro" \
+    --destination-run-path="/api/pipeline/async-enrich" \
+    --event-filters="type=google.cloud.firestore.document.v1.written" \
+    --event-filters="document=jobs/{canonical_key}" \
+    --service-account="job-hunter-scheduler@ai-job-agent-498702.iam.gserviceaccount.com"
+
+
+```
+### V. HEADLESS AUTONOMOUS DOM INJECTION (PLAYWRIGHT)
+Bridges the gap between discovery and application tracking.
+ * **Trigger:** Evaluates JobSnapshot. If match_score >= 90, risk_level == LOW, and industry == "food_service" or "hospitality".
+ * **Action:** Spawns Chromium headless. Evaluates Shadow DOM. Bypasses changing CSS classes by mapping elements via aria-label or GPT-4o-Vision structural mapping.
+ * **Injection:** Fills contact (michaelware433@yahoo.com), phone ((801)-386-4047), and injects standardized C2 English/Spanish resume text automatically. Simulates human mouse entropy (jitter curves) to bypass CAPTCHA.
+### VI. MULTI-INDUSTRY DETERMINISTIC TAXONOMY MATRIX
+Expansion beyond restaurants into general local intelligence. Deterministic extraction runs *before* LLMs to save compute.
+| Industry Key | Whitelist Regex | Phrase Elimination (Negative) | License / Background Requirement |
+|---|---|---|---|
+| food_service | \bcook\b|\bchef\b|\bdishwasher\b|\bexpo\b | \bregistered\s+nurse\b|\bcnc\b | Utah Food Handler, ServSafe |
+| hospitality | \bhotel\b|\bfront\s+desk\b|\bbanquet\b | \bwarehouse\b|\bphlebotomist\b | SLED Background Clearance |
+| care_social | \bdsp\b|\bpeer\s+support\b|\bcase\s+aide\b | \bculinary\b|\bretail\s+cashier\b | BHT/CPSS, CPR, UT Dept Health Clear |
+| customer_service | \binbound\b|\bhelp\s+desk\b|\bticket\b | \bheavy\s+lifting\b|\bfield\b | Remote/Hybrid internet capability check |
+### VII. FINOPS KILL-SWITCH & CLOUD ARMOR
+Absolute protection of GCP billing and stored Secret Manager payloads (SerpApi, Groq, Google Maps, OpenAI, Anthropic, Supabase).
+**1. Pub/Sub Billing Kill Switch:**
+Subscribes to Google Billing events. If consumption_ratio >= 0.95, it updates the Cloud Run service labels to finops-status: suspended and injects HARD_BUDGET_LOCK=True into Firestore configuration. System instantly downgrades to cached IndexedDB historical browsing only.
+**2. Cloud Armor Layer-7 Security Policy:**
+```json
+{
+  "securityPolicy": {
+    "name": "job-hunter-shield",
+    "rules": [
+      {
+        "priority": 1000,
+        "action": "throttle",
+        "rateLimitOptions": { "rateLimitThreshold": { "count": 60, "intervalSec": 60 } },
+        "description": "Global endpoint rate-limit protection."
+      },
+      {
+        "priority": 2000,
+        "action": "deny(403)",
+        "match": {
+          "expr": { "expression": "request.path.matches('/api/ingest') && !inIpRange(request.headers['x-forwarded-for'][0], '10.0.0.0/8')" }
+        },
+        [span_80](start_span)"description": "Strict isolation of /api/ingest to internal OIDC Scheduler execution[span_80](end_span)."
+      }
+    ]
+  }
+}
+
+
+```
+### VIII. MASTER CONGLOMERATE DEPLOYMENT BLOCK (GCP CLI)
+The definitive, single terminal command block replacing all prior deployment scripts. Executes Secret Manager injection, builds images, applies IAM OIDC roles, sets Firestore indexes, provisions Tasks/Eventarc, and mounts the Cloud Run API.
+```bash
+#!/usr/bin/env bash
+set -eo pipefail
+
+
+export PROJECT_ID="ai-job-agent-498702"
+export REGION="us-central1"
+export SERVICE="job-hunter-pro"
+export SA_EMAIL="job-hunter-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
+
+
+cd ~/job-hunter-pro
+gcloud config set project $PROJECT_ID
+
+
+# 1. [span_83](start_span)Provision IAM & Firestore Native[span_83](end_span)
+gcloud iam service-accounts create job-hunter-scheduler --display-name="OIDC Scheduler" || true
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:${SA_EMAIL}" --role="roles/datastore.user"
+gcloud firestore databases create --location=$REGION --type=firestore-native || true
+
+
+# 2. [span_84](start_span)Secret Manager Binding (Assumes keys already stored securely via gcloud secrets create)[span_84](end_span)
+for SECRET in SERPAPI_KEY GROQ_API_KEY GOOGLE_MAPS_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY DATABASE_URL; do
+    gcloud secrets add-iam-policy-binding $SECRET \
+        --member="serviceAccount:${SA_EMAIL}" \
+        --role="roles/secretmanager.secretAccessor" || true
+done
+
+
+# 3. [span_85](start_span)Deploy Multi-Threaded Gunicorn Flask Image to Cloud Run[span_85](end_span)
+gcloud run deploy $SERVICE \
+    --source . \
+    --region $REGION \
+    --service-account=$SA_EMAIL \
+    --set-secrets="SERPAPI_KEY=SERPAPI_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest" \
+    --allow-unauthenticated \
+    --cpu=2 --memory=1Gi --concurrency=80 \
+    --timeout=300
+
+
+# 4. [span_86](start_span)Bind OIDC Invoker Rights[span_86](end_span)
+gcloud run services add-iam-policy-binding $SERVICE \
+    --region=$REGION \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="roles/run.invoker"
+
+
+# 5. [span_87](start_span)Cloud Scheduler Job (Runs 4 times/day for 16 SerpAPI limit)[span_87](end_span)
+gcloud scheduler jobs create http ingest-batch-trigger \
+    --location=$REGION \
+    --schedule="0 */6 * * *" \
+    --uri="https://${SERVICE}-5t3wttw2ua-uc.a.run.app/api/ingest" \
+    --http-method=POST \
+    --oidc-service-account-email=$SA_EMAIL \
+    --oidc-audience="https://${SERVICE}-5t3wttw2ua-uc.a.run.app/api/ingest" || true
+
+
+# 6. [span_88](start_span)Post-Deploy Automated Health Integrity Check[span_88](end_span)
+curl -f -s -X GET "https://${SERVICE}-5t3wttw2ua-uc.a.run.app/api/health"
+
+
+```﻿AI JOB AGENT 4.0
+Project Plan (4) (CLAUDE)
+
+
+PROJECT AIM: Job Hunter Pro /  Fully Autonomous, Predictive, Multi-Industry Intelligence, Headless Execution, and Edge-Inference P2P Swarm Engine
+
+
+
+
+# AI JOB AGENT 4.0
+## Definitive Convergence Workflow & Project Timeline
+### Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform
+
+
+Purpose: combine docs 1.0 (handoff), 2.0 (blueprint), and 3.0 (omega) into one authoritative workflow. State exactly how much work exists, in what order, with countable data points so progress is measurable, not guesswork.
+
+
+---
+
+
+## Section A — Reconciliation of the Three Prior Documents
+
+
+**1.0 (ChatGPT handoff):** the FACTS. Project IDs, confirmed bugs, the proven v3/v5 pipeline, budget reality (~155 SerpAPI searches left), security requirements, the full ~18-entity data model, multi-industry intent. Ground truth.
+
+
+**2.0 (Claude blueprint):** the STRUCTURE. ~118-file decoupled tree, Firestore Native, one-file-per-provider, one-file-per-industry, thin HTTP layer. Adopted as the spine.
+
+
+**3.0 (Gemini omega):** the AMBITION. Adds Neo4j graph matching, Playwright headless auto-apply, CRDT P2P swarm, WASM edge inference, Eventarc, Cloud Armor, Markov attrition prediction, Pydantic v2.
+
+
+Verdict on 3.0: most of it is deferred, and one piece is actively discouraged. Details:
+
+
+- **Playwright auto-apply / DOM injection / CAPTCHA evasion:** high legal and Terms-of-Service risk, breaks constantly, can get your real accounts banned, and submits applications you never reviewed. EXCLUDED from core. Apply tracking stays MANUAL — you click apply, the app records the status.
+- **Neo4j AuraDB:** a second database to run and pay for; Firestore covers the matching need now. DEFERRED.
+- **CRDT / WebRTC P2P swarm and WASM edge inference:** distributed-systems machinery built for a fleet of devices. You are one person in SLC. DEFERRED.
+- **Cloud Armor, Eventarc, Cloud Tasks, OpenTelemetry:** production-hardening for large-scale, under-attack traffic. DEFERRED until the core ships.
+
+
+Kept from 3.0: Pydantic v2 models (stronger validation than plain dataclasses), the deterministic-regex-before-LLM discipline, and a simple budget guard (not full Pub/Sub billing infrastructure).
+
+
+Converged target: build the 2.0 structure, grounded in 1.0 facts, with 3.0's validation discipline. Ship a real, persistent, multi-industry, multi-provider, budget-safe dashboard. Add 3.0's exotic layers only after the core is live and proven.
+
+
+---
+
+
+## Section B — Hard Data Points (counted from the blueprint, not estimated)
+
+
+### Files
+- **Total files in target build:** 118
+- **Total directories:** 20
+- **Files needing real code written:** 102
+  - Python logic modules: 81
+  - JavaScript modules: 10
+  - CSS files: 4
+  - HTML templates: 3
+  - Shell scripts: 4
+- **Trivial files (markers/config):** 16 (12 one-line `__init__.py` + 4 config/meta)
+- **Test files (subset of the 81 .py):** 5
+- **Already written + compile-verified:** 2 (taxonomy + provider-registry logic; fold into industries/ and providers/)
+
+
+### Dependencies (libraries to install)
+- **Core runtime libraries (required):** 6
+  `Flask, gunicorn, requests, python-dotenv, google-auth, google-cloud-firestore`
+- **Optional LLM SDKs (deferrable):** 4 (openai, google-generativeai, anthropic, groq — xAI via raw HTTP; all can be deferred)
+- **Excluded bloat from 3.0:** 5+ (neo4j, playwright, opentelemetry, numpy, scipy) — not in core build
+
+
+### API Keys
+- **Already in Secret Manager:** 7
+  `GOOGLE_MAPS_API_KEY, SERPAPI_KEY, GROQ_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY, XAI_API_KEY`
+- **New keys to create (all free):** 6 values, from 4 signups
+  - Adzuna → ADZUNA_APP_ID + ADZUNA_APP_KEY (1 signup, instant)
+  - USAJobs → USAJOBS_API_KEY + USAJOBS_EMAIL (1 signup, instant)
+  - Jooble → JOOBLE_API_KEY (1 request)
+  - Careerjet → CAREERJET_AFFID (1 request)
+- **Providers needing NO key:** 1 (The Muse — works day one, proves the multi-source pipeline before other keys arrive)
+
+
+### Google Cloud
+- **Services to enable:** 14
+- **Firestore collections (incl subcollections):** 10
+- **Service accounts to create:** 1 (job-hunter-scheduler, OIDC invoker)
+- **Cloud Scheduler jobs:** 1 (every 6h, OIDC-authenticated)
+- **GCS buckets:** 1 (batch archive — already exists)
+- **Firestore database:** 1 (already created: Native mode, free tier)
+
+
+### Surface Area
+- **HTTP endpoints:** 17
+- **Industry routes:** 6 (food_service, hospitality, sales, customer_service, care_social, retail_ops)
+- **Search providers:** 7 (incl 2 SerpAPI engines)
+- **LLM enrichment providers:** 5 (reasoning only, never discovery)
+
+
+---
+
+
+## Section C — Definitive Build Order (12 stages)
+
+
+Principle from 1.0: inspect → compile → commit → deploy → health → endpoint → logs. Nothing deploys until S12. Each stage is its own paste-once block with a proof step.
+
+
+1. **S0 SCAFFOLD** — create all 118 files + 20 dirs as empty/marker files; compile the package. Proof: tree matches blueprint, package compiles. (118 files created, 0 logic.)
+2. **S1 core/ + models/** — pure code, no I/O. config, logging, clock, http, errors + 10 Pydantic models + enums. Proof: import all, instantiate each model. (~16 files.)
+3. **S2 industries/** — 6 route files + base + registry, seeded from resume. Proof: registry loads 6 routes. (8 files.)
+4. **S3 providers/** — registry + base ABC + 7 search fetchers + 5 reasoning stubs; dormant/available key logic. Proof: with 0 keys only The Muse is available. (~22 files.)
+5. **S4 geo/** — 6 Maps-family files. Proof: geocode origin returns lat/lng. (7 files.)
+6. **S5 store/** — Firestore client + generic repo + 7 collection repos + cache_repo. Proof: write+read a test doc per collection; cache hit/miss works. (10 files.)
+7. **S6 pipeline/** — normalize, resolve_place, score_match, score_review (fixed formula), classify, dedupe, reject, run. Proof: unit tests for reject reasons, low-rating cap, dedupe key. (9 files.)
+8. **S7 search/** — federated fan-out + budget guard + usage tracker. Proof: federated run with only The Muse returns normalized results; guard blocks SerpAPI below threshold. (4 files.)
+9. **S8 ingest/** — OIDC verify + scheduler handler. Proof: handler builds a batch; OIDC rejects unsigned requests. (3 files.)
+10. **S9 api/ + app.py** — 12 thin blueprints + Flask factory. FIRST LOCAL BOOT. Proof: compiles, gunicorn boots, /api/health 200 locally. (13 files.)
+11. **S10 web/** — index.html shell + 4 css + 10 js (8 tabs, ~25 filters, 8 charts). Proof: tabs switch, default load calls usage/opps/history/dry-run (no SerpAPI burn). (~17 files.)
+12. **S11 scripts/** — add_key.sh, deploy.sh, seed_industries.sh, make_scheduler_oidc.sh. Proof: add_key.sh dry-run prints correct gcloud command, no secret echoed. (4 files.)
+13. **S12 DEPLOY** — deploy.sh → Cloud Run → /api/health 200 → endpoint proofs → create scheduler OIDC → run one batch → confirm stored in Firestore.
+
+
+Post-core (optional, only after S12 proven): P1 add the 4 free provider keys → 4 more live sources. P2 wire LLM enrichment using existing 5 keys. P3 resume-tailoring feature. P4 the 3.0 items if still wanted (Pydantic already in; Neo4j next; auto-apply still discouraged). P5 Markov prediction beta (see Section H).
+
+
+---
+
+
+## Section D — Dependency Graph (what blocks what)
+
+
+```
+core/models  ->  everything (no deps itself)
+industries   ->  needs models
+providers    ->  needs models, core
+geo          ->  needs core, GOOGLE_MAPS_API_KEY
+store        ->  needs models, google-cloud-firestore, Firestore DB (ready)
+pipeline     ->  needs models, geo, industries, store
+search       ->  needs providers, pipeline, store, budget
+ingest       ->  needs search, store, OIDC
+api          ->  needs all above (thin layer on top)
+web          ->  needs api endpoints to exist
+deploy       ->  needs everything
+```
+
+
+- **Critical path:** models → store → pipeline → search → api → deploy
+- **Parallelizable:** geo, industries, providers, web can be built alongside the critical path
+
+
+---
+
+
+## Section E — Realistic Timeline (in build sessions)
+
+
+A session = one focused paste-block plus its proof cycle. Each file is small (single responsibility), but 102 need real code.
+
+
+- S0 scaffold: 1 session
+- S1 core+models: 1–2 sessions
+- S2 industries: 1 session
+- S3 providers: 2 sessions
+- S4 geo: 1 session
+- S5 store: 2 sessions
+- S6 pipeline: 2 sessions
+- S7 search: 1–2 sessions
+- S8 ingest: 1 session
+- S9 api+app: 2 sessions
+- S10 web: 3 sessions (largest UI surface)
+- S11 scripts: 1 session
+- S12 deploy+prove: 1–2 sessions
+
+
+**CORE TOTAL: ~19–22 sessions to a deployed, working dashboard**
+**Post-core additions: +3–5 sessions**
+
+
+This is honest. It is not one terminal command. A 102-file decoupled app is real engineering. The payoff of the structure: each session is small, compiles in isolation, and a failure in one file never cascades — exactly the discipline 1.0 demanded after the Service Unavailable history.
+
+
+---
+
+
+## Section F — Your Manual Actions vs What Is Automated
+
+
+### Your manual actions (cannot be automated)
+1. Register 4 free accounts → 6 key values (Adzuna, USAJobs, Jooble, Careerjet). Anytime before S12/P1; The Muse needs nothing, so the pipeline proves first.
+2. Paste each build block into Termux and paste the proof output back.
+3. Decide post-core scope (Neo4j? resume tool? Markov beta? — your call after core ships).
+
+
+### Automated / handled in blocks
+- All 14 Google services enabled via one gcloud block.
+- Service account + OIDC + scheduler created via script.
+- All 118 files created and filled across staged blocks.
+- add_key.sh drops any key in later with one command — no code redeploy, no hardcoded secret; the provider wakes on next revision.
+
+
+---
+
+
+## Section G — Definition of Done (proof the core is complete)
+
+
+All of the following must be true:
+
+
+- [ ] /api/health returns 200 with version marker
+- [ ] /api/jobs?dry_run=1 spends ZERO SerpAPI searches
+- [ ] /api/opportunities returns many Google Places results (no SerpAPI)
+- [ ] /api/industries lists all 6 routes
+- [ ] /api/providers/status shows available/dormant per key correctly
+- [ ] /api/search?industry=retail returns retail-routed results
+- [ ] one scheduled OIDC batch runs and is stored in Firestore
+- [ ] /api/history?hours=24 returns that stored batch
+- [ ] /api/batches lists it; /api/batch/<id> fetches it
+- [ ] UI: 8 tabs switch; default load does NOT burn SerpAPI; charts render
+- [ ] cache: repeating a query within TTL does NOT re-spend the API
+- [ ] no secret value ever printed to terminal, logs, or code
+
+
+---
+
+
+## Section H — Markov Vacancy-Prediction (Beta Sub-Feature, Loosely Coupled)
+
+
+Kept by request, but deliberately walled off from the core so it can never destabilize discovery. This is the one 3.0 idea with real upside for a job seeker: estimate which nearby restaurants are likely to have an opening SOON, before a listing is posted, and surface them as leads to apply to proactively.
+
+
+### What it does
+For each known place (from the Google Places opportunities you already collect), it watches signals over time and produces a single probability: likelihood of a near-term vacancy. High-probability places become proactive leads — distinct from real posted jobs, clearly labeled as predictions.
+
+
+### Honest signals it can use (no fabrication)
+- Review velocity changes — a sudden drop in review frequency or rating can correlate with staff churn.
+- Hiring-history cadence — if a place posted openings repeatedly in past batches, it likely turns over on a rhythm.
+- Recency since last seen hiring — time elapsed since a place last had a listing in your stored batches.
+- Business status / new-location signals from Place Details.
+
+
+### How it stays loosely coupled (the engineering rule)
+- Lives in its own module: `predict/markov.py`, plus its own collection `predictions/{place_id}`. It imports FROM store/ and geo/ but nothing in the core imports it back.
+- Its own endpoint: `/api/predictions`. The core dashboard works fully whether or not this endpoint or module exists.
+- Its own UI tab labeled clearly as Beta / Predicted Leads — never mixed into Live Jobs or accepted results.
+- Off by default behind a flag (`ENABLE_PREDICTIONS`). Flip it on only after the core is proven.
+- Honest framing in the UI: predictions are heuristics from public signals, not facts. A predicted lead means "worth proactively contacting," not "a job exists."
+
+
+### Where it slots in the timeline
+Post-core, as P5 — after S12 and after the real free providers are added. It depends on having accumulated batch history (so the signals have data to work from), which only exists once the core has been running and storing batches for a while. Building it earlier would mean predicting from an empty dataset.
+
+
+### What it must never do
+- Never auto-apply to a predicted lead (same reason auto-apply is excluded everywhere).
+- Never present a prediction as a real listing or inflate it into the accepted-jobs count.
+- Never consume SerpAPI to generate predictions — it runs on already-stored data and free signals.
+
+
+---

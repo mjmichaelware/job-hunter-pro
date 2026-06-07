@@ -1,0 +1,218 @@
+﻿AI JOB AGENT 2.0
+Project Blueprint (2) (Claude)
+
+
+PROJECT BLUEPRINT: Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform
+
+
+# Job Hunter Pro — Decoupled Architecture Blueprint
+Derived by working backwards from the handoff doc, the six industry routes,
+the provider list, the UI tabs, budget rules, and Michael's resume.
+2026 standard: single responsibility per file. One concern, one module.
+
+
+Cloud Run service `job-hunter-pro` / project `ai-job-agent-498702` / region us-central1.
+Firestore Native (default DB, nam5, free tier) confirmed live.
+
+
+================================================================================
+TOP-LEVEL TREE
+================================================================================
+
+
+job-hunter-pro/
+├── app.py                      # gunicorn entrypoint: builds Flask app via factory, mounts blueprints
+├── requirements.txt
+├── Procfile                    # web: gunicorn app:app ...
+├── .gcloudignore
+├── env/
+│   └── cloudrun.env.yaml       # non-secret env (radius, transit, budgets); secrets stay in Secret Manager
+│
+├── core/                       # cross-cutting, no business logic
+│   ├── __init__.py
+│   ├── config.py               # Config from env. NO secret values in code.
+│   ├── logging.py              # logger setup
+│   ├── clock.py                # utc_now_iso, America/Denver display helpers
+│   ├── http.py                 # shared requests.Session, timeouts, retry
+│   └── errors.py               # typed exceptions (ProviderError, BudgetGuard, ResolveError)
+│
+├── geo/                        # location/distance — Google Maps family, one file per API
+│   ├── __init__.py
+│   ├── geocode.py              # address -> lat/lng (Geocoding API)
+│   ├── places_text.py          # Places Text Search (resolve a named business)
+│   ├── places_nearby.py        # Places Nearby (opportunity discovery, paginated)
+│   ├── place_details.py        # Place Details (rating, reviews, status, phone, url)
+│   ├── distance.py             # Distance Matrix (transit/walk/drive seconds)
+│   └── haversine.py            # pure-math radius fallback
+│
+├── industries/                 # ONE FILE PER INDUSTRY ROUTE (decoupled taxonomy)
+│   ├── __init__.py             # registry: load all routes, lookup by key
+│   ├── base.py                 # IndustryRoute dataclass: queries, match, negative, role_families, resolution_strategy, credentials, background_sensitive
+│   ├── food_service.py
+│   ├── hospitality.py
+│   ├── sales.py
+│   ├── customer_service.py
+│   ├── care_social.py
+│   └── retail_ops.py
+│
+├── providers/                  # ONE FILE PER SOURCE (decoupled fetchers)
+│   ├── __init__.py             # registry + available/dormant (key presence) logic
+│   ├── base.py                 # Provider ABC -> returns list[SearchResult]; declares required keys
+│   ├── search/                 # STRUCTURED JOB DISCOVERY (retrieval)
+│   │   ├── __init__.py
+│   │   ├── serpapi_jobs.py
+│   │   ├── serpapi_organic.py  # budget-gated, off by default
+│   │   ├── adzuna.py
+│   │   ├── usajobs.py
+│   │   ├── jooble.py
+│   │   ├── themuse.py          # no key -> available day one
+│   │   └── careerjet.py
+│   └── reasoning/              # LLM ENRICHMENT ONLY — never discovery, never hallucinated listings
+│       ├── __init__.py
+│       ├── base.py             # LLMProvider ABC: classify(), extract(), score() over GIVEN text
+│       ├── openai.py
+│       ├── gemini.py
+│       ├── claude.py
+│       ├── groq.py
+│       └── xai.py
+│
+├── models/                     # data shapes (dataclasses) — the ~18 entities from the doc
+│   ├── __init__.py
+│   ├── search_result.py        # provider,query,title,url,snippet,published,source,raw,confidence,cost_units
+│   ├── job.py                  # canonical_key,title,company,industry,role_family,role_tags,source_url,place_id
+│   ├── job_snapshot.py         # salary,description,commute_seconds,radius_miles,match,review_score,consistency,risk
+│   ├── place.py                # place_id,name,address,lat,lng,types,rating,review_count
+│   ├── review.py
+│   ├── rejection.py            # reason + details
+│   ├── batch.py                # schema,created_at,trigger,budget,providers_used,rules,counts
+│   ├── application.py          # job_id,status,notes,timestamps (Michael's own apply tracker)
+│   ├── api_usage.py
+│   └── enums.py                # RoleFamily, RiskLevel, Trigger, RejectionReason
+│
+├── store/                      # PERSISTENCE — Firestore Native, one repository per collection
+│   ├── __init__.py
+│   ├── firestore_client.py     # google-cloud-firestore client (default DB)
+│   ├── repository.py           # generic CRUD base
+│   ├── jobs_repo.py
+│   ├── batches_repo.py
+│   ├── places_repo.py
+│   ├── reviews_repo.py
+│   ├── applications_repo.py
+│   ├── usage_repo.py
+│   └── cache_repo.py           # persistent query cache: hash(query+provider+industry) -> results+ts. STOPS re-spend.
+│
+├── pipeline/                   # the proven funnel, preserved + made multi-industry
+│   ├── __init__.py
+│   ├── normalize.py            # raw provider result -> Job + JobSnapshot
+│   ├── resolve_place.py        # explicit address OR places_text; ambiguity -> rejection reason
+│   ├── score_match.py          # match score
+│   ├── score_review.py         # FIXED formula: rating 60% / count 15% / sentiment 15% / consistency 10%, caps low ratings
+│   ├── classify.py             # industry + role_family (deterministic first, LLM fallback)
+│   ├── dedupe.py               # canonical key: title + normalized place + address
+│   ├── reject.py               # all rejection reasons from the doc
+│   └── run.py                  # orchestrates one full discovery run -> Batch
+│
+├── search/                     # federation + budget
+│   ├── __init__.py
+│   ├── federated.py            # fan out across AVAILABLE search providers, merge, dedupe
+│   ├── budget.py               # SerpAPI guard (min_searches_left), per-provider quotas, cache-first
+│   └── usage_tracker.py        # record api_usage per call
+│
+├── ingest/
+│   ├── __init__.py
+│   ├── oidc.py                 # verify Cloud Scheduler OIDC (audience + SA email). No URL tokens.
+│   └── scheduler_job.py        # the /api/ingest handler logic -> run pipeline -> store batch
+│
+├── api/                        # HTTP layer — thin blueprints, NO business logic
+│   ├── __init__.py
+│   ├── health.py               # /api/health
+│   ├── usage.py                # /api/usage  (+ SerpAPI account, never counts as search)
+│   ├── jobs.py                 # /api/jobs, /api/jobs?dry_run=1, /api/debug/jobs
+│   ├── opportunities.py        # /api/opportunities (Places, no SerpAPI)
+│   ├── history.py              # /api/history?hours= , ?from=&to= , /api/batches, /api/batch/<id>
+│   ├── research.py             # /api/research/place
+│   ├── providers.py            # /api/providers/status, /api/search/federated
+│   ├── industries.py           # /api/industries, /api/search?industry=
+│   ├── applications.py         # /api/applications  (apply tracker CRUD)
+│   ├── ingest.py               # /api/ingest  (OIDC-protected)
+│   └── why_three.py            # /api/why-three  (budget explainer)
+│
+├── web/                        # FRONTEND — decoupled per tab/concern
+│   ├── templates/
+│   │   ├── index.html          # shell + sidebar + tab mount points
+│   │   └── partials/           # about, how-it-works pipeline diagram
+│   └── static/
+│       ├── css/
+│       │   ├── base.css        # tokens, dark glassmorphism
+│       │   ├── layout.css      # sidebar, shell, grid
+│       │   ├── components.css  # cards, tables, tags, buttons
+│       │   └── charts.css      # CSS/HTML bar charts
+│       └── js/
+│           ├── api.js          # fetch wrappers
+│           ├── state.js        # filter state, no localStorage
+│           ├── filters.js      # ~25 filters incl industry, provider, salary, date, risk
+│           ├── render_jobs.js
+│           ├── render_opportunities.js
+│           ├── render_history.js
+│           ├── render_providers.js
+│           ├── render_budget.js
+│           ├── charts.js       # role/provider/accepted-rejected/over-time/ratings/radius/commute/budget
+│           └── tabs.js         # Overview, Live Jobs, Opportunities, History, Debug, Providers, Budget, About
+│
+├── scripts/                    # operator helpers (terminal, no hardcoded secrets)
+│   ├── add_key.sh              # add_key.sh PROVIDER VALUE -> Secret Manager + redeploy revision
+│   ├── deploy.sh               # build + deploy + health proof + log-on-fail
+│   ├── seed_industries.sh      # push industry routes into Firestore
+│   └── make_scheduler_oidc.sh  # create SA, grant run.invoker, create OIDC scheduler job
+│
+└── tests/                      # compile + unit proof per module
+    ├── test_providers_registry.py
+    ├── test_industries_registry.py
+    ├── test_pipeline_reject.py
+    ├── test_score_review.py
+    └── test_dedupe.py
+
+
+================================================================================
+FIRESTORE COLLECTIONS (Native mode, default DB)
+================================================================================
+batches/{batch_id}            created_at, trigger, version, budget, providers_used, rules, counts
+jobs/{canonical_key}          title, company, industry, role_family, role_tags, source_url, place_id, first_seen, last_seen, seen_count
+jobs/{key}/snapshots/{ts}     salary, description, commute_seconds, radius_miles, match, review_score, consistency, risk, batch_id
+places/{place_id}             name, address, lat, lng, types, rating, review_count, business_status, updated_at
+places/{place_id}/reviews/{id} rating, text, author, relative_time, source_url
+rejections/{batch_id}/{id}    reason, details, raw_title, raw_company
+applications/{job_id}         status, notes, created_at, updated_at   (Michael's tracker)
+api_usage/{ts}                provider, endpoint, cost_units, success, error
+industries/{key}              label, queries, match, negative, role_families, credentials, background_sensitive
+cache/{hash}                  provider, query, industry, results, created_at, ttl   (stops API re-spend)
+
+
+================================================================================
+KEY DECOUPLING RULES
+================================================================================
+1. api/ files contain ZERO business logic — they call pipeline/, search/, store/.
+2. Each provider is one file, behind providers/base.py ABC. Adding a source = one new file + registry line.
+3. Each industry is one file, behind industries/base.py. Adding an industry = one new file.
+4. LLMs live in providers/reasoning/ and can ONLY classify/extract/score over text we pass them.
+   They are physically separated from providers/search/ so they can never be wired as discovery. No hallucinated jobs.
+5. store/ is the only layer that talks to Firestore. Swap to Postgres later = change store/ only.
+6. budget.py is consulted before every paid call; cache_repo checked before every external fetch.
+7. Nothing hardcodes a secret. Providers read keys at runtime and go dormant if absent.
+
+
+================================================================================
+BUILD ORDER (each step compiles/tests before the next; nothing deploys until late)
+================================================================================
+S1  core/ + models/            (pure, no I/O) -> unit-compilable immediately
+S2  industries/ (6 routes)     + tests/test_industries_registry
+S3  providers/ registry + base + them_use + adzuna + serpapi  + tests
+S4  geo/ (Maps family)
+S5  store/ (Firestore repos + cache_repo)
+S6  pipeline/ (normalize->resolve->score->classify->dedupe->reject->run) + tests
+S7  search/ (federated + budget + usage)
+S8  ingest/ (oidc + scheduler handler)
+S9  api/ (thin blueprints) + app.py factory  -> FIRST local boot check
+S10 web/ (css, js, templates, charts, 8 tabs)
+S11 scripts/ (add_key, deploy, scheduler_oidc, seed)
+S12 deploy via scripts/deploy.sh -> health 200 -> endpoint proofs -> scheduler -> one stored batch
