@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 
 COPY . .
 
-CMD exec gunicorn app:app --bind 0.0.0.0:${PORT} --workers 1 --threads 8 --timeout 0
+CMD exec gunicorn ${APP_MODULE:-app:app} --bind 0.0.0.0:${PORT} --workers 1 --threads 8 --timeout 0

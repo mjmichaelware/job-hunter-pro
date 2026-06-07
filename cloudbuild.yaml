@@ -20,7 +20,7 @@ steps:
   - '--image=${_IMAGE_URI}:$COMMIT_SHA'
   - '--platform=managed'
   - '--allow-unauthenticated'
-  - '--set-env-vars=APP_MODULE=${_APP_MODULE}'
+  - '--update-env-vars=APP_MODULE=${_APP_MODULE}'
 images:
 - '${_IMAGE_URI}:$COMMIT_SHA'
 options:
