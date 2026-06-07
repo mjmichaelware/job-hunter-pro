@@ -52,7 +52,7 @@
 | R0 | Truth Matrix | docs/*, api/*, providers/* | scripts/current_truth_audit.py, docs/REPAIR_MATRIX.md | python3 scripts/current_truth_audit.py | Complete | Low |
 | R1 | Industries | industries/* | industries/*.py | PYTHONPATH=. python3 tests/test_industries_registry.py | Complete | Low |
 | R2 | Provider Engine P1 | providers/search/* | providers/search/themuse.py, providers/search/serpapi_jobs.py, providers/search/serpapi_organic.py | PYTHONPATH=. python3 tests/test_provider_search_pass1.py | Complete | Medium |
-| R3 | Provider Engine P2 | providers/reasoning/* | providers/reasoning/*.py | pytest tests/test_providers_registry.py | Planned | Medium |
+| R3 | Provider Engine P2 | providers/search/* | providers/search/adzuna.py, providers/search/usajobs.py, providers/search/jooble.py, providers/search/careerjet.py | PYTHONPATH=. python3 tests/test_provider_search_pass2.py | Complete | Medium |
 | R4 | Federated Search | search/* | search/federated.py, search/budget.py | python3 -m api.jobs | Planned | High |
 | R5 | Multi-Industry Pipeline | pipeline/* | pipeline/run.py | python3 pipeline/run.py | Planned | High |
 | R6 | App Tracker | models/application.py | store/applications_repo.py | pytest tests/test_applications.py | Planned | Low |
@@ -61,9 +61,9 @@
 | R9 | API+Frontend Contract | api/*, web/static/js/* | api/index.py, web/static/js/api.js | curl /api/health | Planned | Medium |
 | R10 | Final Deploy Proof | scripts/deploy.sh | scripts/deploy.sh | scripts/deploy.sh | Planned | High |
 
-**Confirm No Deploy:** No deployment actions were taken during R0-R2 sessions.
-**Confirm No Git Push:** No git push actions were taken during R0-R2 sessions.
-**Confirm No API Spend:** No external job discovery APIs or SerpAPI calls were made during R2.
+**Confirm No Deploy:** No deployment actions were taken during R0-R3 sessions.
+**Confirm No Git Push:** No git push actions were taken during R0-R3 sessions.
+**Confirm No API Spend:** No external job discovery APIs or SerpAPI calls were made during R3 (mocked in tests).
 
 ### R1 Proof
 - `python3 -m py_compile industries/*.py tests/test_industries_registry.py` -> Success
@@ -74,3 +74,9 @@
 - `python3 -m py_compile providers/search/themuse.py providers/search/serpapi_jobs.py providers/search/serpapi_organic.py tests/test_provider_search_pass1.py` -> Success
 - `PYTHONPATH=. python3 tests/test_provider_search_pass1.py` -> 6 tests passed (all mocked)
 - `python3 scripts/current_truth_audit.py` -> Audited (RETURN_EMPTY_PROVIDER_COUNT dropped by 3)
+
+### R3 Proof
+- `python3 -m py_compile providers/search/adzuna.py providers/search/usajobs.py providers/search/jooble.py providers/search/careerjet.py tests/test_provider_search_pass2.py` -> Success
+- `PYTHONPATH=. python3 tests/test_provider_search_pass2.py` -> 6 tests passed (all mocked)
+- `python3 scripts/current_truth_audit.py` -> Audited (RETURN_EMPTY_PROVIDER_COUNT is now 0)
+
