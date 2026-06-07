@@ -36,7 +36,6 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Charts: Pipeline Funnel, Industry Distribution, Accepted Over Time, Rejection Distribution, Budget Usage, Provider Mix, Resonance Comparison.
 - Honest empty states: Fallbacks render when data is missing or placeholders detected.
 - Real data only: No fake arrays or demo shapes utilized.
-
 ## S10-H — Done / committed
 - Pipeline Reactor / SSE Readiness complete.
 - Pipeline stage visualization (Discovery -> Store) implemented.
@@ -44,16 +43,16 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - SSE Readiness: Honest DISCONNECTED states rendered for missing backend stream.
 - Terminal-style real-time log shell implemented for future telemetry connection.
 
-## Next Phase — Geo Radar required
-- origin address / resolved address
-- radius miles / distance
-- walk / transit / drive durations
-- place id / lat / lng
-- review trust UI
-- Markov radar UI (beta/separated)
+## S10-I — Done / committed
+- Geo Radar and Review Geometry complete.
+- Geography Radar: Origin address visibility, distance metrics (miles), and commute badges (Transit, Walk) implemented.
+- Review Trust: Business ratings, review counts, and trust scores (review_score) integrated into Job and Opportunity cards.
+- Markov Radar (Beta): Separate prediction surface implemented for industry-turnover statistical vacancy (separated from confirmed jobs).
+- Honest rendering for missing geo/review telemetry (Backend Gap).
+
+## Next Phase — Premium Motion required
+- View Transitions API shared-element card-to-evidence morph.
 ...
-## S10-D — Runtime/data systems still required
-- IndexedDB cached history.
 - PWA shell / manifest / service worker.
 - ARIA live region for pipeline counts.
 - Chart table fallbacks.

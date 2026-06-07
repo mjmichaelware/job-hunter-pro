@@ -121,11 +121,27 @@ function renderJobsList(data) {
         const radiusText = radius !== undefined && radius !== null ? Number(radius).toFixed(1) + ' mi' : 'No Dist';
         
         const transitSecs = j.commute_matrix_seconds;
-        let transitBadge = 'Unavailable';
+        let transitBadge = 'N/A';
         let transitClass = 'badge-cached';
         if (transitSecs !== undefined && transitSecs !== null) {
             transitBadge = Math.round(transitSecs / 60) + ' min';
             transitClass = transitSecs <= 2100 ? 'badge-safe' : 'badge-budget-guarded';
+        }
+
+        const walkSecs = j.walk_duration_seconds;
+        let walkBadge = '';
+        if (walkSecs !== undefined && walkSecs !== null) {
+            walkBadge = `<span class="badge ${walkSecs <= 900 ? 'badge-safe' : 'badge-cached'}" style="margin-left:4px;">Walk: ${Math.round(walkSecs / 60)} min</span>`;
+        }
+
+        const rating = j.rating ?? j.business_rating;
+        const reviewScore = j.review_score;
+        let reviewBadge = '';
+        if (rating) {
+            reviewBadge = `<span class="badge badge-safe" style="margin-left:4px;">★ ${rating}</span>`;
+        }
+        if (reviewScore) {
+            reviewBadge += `<span class="badge ${reviewScore > 70 ? 'badge-safe' : 'badge-cached'}" style="margin-left:4px;">Trust: ${reviewScore}%</span>`;
         }
 
         return `
@@ -142,6 +158,8 @@ function renderJobsList(data) {
             </div>
             <div style="margin-top:var(--space-sm); font-size:0.85rem;">
                 <span class="badge ${transitClass}">Transit: ${transitBadge}</span>
+                ${walkBadge}
+                ${reviewBadge}
             </div>
         </div>`;
     }).join('');

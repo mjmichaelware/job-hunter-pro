@@ -162,7 +162,22 @@
 
         <!-- OPPORTUNITIES TAB -->
         <section id="tab-opportunities" class="tab-panel">
+            <div class="grid-overview" style="margin-bottom: var(--space-md);">
+                <div class="card">
+                    <h3>Geography Radar</h3>
+                    <div id="geo-radar-summary" style="font-size: 0.85rem; color: var(--muted);">
+                        Origin: <span id="geo-origin-addr" class="badge">Loading...</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Markov Vacancy Prediction (Beta)</h3>
+                    <div id="markov-radar-container">
+                        <div class="chart-fallback">Radar offline. Requires active business category seed.</div>
+                    </div>
+                </div>
+            </div>
             <div class="card">
+                <h3>Business Opportunities</h3>
                 <div id="opportunities-container"></div>
             </div>
         </section>
