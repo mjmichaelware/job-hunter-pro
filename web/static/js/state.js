@@ -129,14 +129,23 @@ const AppState = {
     data = items.find(item => (item.job_id || item.place_id || item.id) == id);
 
     if (data && typeof renderEvidence === 'function') {
-      renderEvidence(data, type);
-      const drawer = document.getElementById('evidence-drawer');
-      
+      const card = document.querySelector(`.clickable-card[data-id="${id}"]`);
+      if (card) {
+        card.style.viewTransitionName = 'active-evidence-card';
+      }
+
       const openDrawer = () => {
+        renderEvidence(data, type);
+        const drawer = document.getElementById('evidence-drawer');
         drawer.classList.add('open');
         drawer.setAttribute('aria-hidden', 'false');
+        
         const closeBtn = document.getElementById('close-evidence');
         if (closeBtn) closeBtn.focus();
+        
+        if (card) {
+          card.style.viewTransitionName = '';
+        }
       };
 
       if (document.startViewTransition) {

@@ -50,9 +50,15 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Markov Radar (Beta): Separate prediction surface implemented for industry-turnover statistical vacancy (separated from confirmed jobs).
 - Honest rendering for missing geo/review telemetry (Backend Gap).
 
-## Next Phase — Premium Motion required
-- View Transitions API shared-element card-to-evidence morph.
-...
+## S10-J — Done / committed
+- Premium Motion and Visual Enhancement Tier complete.
+- View Transitions API: Shared-element card-to-evidence morphing and smooth tab cross-fades implemented.
+- Spring Physics: Web Animations API-inspired custom spring easing for drawer transitions.
+- Visual Systems: OKLCH industry theming, glassmorphism cockpit materials, and scroll-driven header effects.
+- Feature Detection: Ambient particle background with Canvas, including reduced-motion and Save-Data checks.
+- Variable-font support: Confidence-based weight rendering for match scores.
+
+## Next Phase — PWA & Offline required
 - PWA shell / manifest / service worker.
 - ARIA live region for pipeline counts.
 - Chart table fallbacks.

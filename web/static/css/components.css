@@ -72,3 +72,56 @@
     50% { opacity: 1; transform: scale(1.02); }
     100% { opacity: 0.8; }
 }
+
+/* Premium Motion: View Transitions */
+::view-transition-old(active-evidence-card),
+::view-transition-new(active-evidence-card) {
+  animation-duration: var(--view-transition-duration);
+  animation-timing-function: var(--spring-easing);
+}
+
+#evidence-drawer {
+  view-transition-name: evidence-drawer;
+}
+
+/* Glassmorphism / Cockpit Material */
+.card {
+  backdrop-filter: blur(12px) saturate(180%);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.card:hover {
+  background-color: var(--surface2);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow), var(--glow);
+}
+
+/* Variable Font Simulation for Confidence */
+.confidence-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: calc(400 + (var(--confidence) * 5));
+}
+
+/* Subtle Header Scroll Effect */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  transition: box-shadow 0.3s ease;
+}
+
+main:has(header) {
+  scroll-timeline: --page-scroll block;
+}
+
+header {
+  animation: header-shadow linear both;
+  animation-timeline: --page-scroll;
+  animation-range: 0px 50px;
+}
+
+@keyframes header-shadow {
+  to { box-shadow: 0 4px 20px rgba(0,0,0,0.4); border-color: var(--border); }
+}

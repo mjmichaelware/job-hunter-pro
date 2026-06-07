@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/css/base.css">
 </head>
 <body>
-    <canvas id="webgpu-canvas"></canvas>
+    <canvas id="webgpu-canvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:-1;"></canvas>
     <aside id="sidebar">
         <div id="logo-container">
             <div id="logo-badge"></div>
@@ -418,5 +418,6 @@
     <script src="/static/js/render_budget.js"></script>
     <script src="/static/js/render_why_three.js"></script>
     <script src="/static/js/charts.js"></script>
+    <script src="/static/js/ambient.js"></script>
 </body>
 </html>

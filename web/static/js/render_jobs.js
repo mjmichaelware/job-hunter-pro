@@ -152,7 +152,7 @@ function renderJobsList(data) {
                     <p style="color:var(--muted); font-size:0.9rem;">${comp} &bull; ${addr}</p>
                 </div>
                 <div style="text-align:right;">
-                    <div class="badge badge-cached">Score: ${score}%</div>
+                    <div class="badge badge-cached confidence-value" style="--confidence: ${score};">Score: ${score}%</div>
                     <div style="font-size:0.75rem; color:var(--muted); margin-top:4px;">${radiusText}</div>
                 </div>
             </div>

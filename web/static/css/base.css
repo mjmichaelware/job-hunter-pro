@@ -2,4 +2,81 @@
 @import url("components.css");
 @import url("charts.css");
 
-:root{--bg:oklch(15% 0.02 240);--surface:oklch(20% 0.03 240 / 0.8);--surface2:oklch(25% 0.04 240 / 0.9);--border:oklch(30% 0.03 240 / 0.5);--text:oklch(90% 0.01 240);--muted:oklch(60% 0.02 240);--accent:oklch(70% 0.15 280);--danger:oklch(55% 0.22 25);--warning:oklch(75% 0.18 75);--success:oklch(70% 0.18 140);--accent-food:oklch(65% 0.2 40);--accent-hosp:oklch(60% 0.15 80);--accent-care:oklch(65% 0.16 190);--accent-sales:oklch(62% 0.19 320);--accent-cust:oklch(68% 0.14 220);--accent-retail:oklch(70% 0.18 110);--radius-sm:4px;--radius-md:8px;--radius-lg:16px;--shadow:0 8px 32px 0 rgba(0,0,0,0.8);--glow:0 0 16px var(--accent);--space-xs:4px;--space-sm:8px;--space-md:16px;--space-lg:24px;--space-xl:32px;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background-color:var(--bg);color:var(--text);color-scheme:dark;line-height:1.5;-webkit-font-smoothing:antialiased}*{box-sizing:border-box;margin:0;padding:0}
+:root {
+  --bg: oklch(12% 0.015 240);
+  --surface: oklch(18% 0.02 240 / 0.7);
+  --surface2: oklch(24% 0.03 240 / 0.8);
+  --border: oklch(30% 0.03 240 / 0.4);
+  --text: oklch(92% 0.01 240);
+  --muted: oklch(65% 0.02 240);
+  --accent: oklch(72% 0.16 280);
+  --accent-glow: oklch(72% 0.16 280 / 0.3);
+  
+  --danger: oklch(58% 0.22 25);
+  --warning: oklch(78% 0.18 75);
+  --success: oklch(72% 0.18 140);
+  
+  /* Industry Theming (OKLCH) */
+  --accent-food: oklch(65% 0.2 40);
+  --accent-hosp: oklch(62% 0.16 85);
+  --accent-care: oklch(68% 0.15 195);
+  --accent-sales: oklch(65% 0.18 325);
+  --accent-cust: oklch(70% 0.12 215);
+  --accent-retail: oklch(72% 0.17 115);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 20px;
+  
+  --shadow: 0 12px 40px -12px rgba(0,0,0,0.7);
+  --glow: 0 0 20px var(--accent-glow);
+  
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  --spring-easing: linear(0, 0.45 10%, 0.72 20%, 0.88 30%, 0.95 40%, 0.98 50%, 1);
+  --view-transition-duration: 400ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --view-transition-duration: 0ms;
+    --spring-easing: ease;
+  }
+  
+  *, ::before, ::after {
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    background-attachment: initial !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}
+
+font-family: system-ui, -apple-system, sans-serif;
+background-color: var(--bg);
+color: var(--text);
+color-scheme: dark;
+line-height: 1.6;
+-webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}*{box-sizing:border-box;margin:0;padding:0}
