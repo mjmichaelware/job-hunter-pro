@@ -310,6 +310,64 @@
         <hr style="border-color:var(--border);margin:12px 0;">
         
         <div class="filter-section">
+            <h4 style="margin-bottom:var(--space-sm); font-size:0.9rem; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Core Filters</h4>
+            
+            <label for="drawer-filter-mode">Mode</label>
+            <select id="drawer-filter-mode">
+                <option value="">All Modes</option>
+                <option value="search">Search</option>
+                <option value="radar">Radar</option>
+                <option value="dry_run">Dry Run</option>
+                <option value="live_run">Live Run</option>
+                <option value="history">History</option>
+            </select>
+
+            <label for="drawer-filter-industry">Industry</label>
+            <select id="drawer-filter-industry">
+                <option value="">All Industries</option>
+                <option value="food_service">Food Service</option>
+                <option value="hospitality">Hospitality</option>
+                <option value="care_social">Care & Social</option>
+                <option value="sales">Sales</option>
+                <option value="customer_service">Customer Service</option>
+                <option value="retail_ops">Retail Operations</option>
+            </select>
+
+            <label for="drawer-filter-provider">Provider</label>
+            <select id="drawer-filter-provider">
+                <option value="">All Providers</option>
+                <option value="serpapi">SerpAPI</option>
+                <option value="adzuna">Adzuna</option>
+                <option value="careerjet">Careerjet</option>
+                <option value="jooble">Jooble</option>
+                <option value="usajobs">USAJobs</option>
+                <option value="themuse">The Muse</option>
+            </select>
+
+            <label for="drawer-filter-status">Status</label>
+            <select id="drawer-filter-status">
+                <option value="">All Statuses</option>
+                <option value="new">New</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+            </select>
+
+            <label for="drawer-filter-sort">Sort</label>
+            <select id="drawer-filter-sort">
+                <option value="newest">Newest</option>
+                <option value="score">Highest Score</option>
+                <option value="distance">Nearest</option>
+            </select>
+
+            <label for="drawer-filter-radius">Radius: <span id="drawer-radius-val">5</span>mi</label>
+            <input type="range" id="drawer-filter-radius" min="1" max="25" value="5">
+
+            <label for="drawer-filter-match">Match: <span id="drawer-match-val">60</span>%</label>
+            <input type="range" id="drawer-filter-match" min="0" max="100" value="60">
+        </div>
+
+        <div class="filter-section">
+            <h4 style="margin-bottom:var(--space-sm); font-size:0.9rem; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Advanced Parameters</h4>
             <label for="filter-walk">Max Walk (Min): <span id="walk-val">30</span></label>
             <input type="range" id="filter-walk" min="5" max="60" step="5" value="30">
             

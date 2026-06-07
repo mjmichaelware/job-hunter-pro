@@ -37,74 +37,66 @@ const S10D_FILTER_ALIASES = Object.freeze({
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Always Visible
-  const mode = document.getElementById('filter-mode');
-  const industry = document.getElementById('filter-industry');
-  const provider = document.getElementById('filter-provider');
-  const status = document.getElementById('filter-status');
-  const sort = document.getElementById('filter-sort');
-  const radius = document.getElementById('filter-radius');
-  const match = document.getElementById('filter-match');
-
-  // Advanced Drawer
-  const walk = document.getElementById('filter-walk');
-  const transit = document.getElementById('filter-transit');
-  const rating = document.getElementById('filter-rating');
-  const review = document.getElementById('filter-review');
-  const jobType = document.getElementById('filter-job-type');
-  const pay = document.getElementById('filter-pay');
-  const remote = document.getElementById('filter-remote');
-  const batch = document.getElementById('filter-batch');
-  const time = document.getElementById('filter-time');
-  const rejection = document.getElementById('filter-rejection');
-  const confidence = document.getElementById('filter-confidence');
-  const placeStatus = document.getElementById('filter-place-status');
-  const appState = document.getElementById('filter-app-state');
-  const duplicate = document.getElementById('filter-duplicate');
-
   const controls = [
-    { el: mode, key: 'mode' },
-    { el: industry, key: 'industry' },
-    { el: provider, key: 'provider' },
-    { el: status, key: 'status' },
-    { el: sort, key: 'sort' },
-    { el: radius, key: 'radius', valEl: 'radius-val' },
-    { el: match, key: 'matchScore', valEl: 'match-val' },
-    { el: walk, key: 'maxWalk', valEl: 'walk-val' },
-    { el: transit, key: 'maxTransit', valEl: 'transit-val' },
-    { el: rating, key: 'minRating', valEl: 'rating-val' },
-    { el: review, key: 'minReview', valEl: 'review-val' },
-    { el: jobType, key: 'jobType' },
-    { el: pay, key: 'payHint' },
-    { el: remote, key: 'remoteOnsite' },
-    { el: batch, key: 'batchId' },
-    { el: time, key: 'timeRange' },
-    { el: rejection, key: 'rejectionReason' },
-    { el: confidence, key: 'confidence', valEl: 'conf-val' },
-    { el: placeStatus, key: 'placeStatus' },
-    { el: appState, key: 'applicationState' },
-    { el: duplicate, key: 'duplicateState' }
+    { main: 'filter-mode', drawer: 'drawer-filter-mode', key: 'mode' },
+    { main: 'filter-industry', drawer: 'drawer-filter-industry', key: 'industry' },
+    { main: 'filter-provider', drawer: 'drawer-filter-provider', key: 'provider' },
+    { main: 'filter-status', drawer: 'drawer-filter-status', key: 'status' },
+    { main: 'filter-sort', drawer: 'drawer-filter-sort', key: 'sort' },
+    { main: 'filter-radius', drawer: 'drawer-filter-radius', key: 'radius', valEls: ['radius-val', 'drawer-radius-val'] },
+    { main: 'filter-match', drawer: 'drawer-filter-match', key: 'matchScore', valEls: ['match-val', 'drawer-match-val'] },
+    { el: 'filter-walk', key: 'maxWalk', valEl: 'walk-val' },
+    { el: 'filter-transit', key: 'maxTransit', valEl: 'transit-val' },
+    { el: 'filter-rating', key: 'minRating', valEl: 'rating-val' },
+    { el: 'filter-review', key: 'minReview', valEl: 'review-val' },
+    { el: 'filter-job-type', key: 'jobType' },
+    { el: 'filter-pay', key: 'payHint' },
+    { el: 'filter-remote', key: 'remoteOnsite' },
+    { el: 'filter-batch', key: 'batchId' },
+    { el: 'filter-time', key: 'timeRange' },
+    { el: 'filter-rejection', key: 'rejectionReason' },
+    { el: 'filter-confidence', key: 'confidence', valEl: 'conf-val' },
+    { el: 'filter-place-status', key: 'placeStatus' },
+    { el: 'filter-app-state', key: 'applicationState' },
+    { el: 'filter-duplicate', key: 'duplicateState' }
   ];
 
   controls.forEach(ctrl => {
-    if (!ctrl.el) return;
+    const mainEl = ctrl.main ? document.getElementById(ctrl.main) : document.getElementById(ctrl.el);
+    const drawerEl = ctrl.drawer ? document.getElementById(ctrl.drawer) : null;
 
-    const eventType = ctrl.el.type === 'range' ? 'input' : (ctrl.el.type === 'text' ? 'input' : 'change');
+    const setupListener = (el) => {
+      if (!el) return;
+      const eventType = el.type === 'range' ? 'input' : (el.type === 'text' ? 'input' : 'change');
+      el.addEventListener(eventType, (e) => {
+        let val = e.target.value;
+        if (el.type === 'range') val = parseFloat(val);
+        
+        AppState.filters[ctrl.key] = val;
+        
+        // Sync other elements
+        if (mainEl && mainEl !== el) mainEl.value = val;
+        if (drawerEl && drawerEl !== el) drawerEl.value = val;
 
-    ctrl.el.addEventListener(eventType, (e) => {
-      let val = e.target.value;
-      if (ctrl.el.type === 'range') val = parseFloat(val);
-      
-      AppState.filters[ctrl.key] = val;
-      
-      if (ctrl.valEl) {
-        const display = document.getElementById(ctrl.valEl);
-        if (display) display.textContent = val;
-      }
+        // Sync value displays
+        if (ctrl.valEls) {
+          ctrl.valEls.forEach(vid => {
+            const vdisplay = document.getElementById(vid);
+            if (vdisplay) vdisplay.textContent = val;
+          });
+        }
+        if (ctrl.valEl) {
+          const vdisplay = document.getElementById(ctrl.valEl);
+          if (vdisplay) vdisplay.textContent = val;
+        }
 
-      applyLocalFilters();
-      renderFilterChips();
-    });
+        applyLocalFilters();
+        renderFilterChips();
+      });
+    };
+
+    setupListener(mainEl);
+    setupListener(drawerEl);
   });
 
   const resetBtn = document.getElementById('reset-all-filters');
@@ -147,51 +139,40 @@ function resetFilters() {
   Object.assign(AppState.filters, defaults);
   
   // Sync UI
-  const ids = {
-    mode: 'filter-mode',
-    radius: 'filter-radius',
-    industry: 'filter-industry',
-    provider: 'filter-provider',
-    status: 'filter-status',
-    sort: 'filter-sort',
-    matchScore: 'filter-match',
-    maxWalk: 'filter-walk',
-    maxTransit: 'filter-transit',
-    minRating: 'filter-rating',
-    minReview: 'filter-review',
-    jobType: 'filter-job-type',
-    payHint: 'filter-pay',
-    remoteOnsite: 'filter-remote',
-    batchId: 'filter-batch',
-    timeRange: 'filter-time',
-    rejectionReason: 'filter-rejection',
-    confidence: 'filter-confidence',
-    placeStatus: 'filter-place-status',
-    applicationState: 'filter-app-state',
-    duplicateState: 'filter-duplicate'
-  };
+  const idMaps = [
+    { key: 'mode', ids: ['filter-mode', 'drawer-filter-mode'] },
+    { key: 'radius', ids: ['filter-radius', 'drawer-filter-radius'], vids: ['radius-val', 'drawer-radius-val'] },
+    { key: 'industry', ids: ['filter-industry', 'drawer-filter-industry'] },
+    { key: 'provider', ids: ['filter-provider', 'drawer-filter-provider'] },
+    { key: 'status', ids: ['filter-status', 'drawer-filter-status'] },
+    { key: 'sort', ids: ['filter-sort', 'drawer-filter-sort'] },
+    { key: 'matchScore', ids: ['filter-match', 'drawer-filter-match'], vids: ['match-val', 'drawer-match-val'] },
+    { key: 'maxWalk', ids: ['filter-walk'], vids: ['walk-val'] },
+    { key: 'maxTransit', ids: ['filter-transit'], vids: ['transit-val'] },
+    { key: 'minRating', ids: ['filter-rating'], vids: ['rating-val'] },
+    { key: 'minReview', ids: ['filter-review'], vids: ['review-val'] },
+    { key: 'jobType', ids: ['filter-job-type'] },
+    { key: 'payHint', ids: ['filter-pay'] },
+    { key: 'remoteOnsite', ids: ['filter-remote'] },
+    { key: 'batchId', ids: ['filter-batch'] },
+    { key: 'timeRange', ids: ['filter-time'] },
+    { key: 'rejectionReason', ids: ['filter-rejection'] },
+    { key: 'confidence', ids: ['filter-confidence'], vids: ['conf-val'] },
+    { key: 'placeStatus', ids: ['filter-place-status'] },
+    { key: 'applicationState', ids: ['filter-app-state'] },
+    { key: 'duplicateState', ids: ['filter-duplicate'] }
+  ];
 
-  const valDisplays = {
-    radius: 'radius-val',
-    matchScore: 'match-val',
-    maxWalk: 'walk-val',
-    maxTransit: 'transit-val',
-    minRating: 'rating-val',
-    minReview: 'review-val',
-    confidence: 'conf-val'
-  };
-
-  Object.entries(ids).forEach(([key, id]) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.value = AppState.filters[key];
-    }
-  });
-
-  Object.entries(valDisplays).forEach(([key, id]) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.textContent = AppState.filters[key];
+  idMaps.forEach(map => {
+    map.ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = AppState.filters[map.key];
+    });
+    if (map.vids) {
+      map.vids.forEach(vid => {
+        const el = document.getElementById(vid);
+        if (el) el.textContent = AppState.filters[map.key];
+      });
     }
   });
 
@@ -283,48 +264,43 @@ window.removeFilter = function(key) {
 
   AppState.filters[key] = defaults[key];
   
-  // Sync UI
-  const idMap = {
-    mode: 'filter-mode',
-    radius: 'filter-radius',
-    industry: 'filter-industry',
-    provider: 'filter-provider',
-    status: 'filter-status',
-    sort: 'filter-sort',
-    matchScore: 'filter-match',
-    maxWalk: 'filter-walk',
-    maxTransit: 'filter-transit',
-    minRating: 'filter-rating',
-    minReview: 'filter-review',
-    jobType: 'filter-job-type',
-    payHint: 'filter-pay',
-    remoteOnsite: 'filter-remote',
-    batchId: 'filter-batch',
-    timeRange: 'filter-time',
-    rejectionReason: 'filter-rejection',
-    confidence: 'filter-confidence',
-    placeStatus: 'filter-place-status',
-    applicationState: 'filter-app-state',
-    duplicateState: 'filter-duplicate'
-  };
+  // Sync UI (reuse logic from resetFilters for simplicity or just specific key)
+  const idMaps = [
+    { key: 'mode', ids: ['filter-mode', 'drawer-filter-mode'] },
+    { key: 'radius', ids: ['filter-radius', 'drawer-filter-radius'], vids: ['radius-val', 'drawer-radius-val'] },
+    { key: 'industry', ids: ['filter-industry', 'drawer-filter-industry'] },
+    { key: 'provider', ids: ['filter-provider', 'drawer-filter-provider'] },
+    { key: 'status', ids: ['filter-status', 'drawer-filter-status'] },
+    { key: 'sort', ids: ['filter-sort', 'drawer-filter-sort'] },
+    { key: 'matchScore', ids: ['filter-match', 'drawer-filter-match'], vids: ['match-val', 'drawer-match-val'] },
+    { key: 'maxWalk', ids: ['filter-walk'], vids: ['walk-val'] },
+    { key: 'maxTransit', ids: ['filter-transit'], vids: ['transit-val'] },
+    { key: 'minRating', ids: ['filter-rating'], vids: ['rating-val'] },
+    { key: 'minReview', ids: ['filter-review'], vids: ['review-val'] },
+    { key: 'jobType', ids: ['filter-job-type'] },
+    { key: 'payHint', ids: ['filter-pay'] },
+    { key: 'remoteOnsite', ids: ['filter-remote'] },
+    { key: 'batchId', ids: ['filter-batch'] },
+    { key: 'timeRange', ids: ['filter-time'] },
+    { key: 'rejectionReason', ids: ['filter-rejection'] },
+    { key: 'confidence', ids: ['filter-confidence'], vids: ['conf-val'] },
+    { key: 'placeStatus', ids: ['filter-place-status'] },
+    { key: 'applicationState', ids: ['filter-app-state'] },
+    { key: 'duplicateState', ids: ['filter-duplicate'] }
+  ];
 
-  const el = document.getElementById(idMap[key]);
-  if (el) {
-    el.value = defaults[key];
-  }
-
-  const valDisplays = {
-    radius: 'radius-val',
-    matchScore: 'match-val',
-    maxWalk: 'walk-val',
-    maxTransit: 'transit-val',
-    minRating: 'rating-val',
-    minReview: 'review-val',
-    confidence: 'conf-val'
-  };
-  if (valDisplays[key]) {
-    const display = document.getElementById(valDisplays[key]);
-    if (display) display.textContent = defaults[key];
+  const map = idMaps.find(m => m.key === key);
+  if (map) {
+    map.ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = defaults[key];
+    });
+    if (map.vids) {
+      map.vids.forEach(vid => {
+        const el = document.getElementById(vid);
+        if (el) el.textContent = defaults[key];
+      });
+    }
   }
 
   applyLocalFilters();
