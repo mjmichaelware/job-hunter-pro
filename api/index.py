@@ -1522,5 +1522,358 @@ def demo():
 def search():
     return jobs()
 
+
+# === ORCHESTRATION_V1_START ===
+
+from datetime import datetime, timezone, timedelta
+from urllib.parse import quote as url_quote
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+def batch_bucket() -> str:
+    return os.environ.get("BATCH_BUCKET", "").strip()
+
+def ingest_token() -> str:
+    return os.environ.get("INGEST_TOKEN", "").strip()
+
+def metadata_access_token() -> str:
+    try:
+        res = session.get(
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+            headers={"Metadata-Flavor": "Google"},
+            timeout=5,
+        )
+        res.raise_for_status()
+        return res.json().get("access_token", "")
+    except Exception as exc:
+        logger.warning("metadata token failed: %s", exc)
+        return ""
+
+def gcs_headers() -> Dict[str, str]:
+    token = metadata_access_token()
+    return {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+def gcs_upload_json(object_name: str, payload: Dict[str, Any]) -> bool:
+    bucket = batch_bucket()
+    if not bucket:
+        return False
+
+    try:
+        url = f"https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o"
+        res = session.post(
+            url,
+            params={
+                "uploadType": "media",
+                "name": object_name,
+            },
+            headers=gcs_headers(),
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            timeout=30,
+        )
+        res.raise_for_status()
+        return True
+    except Exception as exc:
+        logger.warning("gcs upload failed %s: %s", object_name, exc)
+        return False
+
+def gcs_download_json(object_name: str) -> Dict[str, Any]:
+    bucket = batch_bucket()
+    if not bucket:
+        return {}
+
+    try:
+        encoded = url_quote(object_name, safe="")
+        url = f"https://storage.googleapis.com/storage/v1/b/{bucket}/o/{encoded}"
+        res = session.get(
+            url,
+            params={"alt": "media"},
+            headers=gcs_headers(),
+            timeout=30,
+        )
+        res.raise_for_status()
+        return res.json()
+    except Exception as exc:
+        logger.warning("gcs download failed %s: %s", object_name, exc)
+        return {}
+
+def gcs_list_batches(limit: int = 100) -> List[Dict[str, Any]]:
+    bucket = batch_bucket()
+    if not bucket:
+        return []
+
+    try:
+        url = f"https://storage.googleapis.com/storage/v1/b/{bucket}/o"
+        res = session.get(
+            url,
+            params={
+                "prefix": "batches/",
+                "maxResults": str(limit),
+                "fields": "items(name,updated,size)",
+            },
+            headers=gcs_headers(),
+            timeout=30,
+        )
+        res.raise_for_status()
+
+        items = res.json().get("items", []) or []
+        items = [i for i in items if i.get("name", "").endswith(".json")]
+        items.sort(key=lambda x: x.get("updated", ""), reverse=True)
+        return items
+    except Exception as exc:
+        logger.warning("gcs list failed: %s", exc)
+        return []
+
+@lru_cache(maxsize=1)
+def serpapi_account_status_orchestration() -> Dict[str, Any]:
+    if not Config.SERPAPI_KEY:
+        return {"available": False, "reason": "SERPAPI_KEY missing"}
+
+    try:
+        res = session.get(
+            "https://serpapi.com/account.json",
+            params={"api_key": Config.SERPAPI_KEY},
+            timeout=Config.REQUEST_TIMEOUT,
+        )
+        res.raise_for_status()
+        data = res.json()
+
+        return {
+            "available": True,
+            "plan_name": data.get("plan_name"),
+            "total_searches_left": data.get("total_searches_left"),
+            "this_month_usage": data.get("this_month_usage"),
+            "searches_per_month": data.get("searches_per_month"),
+            "last_hour_searches": data.get("last_hour_searches"),
+            "hourly_throughput": data.get("hourly_throughput"),
+        }
+    except Exception as exc:
+        return {"available": False, "reason": str(exc)}
+
+def budget_guard_allows_ingest() -> bool:
+    reserve = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "40"))
+    account = serpapi_account_status_orchestration()
+    left = account.get("total_searches_left")
+
+    if left is None:
+        return True
+
+    try:
+        return int(left) > reserve
+    except Exception:
+        return True
+
+def serialize_ingest_batch() -> Dict[str, Any]:
+    result = fetch_jobs()
+
+    enriched = []
+    if "enrich_job_for_filters" in globals():
+        for job in result.get("accepted", []):
+            try:
+                enriched.append(enrich_job_for_filters(job))
+            except Exception:
+                enriched.append(job)
+    else:
+        enriched = result.get("accepted", [])
+
+    return {
+        "batch_schema": "job_hunter_batch_v1",
+        "created_at_utc": utc_now_iso(),
+        "source": VERSION if "VERSION" in globals() else "unknown",
+        "rules": {
+            "origin": Config.ORIGIN_ADDRESS,
+            "max_radius_miles": Config.MAX_RADIUS_MILES,
+            "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
+            "food_only": True,
+        },
+        "budget": {
+            "serpapi": serpapi_account_status_orchestration(),
+            "max_serp_queries": Config.MAX_SERP_QUERIES,
+            "max_raw_jobs": Config.MAX_RAW_JOBS,
+            "max_ai_calls": Config.MAX_AI_CALLS,
+        },
+        "counts": {
+            "accepted": len(enriched),
+            "rejected": len(result.get("rejected", [])),
+            "raw": result.get("raw_count"),
+            "queries": result.get("query_count"),
+            "nearby_restaurants": result.get("nearby_restaurant_count"),
+        },
+        "accepted": enriched,
+        "rejected": result.get("rejected", []),
+    }
+
+@app.route("/api/usage")
+def usage():
+    return jsonify({
+        "status": "ok",
+        "serpapi": serpapi_account_status_orchestration(),
+        "storage": {
+            "batch_bucket": batch_bucket(),
+            "bucket_configured": bool(batch_bucket()),
+        },
+        "orchestration": {
+            "ingest_endpoint": "/api/ingest",
+            "batches_endpoint": "/api/batches",
+            "history_endpoint": "/api/history?hours=24",
+            "recommended_scheduler": "every 6 hours while SerpAPI remaining searches are low",
+            "budget_guard_min_searches_left": int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "40")),
+        },
+    })
+
+@app.route("/api/ingest", methods=["GET", "POST"])
+def ingest():
+    token = request.args.get("token", "")
+
+    if ingest_token() and token != ingest_token():
+        return jsonify({
+            "status": "error",
+            "error": "invalid ingest token",
+        }), 403
+
+    if not budget_guard_allows_ingest():
+        return jsonify({
+            "status": "skipped",
+            "reason": "serpapi_budget_guard",
+            "serpapi": serpapi_account_status_orchestration(),
+        }), 200
+
+    batch = serialize_ingest_batch()
+    dt = datetime.fromisoformat(batch["created_at_utc"])
+    object_name = f"batches/{dt.strftime('%Y/%m/%d/%H%M%S')}_job_batch.json"
+
+    ok = gcs_upload_json(object_name, batch)
+
+    return jsonify({
+        "status": "success" if ok else "error",
+        "stored": ok,
+        "object_name": object_name,
+        "batch": {
+            "created_at_utc": batch["created_at_utc"],
+            "counts": batch["counts"],
+            "source": batch["source"],
+        },
+    })
+
+@app.route("/api/batches")
+def batches():
+    items = gcs_list_batches(200)
+
+    return jsonify({
+        "status": "success",
+        "count": len(items),
+        "bucket": batch_bucket(),
+        "batches": [
+            {
+                "object_name": item.get("name"),
+                "updated": item.get("updated"),
+                "size": item.get("size"),
+                "batch_id": item.get("name", "").replace("batches/", "").replace(".json", ""),
+            }
+            for item in items
+        ],
+    })
+
+@app.route("/api/batch/<path:object_name>")
+def batch_by_name(object_name):
+    if not object_name.startswith("batches/"):
+        object_name = "batches/" + object_name
+
+    if not object_name.endswith(".json"):
+        object_name += ".json"
+
+    data = gcs_download_json(object_name)
+
+    return jsonify({
+        "status": "success" if data else "not_found",
+        "object_name": object_name,
+        "batch": data,
+    })
+
+@app.route("/api/history")
+def history():
+    hours_raw = request.args.get("hours", "24")
+
+    try:
+        hours = float(hours_raw)
+    except Exception:
+        hours = 24.0
+
+    from_raw = request.args.get("from", "")
+    to_raw = request.args.get("to", "")
+
+    now = datetime.now(timezone.utc)
+    start_dt = now - timedelta(hours=hours)
+    end_dt = now
+
+    if from_raw:
+        try:
+            start_dt = datetime.fromisoformat(from_raw.replace("Z", "+00:00"))
+        except Exception:
+            pass
+
+    if to_raw:
+        try:
+            end_dt = datetime.fromisoformat(to_raw.replace("Z", "+00:00"))
+        except Exception:
+            pass
+
+    jobs_out = []
+    batch_summaries = []
+
+    for item in gcs_list_batches(300):
+        name = item.get("name")
+        data = gcs_download_json(name)
+
+        if not data:
+            continue
+
+        created_raw = data.get("created_at_utc", "")
+
+        try:
+            created = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
+        except Exception:
+            continue
+
+        if created < start_dt or created > end_dt:
+            continue
+
+        batch_summaries.append({
+            "object_name": name,
+            "created_at_utc": created_raw,
+            "counts": data.get("counts"),
+        })
+
+        for job in data.get("accepted", []):
+            j = dict(job)
+            j["batch_object_name"] = name
+            j["batch_created_at_utc"] = created_raw
+            jobs_out.append(j)
+
+    if "apply_user_filters" in globals():
+        jobs_out = apply_user_filters(jobs_out)
+
+    jobs_out.sort(key=lambda j: (
+        j.get("batch_created_at_utc", ""),
+        j.get("radius_miles") if j.get("radius_miles") is not None else 999,
+    ), reverse=True)
+
+    return jsonify({
+        "status": "success",
+        "source": "orchestration_batch_history_v1",
+        "from": start_dt.isoformat(),
+        "to": end_dt.isoformat(),
+        "batch_count": len(batch_summaries),
+        "job_count": len(jobs_out),
+        "batches": batch_summaries,
+        "data": jobs_out,
+    })
+
+# === ORCHESTRATION_V1_END ===
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))
