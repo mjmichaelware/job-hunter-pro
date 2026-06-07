@@ -10,14 +10,6 @@ async function loadProviders() {
                 Providers endpoint is currently a placeholder (Backend gap). 
                 Rendering offline/not-configured fallback state.
             </div>
-            <div class="card" style="opacity: 0.7;">
-                <h4>Discovery APIs</h4>
-                <span class="badge badge-cached">MISSING KEY</span>
-            </div>
-            <div class="card" style="opacity: 0.7;">
-                <h4>Reasoning APIs (LLM)</h4>
-                <span class="badge badge-cached">MISSING KEY</span>
-            </div>
         `;
         return;
     }
@@ -29,15 +21,15 @@ async function loadProviders() {
     }
 
     container.innerHTML = providers.map(p => {
-        const name = UI.safeField(p.name, 'Unknown Provider');
+        const name = UI.safeField(p.label, 'Unknown Provider');
         const type = UI.safeField(p.type, 'Unknown Type');
-        const status = UI.safeField(p.status, 'unavailable');
+        const available = p.is_available === true;
         
         return `
         <div class="card">
             <h4>${name}</h4>
-            <p>Type: ${type}</p>
-            <span class="badge badge-${status === 'active' || status === 'safe' ? 'safe' : 'cached'}">${status.toUpperCase()}</span>
+            <p style="font-size:0.8rem; color:var(--muted);">${type.toUpperCase()}</p>
+            <span class="badge ${available ? 'badge-safe' : 'badge-cached'}">${available ? 'READY' : 'DORMANT'}</span>
         </div>`;
     }).join('');
 }

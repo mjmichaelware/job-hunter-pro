@@ -1,69 +1,39 @@
-#!/data/data/com.termux/files/usr/bin/bash
-# scripts/make_scheduler_oidc.sh - Create Cloud Scheduler job with OIDC auth
-set -euo pipefail
+#!/bin/bash
 
-DRY_RUN=0
+# scripts/make_scheduler_oidc.sh
+# Prints safe gcloud commands for creating/updating Google Cloud Scheduler jobs with OIDC.
+# No secrets or real URLs are printed here.
 
-# Default or Environment Variables
-PROJECT_ID=${PROJECT_ID:-"ai-job-agent-498702"}
-REGION=${REGION:-"us-central1"}
+PROJECT_ID=$(gcloud config get-value project 2>/dev/null || echo "ai-job-agent-498702")
+REGION="us-central1"
 SERVICE_NAME="job-hunter-pro"
-JOB_NAME=${JOB_NAME:-"job-hunter-daily-ingest"}
-SCHEDULE=${SCHEDULE:-"0 9 * * *"} # 9 AM daily
-SCHEDULER_SA=${SCHEDULER_SA:-"job-hunter-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"}
+SERVICE_URL="https://${SERVICE_NAME}-xxxx-uc.a.run.app" # Placeholder for real URL
+SERVICE_ACCOUNT="scheduler-job@${PROJECT_ID}.iam.gserviceaccount.com"
 
-usage() {
-    echo "Usage: $0 [--dry-run]"
-    echo "Requires environment variables or defaults: PROJECT_ID, REGION, JOB_NAME, SCHEDULE, SCHEDULER_SA"
-    exit 1
-}
+echo "### Google Cloud Scheduler OIDC Configuration Commands ###"
+echo "# These commands configure a job to call your /api/ingest endpoint securely."
+echo ""
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --dry-run) DRY_RUN=1; shift ;;
-        *) usage ;;
-    esac
-done
+echo "1. Create Service Account (if needed):"
+echo "gcloud iam service-accounts create scheduler-job --display-name='Job Hunter Pro Scheduler Account'"
+echo ""
 
-echo "--- Creating Cloud Scheduler Job (OIDC) ---"
+echo "2. Grant Invoker role to Service Account for Cloud Run:"
+echo "gcloud run services add-iam-policy-binding ${SERVICE_NAME} \\"
+echo "  --member='serviceAccount:${SERVICE_ACCOUNT}' \\"
+echo "  --role='roles/run.invoker' \\"
+echo "  --region=${REGION}"
+echo ""
 
-# Validate required variables
-MISSING=()
-[[ -z "$PROJECT_ID" ]] && MISSING+=("PROJECT_ID")
-[[ -z "$REGION" ]] && MISSING+=("REGION")
-[[ -z "$JOB_NAME" ]] && MISSING+=("JOB_NAME")
-[[ -z "$SCHEDULE" ]] && MISSING+=("SCHEDULE")
-[[ -z "$SCHEDULER_SA" ]] && MISSING+=("SCHEDULER_SA")
+echo "3. Create/Update Scheduler Job with OIDC:"
+echo "gcloud scheduler jobs create http ingest-job \\"
+echo "  --schedule='0 9 * * *' \\" # Every day at 9 AM
+echo "  --uri='${SERVICE_URL}/api/ingest' \\"
+echo "  --http-method=POST \\"
+echo "  --oidc-service-account-email=${SERVICE_ACCOUNT} \\"
+echo "  --oidc-token-audience='${SERVICE_URL}'"
+echo ""
 
-if [[ ${#MISSING[@]} -gt 0 ]]; then
-    echo "Error: Missing required variables: ${MISSING[*]}"
-    exit 1
-fi
-
-# Fetch Service URL (Requires gcloud access)
-SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)' 2>/dev/null || echo "https://job-hunter-pro-placeholder.a.run.app")
-
-INGEST_URL="${SERVICE_URL}/api/ingest"
-
-# Note: Using --oidc-token-audience which is the same as the target URL by default
-SCHEDULER_CMD="gcloud scheduler jobs create http $JOB_NAME \
-    --project $PROJECT_ID \
-    --location $REGION \
-    --schedule "$SCHEDULE" \
-    --uri "$INGEST_URL" \
-    --http-method POST \
-    --oidc-service-account-email $SCHEDULER_SA \
-
-    --oidc-token-audience $SERVICE_URL"
-
-if [[ $DRY_RUN -eq 1 ]]; then
-    echo "[DRY-RUN] Scheduler command shape (NO TOKEN IN URL):"
-    echo "[DRY-RUN] $SCHEDULER_CMD"
-    exit 0
-fi
-
-# Real Run (Belongs to S12)
-echo "Executing real scheduler creation..."
-eval "$SCHEDULER_CMD"
-
-echo "Scheduler job $JOB_NAME created/updated."
+echo "### Security Note ###"
+echo "Always use the real Cloud Run Service URL for --uri and --oidc-token-audience."
+echo "No secrets are stored in these commands."

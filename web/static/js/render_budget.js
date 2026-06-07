@@ -29,7 +29,7 @@ async function loadBudget() {
 
     // Honest rendering of usage data
     if (UI.isPlaceholder(usage)) {
-        container.innerHTML = UI.renderUnavailable('Backend Gap');
+        container.innerHTML = UI.renderUnavailable('Gap');
         if (monthlyUsage) monthlyUsage.innerHTML = UI.renderUnavailable();
         if (estCost) estCost.innerHTML = UI.renderUnavailable();
         if (providerList) providerList.innerHTML = '<div class="muted">Usage tracking not implemented in backend.</div>';
@@ -37,7 +37,7 @@ async function loadBudget() {
         safeIndicator.textContent = 'UNAVAILABLE';
         safeIndicator.className = 'badge badge-cached';
     } else if (usage) {
-        const searchesLeft = usage.total_searches_left ?? (usage.serpapi ? usage.serpapi.searches_left : null);
+        const searchesLeft = usage.total_searches_left ?? null;
         const monthly = usage.monthly_usage ?? null;
         const est = usage.estimated_action_cost ?? null;
 
@@ -61,25 +61,25 @@ async function loadBudget() {
             estCost.innerHTML = UI.renderUnavailable();
         }
 
-        // Provider breakdown
-        if (usage.providers && Array.isArray(usage.providers)) {
-            providerList.innerHTML = usage.providers.map(p => `
-                <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-xs); font-size:0.85rem;">
-                    <span>${UI.escape(p.label)}</span>
-                    <span class="badge ${p.status === 'active' ? 'badge-safe' : 'badge-cached'}">${UI.escape(p.status.toUpperCase())}</span>
-                </div>
-            `).join('');
+        // Provider breakdown from usage.provider_usage
+        if (usage.provider_usage && typeof usage.provider_usage === 'object') {
+            const keys = Object.keys(usage.provider_usage);
+            if (keys.length > 0) {
+                providerList.innerHTML = keys.map(k => `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:var(--space-xs); font-size:0.85rem;">
+                        <span>${UI.escape(k)}</span>
+                        <span>$${usage.provider_usage[k].toFixed(2)}</span>
+                    </div>
+                `).join('');
+            } else {
+                providerList.innerHTML = '<div class="muted">No provider usage recorded.</div>';
+            }
         } else {
             providerList.innerHTML = '<div class="muted">No provider usage data available.</div>';
         }
 
         // Update safe indicator based on computed state
         updateSafeIndicator(safeIndicator, state);
-    } else {
-        container.textContent = 'N/A';
-        safeIndicator.textContent = 'ERROR';
-        safeIndicator.className = 'badge badge-live';
-        if (providerList) providerList.innerHTML = '<div class="muted">Failed to fetch budget data.</div>';
     }
 
     // Dry Run Button Logic
@@ -89,18 +89,17 @@ async function loadBudget() {
             dryRunOutput.style.display = 'block';
             dryRunOutput.textContent = 'Generating dry-run plan (Safe: 0 budget impact)...';
             
-            // Explicitly set state to dry_run during this action
             const prevState = AppState.budgetState;
             AppState.budgetState = BUDGET_STATES.DRY_RUN;
             
-            const dryRunData = await safeFetch(`${API_URLS.jobs}?dry_run=1&full_report=true`);
+            const dryRunData = await safeFetch(`${API_URLS.jobs}?dry_run=1`);
             
             if (UI.isPlaceholder(dryRunData)) {
                 dryRunOutput.textContent = 'Backend GAP: Jobs endpoint returned a placeholder. Cannot generate dry-run execution plan.';
             } else if (dryRunData && dryRunData.plan) {
                 dryRunOutput.textContent = JSON.stringify(dryRunData.plan, null, 2);
             } else {
-                dryRunOutput.textContent = 'Failed to generate dry-run plan or no plan available.\n' + (dryRunData ? JSON.stringify(dryRunData, null, 2) : '');
+                dryRunOutput.textContent = 'Failed to generate dry-run plan or no plan available.';
             }
             
             AppState.budgetState = prevState;
@@ -118,7 +117,7 @@ function updateSafeIndicator(el, state) {
             el.className = 'badge badge-budget-guarded';
             break;
         case BUDGET_STATES.BLOCKED:
-            el.className = 'badge badge-live'; // Use live color for warning/danger
+            el.className = 'badge badge-live';
             break;
         default:
             el.className = 'badge badge-cached';

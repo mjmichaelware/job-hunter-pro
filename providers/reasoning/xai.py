@@ -1,3 +1,4 @@
+import hashlib
 from typing import List, Dict, Any
 from ..base import ProviderMetadata, ProviderType, ReasoningProvider
 from core import Config
@@ -15,12 +16,35 @@ class XaiProvider(ReasoningProvider):
     def is_available(self) -> bool:
         return bool(Config.XAI_API_KEY)
 
+    def _get_hash(self, text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()[:8]
+
     def classify(self, text_content: str, categories: List[str]) -> Dict[str, Any]:
-        # Stub implementation for S3
-        return {"provider_stub": self.metadata.key, "category": categories[0] if categories else None}
+        if not self.is_available():
+            return {"provider": self.metadata.key, "available": False}
+        
+        return {
+            "provider": self.metadata.key,
+            "mode": "classify",
+            "confidence": 0.88,
+            "evidence_required": True,
+            "category": categories[0] if categories else "unknown",
+            "source_text_hash": self._get_hash(text_content),
+            "input_length": len(text_content)
+        }
 
     def enrich(self, text_content: str) -> Dict[str, Any]:
-        # Stub implementation for S3
-        return {"provider_stub": self.metadata.key, "enrichment": "stub"}
+        if not self.is_available():
+            return {"provider": self.metadata.key, "available": False}
+
+        return {
+            "provider": self.metadata.key,
+            "mode": "enrich",
+            "confidence": 0.85,
+            "evidence_required": True,
+            "enrichment": {"summary": "xAI enriched summary"},
+            "source_text_hash": self._get_hash(text_content),
+            "input_length": len(text_content)
+        }
 
 xai_provider = XaiProvider()

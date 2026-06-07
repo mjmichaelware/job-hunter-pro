@@ -6,5 +6,5 @@ class JobsRepository(BaseRepository):
         super().__init__("jobs", db)
         
     def find_by_status(self, status: str) -> List[Dict[str, Any]]:
-        docs = self.collection.where("status", "==", status).stream()
-        return [doc.to_dict() for doc in docs]
+        all_docs = self.get_all()
+        return [doc for doc in all_docs if doc.get("status") == status]
