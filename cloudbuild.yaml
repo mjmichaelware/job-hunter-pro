@@ -1,38 +1,27 @@
-substitutions:
-  _REGION: us-central1
-  _SERVICE: job-hunter-pro
-  _AR_REPO: job-hunter-pro
-
 steps:
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - build
-      - -t
-      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
-      - .
-
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
-
-  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - ${_SERVICE}
-      - --image
-      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
-      - --project
-      - $PROJECT_ID
-      - --region
-      - ${_REGION}
-      - --platform
-      - managed
-      - --allow-unauthenticated
-      - --set-secrets
-      - SERPAPI_KEY=SERPAPI_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,XAI_API_KEY=XAI_API_KEY:latest,ADZUNA_APP_ID=ADZUNA_APP_ID:latest,ADZUNA_APP_KEY=ADZUNA_APP_KEY:latest,USAJOBS_API_KEY=USAJOBS_API_KEY:latest,USAJOBS_EMAIL=USAJOBS_EMAIL:latest,JOOBLE_API_KEY=JOOBLE_API_KEY:latest,CAREERJET_AFFID=CAREERJET_AFFID:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest
-
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+  - build
+  - -t
+  - '${_IMAGE_URI}:$COMMIT_SHA'
+  - .
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+  - push
+  - '${_IMAGE_URI}:$COMMIT_SHA'
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+  entrypoint: gcloud
+  args:
+  - run
+  - deploy
+  - '${_SERVICE_NAME}'
+  - '--project=${_PROJECT_ID}'
+  - '--region=${_RUN_REGION}'
+  - '--image=${_IMAGE_URI}:$COMMIT_SHA'
+  - '--platform=managed'
+  - '--allow-unauthenticated'
+  - '--set-env-vars=APP_MODULE=${_APP_MODULE}'
 images:
-  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE}:$COMMIT_SHA
+- '${_IMAGE_URI}:$COMMIT_SHA'
+options:
+  logging: CLOUD_LOGGING_ONLY
