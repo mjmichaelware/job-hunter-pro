@@ -1,0 +1,234 @@
+(function () {
+  const SAFE_ENDPOINTS = [
+    ['/api/health', 'Health'],
+    ['/api/usage', 'Usage/Budget'],
+    ['/api/jobs?dry_run=1', 'Jobs Dry Run'],
+    ['/api/opportunities', 'Opportunities'],
+    ['/api/history', 'History'],
+    ['/api/providers', 'Providers'],
+    ['/api/industries', 'Industries'],
+    ['/api/_surface', 'Surface Map']
+  ];
+
+  function e(value) {
+    if (window.escapeHtml) return window.escapeHtml(value);
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+  }
+
+  async function fetchJson(path) {
+    try {
+      const res = await fetch(path, { cache: 'no-store' });
+      const text = await res.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch (_) {}
+      return { path, ok: res.ok, status: res.status, json, text };
+    } catch (err) {
+      return { path, ok: false, status: 0, error: String(err) };
+    }
+  }
+
+  function countPayload(payload, keys) {
+    if (!payload || typeof payload !== 'object') return 0;
+    for (const key of keys) {
+      const value = payload[key];
+      if (Array.isArray(value)) return value.length;
+      if (typeof value === 'number') return value;
+    }
+    if (Array.isArray(payload.data)) return payload.data.length;
+    if (payload.data && typeof payload.data === 'object') {
+      for (const key of keys) {
+        const value = payload.data[key];
+        if (Array.isArray(value)) return value.length;
+        if (typeof value === 'number') return value;
+      }
+    }
+    return 0;
+  }
+
+  function ensureLiveButton() {
+    let btn = document.getElementById('prepare-discovery-btn');
+    const header = document.querySelector('#header > div') || document.getElementById('header');
+
+    if (!btn && header) {
+      btn = document.createElement('button');
+      btn.id = 'prepare-discovery-btn';
+      btn.className = 'badge badge-live';
+      btn.type = 'button';
+      header.appendChild(btn);
+    }
+
+    if (btn) {
+      btn.textContent = 'Run Live Discovery';
+      btn.style.display = 'inline-flex';
+      btn.style.cursor = 'pointer';
+      btn.removeAttribute('hidden');
+      btn.disabled = false;
+      btn.setAttribute('aria-label', 'Run live discovery. This may use discovery provider budget.');
+    }
+
+    const guard = document.getElementById('live-action-guard');
+    if (guard) {
+      guard.style.display = 'flex';
+      guard.innerHTML = '<span class="badge badge-live">LIVE ACTION READY</span><span>Run Live Discovery calls /api/jobs and may use discovery provider budget. Page load remains safe.</span>';
+    }
+
+    const trigger = document.getElementById('trigger-discovery-btn');
+    if (trigger) {
+      trigger.style.display = 'inline-flex';
+      trigger.textContent = 'Confirm Live Discovery';
+      trigger.disabled = false;
+    }
+
+    return btn;
+  }
+
+  function ensureSurfacePanel() {
+    const overview = document.getElementById('tab-overview');
+    if (!overview) return null;
+
+    let panel = document.getElementById('live-engine-surface');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'live-engine-surface';
+      panel.className = 'card';
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;gap:var(--space-md);align-items:flex-start;flex-wrap:wrap;">
+          <div>
+            <h3>Live Engine Surface</h3>
+            <p class="muted">Mounted routes, safe endpoints, provider state, and explicit live action status.</p>
+          </div>
+          <span class="badge badge-safe">SAFE BOOT</span>
+        </div>
+        <div id="live-engine-summary" class="grid-overview" style="margin-top:var(--space-md);"></div>
+        <div id="live-engine-endpoints" style="margin-top:var(--space-md);"></div>
+      `;
+      overview.insertBefore(panel, overview.firstChild);
+    }
+    return panel;
+  }
+
+  function metric(label, value, badgeClass) {
+    return `<div class="card"><div class="metric-label">${e(label)}</div><div class="metric-num">${e(value)}</div>${badgeClass ? `<span class="badge ${badgeClass}">${e(badgeClass.replace('badge-', ''))}</span>` : ''}</div>`;
+  }
+
+  async function refreshSurfacePanel() {
+    const panel = ensureSurfacePanel();
+    if (!panel) return;
+
+    const summary = document.getElementById('live-engine-summary');
+    const endpoints = document.getElementById('live-engine-endpoints');
+
+    const results = await Promise.all(SAFE_ENDPOINTS.map(([path]) => fetchJson(path)));
+    const byPath = Object.fromEntries(results.map(r => [r.path, r]));
+
+    const health = byPath['/api/health']?.json;
+    const usage = byPath['/api/usage']?.json;
+    const dry = byPath['/api/jobs?dry_run=1']?.json;
+    const opps = byPath['/api/opportunities']?.json;
+    const hist = byPath['/api/history']?.json;
+    const providers = byPath['/api/providers']?.json;
+
+    const oppCount = countPayload(opps, ['opportunities', 'data', 'count']);
+    const batchCount = countPayload(hist, ['batches', 'history', 'batch_count']);
+    const providerCount = countPayload(providers, ['providers', 'data', 'count']);
+
+    const serpLeft =
+      usage?.total_searches_left ??
+      usage?.serpapi?.total_searches_left ??
+      usage?.serpapi?.searches_left ??
+      usage?.serpapi?.remaining ??
+      '—';
+
+    summary.innerHTML = [
+      metric('Health', health?.status || 'unknown', health?.status === 'ok' ? 'badge-safe' : 'badge-budget-guarded'),
+      metric('SerpAPI Left', serpLeft, 'badge-cached'),
+      metric('Opportunities', oppCount || '—', oppCount ? 'badge-safe' : 'badge-cached'),
+      metric('Batches', batchCount, 'badge-cached'),
+      metric('Providers', providerCount || 'visible', 'badge-cached'),
+      metric('Jobs Dry Run', dry?.dry_run ? 'ready' : (dry?.status || 'unknown'), 'badge-safe')
+    ].join('');
+
+    endpoints.innerHTML = `
+      <table>
+        <thead><tr><th>Endpoint</th><th>Status</th><th>Meaning</th></tr></thead>
+        <tbody>
+          ${results.map((r, idx) => {
+            const [path, label] = SAFE_ENDPOINTS[idx];
+            let meaning = 'safe probe';
+            if (path === '/api/jobs?dry_run=1') meaning = 'query plan only; does not run live discovery';
+            if (path === '/api/opportunities') meaning = `${countPayload(r.json, ['opportunities', 'data', 'count']) || 0} opportunity records visible`;
+            if (path === '/api/history') meaning = `${countPayload(r.json, ['batches', 'history', 'batch_count']) || 0} stored batches visible`;
+            if (path === '/api/_surface') meaning = 'backend surface map if implemented';
+            return `<tr><td><code>${e(path)}</code></td><td><span class="badge ${r.ok ? 'badge-safe' : 'badge-budget-guarded'}">${e(r.status)}</span></td><td>${e(label)} — ${e(meaning)}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  async function runLiveDiscovery() {
+    const ok = window.confirm(
+      'Run live discovery now?\n\nThis calls /api/jobs and may use discovery provider budget. It is not run on page load.'
+    );
+    if (!ok) return;
+
+    const btn = ensureLiveButton();
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Running Live Discovery...';
+    }
+
+    try {
+      if (window.AppState && typeof AppState.setTab === 'function') {
+        AppState.setTab('live_jobs');
+      }
+
+      if (typeof loadJobs === 'function') {
+        await loadJobs({ live: true });
+      } else {
+        const data = await fetchJson('/api/jobs');
+        const container = document.getElementById('jobs-container');
+        if (container) {
+          container.innerHTML = `<pre>${e(JSON.stringify(data.json || data.text || data.error, null, 2))}</pre>`;
+        }
+      }
+
+      await refreshSurfacePanel();
+    } catch (err) {
+      console.error(err);
+      const container = document.getElementById('jobs-container');
+      if (container) container.innerHTML = '<div class="chart-fallback">Live discovery failed. Check Cloud Run logs and /api/health.</div>';
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Run Live Discovery';
+      }
+    }
+  }
+
+  function boot() {
+    const btn = ensureLiveButton();
+    if (btn && !btn.dataset.liveBound) {
+      btn.dataset.liveBound = '1';
+      btn.addEventListener('click', runLiveDiscovery);
+    }
+
+    const trigger = document.getElementById('trigger-discovery-btn');
+    if (trigger && !trigger.dataset.liveBound) {
+      trigger.dataset.liveBound = '1';
+      trigger.addEventListener('click', runLiveDiscovery);
+    }
+
+    refreshSurfacePanel();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  window.refreshLiveEngineSurface = refreshSurfacePanel;
+})();

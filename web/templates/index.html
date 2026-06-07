@@ -45,12 +45,12 @@
             <div style="display:flex;gap:var(--space-sm);align-items:center;">
                 <div id="filter-count-badge" class="badge" style="display:none;background:var(--accent);">0 filters</div>
                 <button id="toggle-filters" class="badge badge-cached" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-drawer">Filters</button>
-                <div id="live-action-guard" style="display:none; align-items:center; gap:var(--space-sm);">
+                <div id="live-action-guard" style="display:flex; align-items:center; gap:var(--space-sm);">
                     <span style="font-size:0.7rem; color:var(--accent); font-weight:bold;">May use discovery provider budget.</span>
                     <button id="trigger-discovery-btn" class="badge badge-live" style="cursor:pointer;">Confirm Live Discovery</button>
                     <button id="cancel-discovery-btn" class="badge" style="cursor:pointer; background:var(--surface2);">Cancel</button>
                 </div>
-                <button id="prepare-discovery-btn" class="badge badge-live" style="cursor:pointer;display:none;">Run Live Discovery</button>
+                <button id="prepare-discovery-btn" class="badge badge-live" style="cursor:pointer;display:inline-flex;">Run Live Discovery</button>
             </div>
         </header>
 
@@ -508,5 +508,6 @@
     </script>
     <div id="drawer-backdrop"></div>
     <div class="sr-only" data-language-support="English primary; Spanish static labels where provided; Russian unavailable future option unavailable future option unavailable future option.">English primary. Spanish static labels where provided. Russian unavailable future option unavailable future option unavailable future option.</div>
+    <script src="/static/js/live_engine_bridge.js"></script>
 </body>
 </html>
