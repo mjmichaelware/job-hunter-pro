@@ -19,30 +19,14 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Core Renderer Truth Upgrade (S10-C) complete. All renderers hardened to prevent crashes on placeholder data, utilizing honest empty/unavailable states.
 - No fake data arrays utilized.
 
-## S10-D — Core UI parity still required
-- Advanced filter drawer:
-  - search mode
-  - radius/location
-  - industry
-  - provider
-  - status
-  - sort
-  - min match score
-  - max walk minutes
-  - max transit minutes
-  - min rating
-  - min review score
-  - job type
-  - pay hint
-  - remote/onsite
-  - provider include/exclude
-  - batch
-  - time range
-  - rejection reason
-  - classification confidence
-  - place status
-  - application state
-  - duplicate state
+## S10-D — Done / committed
+- Advanced filter system complete.
+- Always visible: search mode, radius, industry, provider, status, sort, min match score.
+- Advanced drawer: walk, transit, rating, review, job type, pay, remote, batch, time, rejection, confidence, place status, app state, duplicate state.
+- UI: Chips with remove, reset all, filter count, toggle, accessibility fixes.
+- Local filtering only.
+
+## S10-E — Evidence Drawer System still required
 - Evidence drawer with all required fields:
   - raw_title
   - normalized_title

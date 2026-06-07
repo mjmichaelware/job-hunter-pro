@@ -1,6 +1,7 @@
 const API_URLS = Object.freeze({
   health: '/api/health',
   usage: '/api/usage',
+  jobs: '/api/jobs',
   opportunities: '/api/opportunities',
   history: '/api/history',
   providers: '/api/providers',

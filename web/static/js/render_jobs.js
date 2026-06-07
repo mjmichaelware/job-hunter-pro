@@ -20,16 +20,90 @@ function renderJobsList(data) {
     }
 
     let filtered = jobs.filter(j => {
+        // Industry
         if (AppState.filters.industry && j.industry !== AppState.filters.industry) return false;
         
-        // Handle legacy radius_miles fallback
+        // Mode
+        if (AppState.filters.mode && j.discovery_mode !== AppState.filters.mode) return false;
+
+        // Provider
+        if (AppState.filters.provider && j.provider_id !== AppState.filters.provider) return false;
+
+        // Status
+        if (AppState.filters.status) {
+            if (AppState.filters.status === 'new' && j.application_status) return false;
+            if (AppState.filters.status === 'accepted' && j.status !== 'accepted') return false;
+            if (AppState.filters.status === 'rejected' && j.status !== 'rejected') return false;
+        }
+
+        // Radius
         const radius = j.haversine_radius_miles ?? j.radius_miles ?? 999;
         if (radius > AppState.filters.radius) return false;
         
+        // Match Score
         const score = j.match_score ?? 0;
         if (score < AppState.filters.matchScore) return false;
         
+        // Max Walk
+        if (j.walk_duration_minutes && j.walk_duration_minutes > AppState.filters.maxWalk) return false;
+
+        // Max Transit
+        const transitMin = j.commute_matrix_seconds ? j.commute_matrix_seconds / 60 : null;
+        if (transitMin && transitMin > AppState.filters.maxTransit) return false;
+
+        // Min Rating
+        if (j.rating && j.rating < AppState.filters.minRating) return false;
+
+        // Min Review Score
+        if (j.review_score && j.review_score < AppState.filters.minReview) return false;
+
+        // Job Type
+        if (AppState.filters.jobType && j.job_type !== AppState.filters.jobType) return false;
+
+        // Pay Hint
+        if (AppState.filters.payHint && j.pay_hint !== AppState.filters.payHint) return false;
+
+        // Remote/Onsite
+        if (AppState.filters.remoteOnsite && j.remote_onsite !== AppState.filters.remoteOnsite) return false;
+
+        // Batch ID
+        if (AppState.filters.batchId && j.batch_id && !j.batch_id.includes(AppState.filters.batchId)) return false;
+
+        // Rejection Reason
+        if (AppState.filters.rejectionReason && j.rejection_reason !== AppState.filters.rejectionReason) return false;
+
+        // Confidence
+        if (AppState.filters.confidence && j.classification_confidence && (j.classification_confidence * 100) < AppState.filters.confidence) return false;
+
+        // Place Status
+        if (AppState.filters.placeStatus && j.place_status !== AppState.filters.placeStatus) return false;
+
+        // Application State
+        if (AppState.filters.applicationState && j.application_status !== AppState.filters.applicationState) return false;
+
+        // Duplicate State
+        if (AppState.filters.duplicateState) {
+            if (AppState.filters.duplicateState === 'duplicate' && !j.is_duplicate) return false;
+            if (AppState.filters.duplicateState === 'canonical' && j.is_duplicate) return false;
+        }
+
         return true;
+    });
+
+    // Sorting
+    filtered.sort((a, b) => {
+        if (AppState.filters.sort === 'score') {
+            return (b.match_score || 0) - (a.match_score || 0);
+        } else if (AppState.filters.sort === 'distance') {
+            const distA = a.haversine_radius_miles ?? a.radius_miles ?? 999;
+            const distB = b.haversine_radius_miles ?? b.radius_miles ?? 999;
+            return distA - distB;
+        } else {
+            // Newest (default)
+            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return timeB - timeA;
+        }
     });
 
     if (filtered.length === 0) {

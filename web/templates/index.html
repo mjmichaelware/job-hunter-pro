@@ -32,28 +32,97 @@
         <header id="header">
             <h1 id="header-title">System Overview</h1>
             <div style="display:flex;gap:var(--space-sm);align-items:center;">
-                <button id="toggle-filters" class="badge badge-cached" style="cursor:pointer;">Filters</button>
+                <div id="filter-count-badge" class="badge" style="display:none;background:var(--accent);">0 filters</div>
+                <button id="toggle-filters" class="badge badge-cached" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-drawer">Filters</button>
                 <button id="trigger-discovery-btn" class="badge badge-live" style="cursor:pointer;display:none;">Live Discovery</button>
             </div>
         </header>
+
+        <div id="filter-bar" style="padding: 0 var(--space-md); margin-bottom: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center;">
+            <div id="active-filters-chips" style="display: flex; flex-wrap: wrap; gap: var(--space-xs);"></div>
+            <button id="reset-all-filters" class="badge" style="display:none; cursor:pointer; background:var(--border);">Reset All</button>
+        </div>
+
+        <div id="always-visible-filters" style="padding: 0 var(--space-md); margin-bottom: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-md); font-size: 0.85rem;">
+            <div class="filter-group">
+                <label for="filter-mode">Mode</label>
+                <select id="filter-mode" class="badge-cached">
+                    <option value="">All Modes</option>
+                    <option value="search">Search</option>
+                    <option value="radar">Radar</option>
+                    <option value="dry_run">Dry Run</option>
+                    <option value="live_run">Live Run</option>
+                    <option value="history">History</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-industry">Industry</label>
+                <select id="filter-industry" class="badge-cached">
+                    <option value="">All Industries</option>
+                    <option value="food_service">Food Service</option>
+                    <option value="hospitality">Hospitality</option>
+                    <option value="care_social">Care & Social</option>
+                    <option value="sales">Sales</option>
+                    <option value="customer_service">Customer Service</option>
+                    <option value="retail_ops">Retail Operations</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-provider">Provider</label>
+                <select id="filter-provider" class="badge-cached">
+                    <option value="">All Providers</option>
+                    <option value="serpapi">SerpAPI</option>
+                    <option value="adzuna">Adzuna</option>
+                    <option value="careerjet">Careerjet</option>
+                    <option value="jooble">Jooble</option>
+                    <option value="usajobs">USAJobs</option>
+                    <option value="themuse">The Muse</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-status">Status</label>
+                <select id="filter-status" class="badge-cached">
+                    <option value="">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="filter-sort">Sort</label>
+                <select id="filter-sort" class="badge-cached">
+                    <option value="newest">Newest</option>
+                    <option value="score">Highest Score</option>
+                    <option value="distance">Nearest</option>
+                </select>
+            </div>
+            <div class="filter-group" style="min-width: 120px;">
+                <label for="filter-radius">Radius: <span id="radius-val">5</span>mi</label>
+                <input type="range" id="filter-radius" min="1" max="25" value="5">
+            </div>
+            <div class="filter-group" style="min-width: 120px;">
+                <label for="filter-match">Match: <span id="match-val">60</span>%</label>
+                <input type="range" id="filter-match" min="0" max="100" value="60">
+            </div>
+        </div>
 
 
         <!-- OVERVIEW TAB -->
         <section id="tab-overview" class="tab-panel active">
             <div class="grid-overview">
-                <div class="card" data-target="live_jobs">
+                <div class="card" data-target="live_jobs" role="button" tabindex="0">
                     <div class="metric-label">Accepted Live Jobs</div>
                     <div class="metric-num" id="overview-accepted-count">-</div>
                 </div>
-                <div class="card" data-target="opportunities">
+                <div class="card" data-target="opportunities" role="button" tabindex="0">
                     <div class="metric-label">Opportunities Radar</div>
                     <div class="metric-num" id="overview-opp-count">-</div>
                 </div>
-                <div class="card" data-target="history">
+                <div class="card" data-target="history" role="button" tabindex="0">
                     <div class="metric-label">Discovered Batches</div>
                     <div class="metric-num" id="overview-batch-count">-</div>
                 </div>
-                <div class="card" data-target="budget">
+                <div class="card" data-target="budget" role="button" tabindex="0">
                     <div class="metric-label">Budget Efficiency</div>
                     <div class="metric-num" id="overview-budget-burn">-</div>
                 </div>
@@ -145,23 +214,104 @@
     </main>
 
 
-    <aside id="filter-drawer">
-        <h3>Intelligence Filters</h3>
+    <aside id="filter-drawer" aria-labelledby="drawer-title" role="dialog" aria-modal="true">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-md);">
+            <h3 id="drawer-title">Advanced Filters</h3>
+            <button id="close-filters" class="badge" aria-label="Close filters" style="cursor:pointer; background:var(--surface2);">✕</button>
+        </div>
         <hr style="border-color:var(--border);margin:12px 0;">
-        <label>Industry</label>
-        <select id="filter-industry">
-            <option value="">All</option>
-            <option value="food_service">Food Service</option>
-            <option value="hospitality">Hospitality</option>
-            <option value="care_social">Care & Social</option>
-            <option value="sales">Sales</option>
-            <option value="customer_service">Customer Service</option>
-            <option value="retail_ops">Retail Operations</option>
-        </select>
-        <label>Radius (Miles)</label>
-        <input type="range" id="filter-radius" min="1" max="25" value="5">
-        <label>Minimum Match Score</label>
-        <input type="range" id="filter-match" min="0" max="100" value="60">
+        
+        <div class="filter-section">
+            <label for="filter-walk">Max Walk (Min): <span id="walk-val">30</span></label>
+            <input type="range" id="filter-walk" min="5" max="60" step="5" value="30">
+            
+            <label for="filter-transit">Max Transit (Min): <span id="transit-val">60</span></label>
+            <input type="range" id="filter-transit" min="15" max="120" step="15" value="60">
+            
+            <label for="filter-rating">Min Rating: <span id="rating-val">0</span></label>
+            <input type="range" id="filter-rating" min="0" max="5" step="0.5" value="0">
+            
+            <label for="filter-review">Min Review Score: <span id="review-val">0</span></label>
+            <input type="range" id="filter-review" min="0" max="100" value="0">
+        </div>
+
+        <div class="filter-section">
+            <label for="filter-job-type">Job Type</label>
+            <select id="filter-job-type">
+                <option value="">All Types</option>
+                <option value="full_time">Full Time</option>
+                <option value="part_time">Part Time</option>
+                <option value="contract">Contract</option>
+            </select>
+
+            <label for="filter-pay">Pay Hint</label>
+            <select id="filter-pay">
+                <option value="">Any</option>
+                <option value="hourly">Hourly</option>
+                <option value="salary">Salary</option>
+                <option value="commission">Commission</option>
+            </select>
+
+            <label for="filter-remote">Remote / Onsite</label>
+            <select id="filter-remote">
+                <option value="">All</option>
+                <option value="onsite">Onsite</option>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+            </select>
+        </div>
+
+        <div class="filter-section">
+            <label for="filter-batch">Batch ID</label>
+            <input type="text" id="filter-batch" placeholder="e.g. b8f2..." style="width:100%; padding:var(--space-sm); background:var(--surface2); border:1px solid var(--border); color:var(--text); margin-bottom:var(--space-md);">
+
+            <label for="filter-time">Time Range</label>
+            <select id="filter-time">
+                <option value="all">All Time</option>
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+            </select>
+        </div>
+
+        <div class="filter-section">
+            <label for="filter-rejection">Rejection Reason</label>
+            <select id="filter-rejection">
+                <option value="">Any</option>
+                <option value="not_food_service">Industry Mismatch</option>
+                <option value="outside_radius">Outside Radius</option>
+                <option value="duplicate">Duplicate</option>
+                <option value="low_confidence">Low Confidence</option>
+            </select>
+
+            <label for="filter-confidence">Min Confidence: <span id="conf-val">0</span>%</label>
+            <input type="range" id="filter-confidence" min="0" max="100" value="0">
+        </div>
+
+        <div class="filter-section">
+            <label for="filter-place-status">Place Status</label>
+            <select id="filter-place-status">
+                <option value="">All</option>
+                <option value="resolved">Resolved</option>
+                <option value="ambiguous">Ambiguous</option>
+                <option value="failed">Failed</option>
+            </select>
+
+            <label for="filter-app-state">Application State</label>
+            <select id="filter-app-state">
+                <option value="">All</option>
+                <option value="not_applied">Not Applied</option>
+                <option value="applied">Applied</option>
+                <option value="interviewing">Interviewing</option>
+            </select>
+
+            <label for="filter-duplicate">Duplicate State</label>
+            <select id="filter-duplicate">
+                <option value="">All</option>
+                <option value="canonical">Canonical</option>
+                <option value="duplicate">Duplicate</option>
+            </select>
+        </div>
     </aside>
 
 

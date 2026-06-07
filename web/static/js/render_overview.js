@@ -42,8 +42,8 @@ async function loadOverview() {
         accepted.textContent = 'Error';
     }
 
-    // Opportunities
-    const rawOpps = await safeFetch(API_URLS.opportunities);
+    // Opportunities (Dry Run)
+    const rawOpps = await safeFetch(`${API_URLS.opportunities}?dry_run=1`);
     if (UI.isPlaceholder(rawOpps)) {
         opps.textContent = 'Unavailable';
     } else if (rawOpps) {

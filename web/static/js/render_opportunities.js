@@ -21,6 +21,7 @@ function renderOpportunitiesList(data) {
 
     let filtered = opps.filter(o => {
         if (AppState.filters.industry && o.industry !== AppState.filters.industry) return false;
+        if (AppState.filters.minRating && o.rating < AppState.filters.minRating) return false;
         return true;
     });
 
