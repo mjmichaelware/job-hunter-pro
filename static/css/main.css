@@ -1,7 +1,35 @@
-@import 'base/reset.css';
-@import 'base/variables.css';
-@import 'base/typography.css';
-@import 'layouts/grid.css';
-@import 'components/buttons.css';
-@import 'components/cards.css';
-@import 'components/forms.css';
+@import "./base/variables.css";
+@import "./base/typography.css";
+@import "./layouts/grid.css";
+@import "./animations/fade.css";
+@import "./components/buttons.css";
+@import "./components/forms.css";
+@import "./components/cards.css";
+@import "./components/job-card.css";
+
+.navbar{
+  position:sticky;top:0;z-index:50;background:rgba(7,9,15,.68);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line);
+}
+.navbar .container{display:flex;align-items:center;justify-content:space-between;padding-block:.85rem}
+.logo{font-weight:950;letter-spacing:-.04em}
+.badge{
+  display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--line);border-radius:999px;
+  padding:.32rem .7rem;background:rgba(255,255,255,.06);color:var(--muted);font-size:.8rem;font-weight:800;
+}
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(1rem,3vw,2rem);
+  box-shadow:var(--shadow);backdrop-filter:blur(22px);
+}
+.empty-state{
+  grid-column:1/-1;text-align:center;border:1px dashed var(--line);border-radius:var(--radius);
+  padding:3rem 1rem;color:var(--muted);background:rgba(255,255,255,.035);
+}
+.status-line{color:var(--muted);font-size:.92rem}
+.noise{
+  position:fixed;inset:0;pointer-events:none;opacity:.06;z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-track{background:#07090f}
+::-webkit-scrollbar-thumb{background:linear-gradient(var(--primary),var(--primary2));border-radius:999px}
