@@ -59,12 +59,15 @@ def _proxy_to_real_api(path: str):
     if target_path == "/api/search/federated":
         target_path = "/api/search"
 
+    # Capture incoming query string
+    qs = request.query_string.decode('utf-8') if request.query_string else None
+
     with real_api_app.test_client() as client:
         result = client.open(
             path=target_path,
             method=request.method,
-            query_string=request.query_string,
-            headers=list(_copy_request_headers()),
+            query_string=qs,
+            headers=dict(_copy_request_headers()),
             data=request.get_data(),
             content_type=request.content_type,
             follow_redirects=False,
@@ -114,8 +117,10 @@ def create_app():
             "ui": "web/templates/index.html",
             "static": "web/static",
             "api_backend": "api.index:app",
-            "placeholder_blueprint_registered": True,
-            "truth": "S10 cockpit is served from web/. Real API traffic is dispatched to api.index.",
+            "api_index_proxy_routes": "enabled",
+            "modular_routes": "enabled (providers, industries, applications, ingest)",
+            "placeholder_blueprint_registered": False,
+            "truth": "S10 cockpit is served from web/. Traffic for core discovery/history is proxied to api.index. Modular routes handle metadata and local state.",
         })
 
     from api import api_bp

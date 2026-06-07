@@ -84,3 +84,9 @@
 - `python3 scripts/current_truth_audit.py` -> Success (STUB: 0, PASS: 0, TODO: 0, UNWIRED: 0)
 - `PYTHONPATH=. python3 tests/test_oidc_ingest.py` -> Success
 - `PYTHONPATH=. python3 tests/test_api_frontend_contract.py` -> Success
+
+### R10B Proof
+- Regression cause: modular routes in `api/*.py` were overriding the catch-all proxy in `app.py`.
+- `PYTHONPATH=. python3 tests/test_api_frontend_contract.py` -> 9 tests passed (rich data parity verified)
+- `python3 scripts/current_truth_audit.py` -> Clean (STUB: 0, PASS: 0, TODO: 0, UNWIRED: 0)
+- Deploy needed: A new deploy is required to push these parity fixes to the live environment.
