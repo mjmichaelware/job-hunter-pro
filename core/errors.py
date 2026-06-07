@@ -10,6 +10,18 @@ class ProviderError(JobHunterError):
     """Raised when an external data provider fails."""
     pass
 
+class GeocodingError(ProviderError):
+    """Raised for errors related to the Geocoding API."""
+    pass
+
+class PlacesError(ProviderError):
+    """Raised for errors related to the Places API."""
+    pass
+
+class DistanceMatrixError(ProviderError):
+    """Raised for errors related to the Distance Matrix API."""
+    pass
+
 class BudgetGuardError(ProviderError):
     """Raised when an action is blocked by a budget/quota guard."""
     pass

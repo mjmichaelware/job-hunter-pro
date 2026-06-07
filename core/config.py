@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 
 class Config:
     """
@@ -48,3 +49,8 @@ class Config:
 
     # Logging
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+
+@lru_cache()
+def get_config():
+    """Returns a cached instance of the Config class."""
+    return Config()
