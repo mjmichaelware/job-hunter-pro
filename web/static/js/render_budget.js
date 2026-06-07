@@ -14,6 +14,7 @@ async function loadBudget() {
 
     // Fetch usage data
     const usage = await safeFetch(API_URLS.usage);
+    AppState.cachedData.usage = usage;
     
     // Determine budget state
     let state = BUDGET_STATES.SAFE;

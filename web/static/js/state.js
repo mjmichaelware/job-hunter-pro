@@ -120,6 +120,8 @@ const AppState = {
         if (typeof loadWhyThree === 'function') await loadWhyThree();
         break;
     }
+
+    if (typeof loadCharts === 'function') await loadCharts();
   },
   showEvidence(id, type) {
     let data = null;

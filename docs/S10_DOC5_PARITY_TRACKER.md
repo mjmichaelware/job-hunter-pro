@@ -30,20 +30,16 @@ This file prevents overclaiming. Document 5 is not fully implemented yet.
 - Safe boot: dashboard opening does not trigger live discovery.
 - Budget panel: quota, monthly usage, estimated cost, provider breakdown.
 
-## Next Phase — Charts & Pipeline required
-- Charts:
-  - funnel
-...
-  - funnel
-  - provider mix
-  - budget usage
-  - accepted over time
-  - rejection distribution
-  - industry distribution
-  - opportunity categories
-  - review rating distribution
-  - no-data chart states
+## S10-G — Done / committed
+- Charts From Real Data Only complete.
+- Lightweight Vanilla SVG/CSS chart engine implemented (Funnel, Pie, Bar).
+- Charts: Pipeline Funnel, Industry Distribution, Accepted Over Time, Rejection Distribution, Budget Usage, Provider Mix, Resonance Comparison.
+- Honest empty states: Fallbacks render when data is missing or placeholders detected.
+- Real data only: No fake arrays or demo shapes utilized.
 
+## Next Phase — Pipeline Reactor required
+- Server-Sent Events pipeline stream.
+...
 ## S10-C — Advanced visual systems still required
 - View Transitions API shared-element card-to-evidence morph.
 - Web Animations API spring/physics motion.

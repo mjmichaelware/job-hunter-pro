@@ -1,1 +1,34 @@
-.chart-fallback{background:var(--surface2);border-radius:var(--radius-md);padding:var(--space-md);color:var(--muted);text-align:center;font-style:italic}
+.chart-wrapper {
+    min-height: 200px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-top: var(--space-sm);
+}
+
+.chart-fallback {
+    background: var(--surface2);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    color: var(--muted);
+    text-align: center;
+    font-style: italic;
+    width: 100%;
+}
+
+svg text {
+    font-family: inherit;
+    pointer-events: none;
+}
+
+svg path, svg rect {
+    transition: all 0.3s ease;
+}
+
+svg path:hover, svg rect:hover {
+    filter: brightness(1.2);
+    cursor: crosshair;
+}

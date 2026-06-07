@@ -2,6 +2,7 @@ async function loadHistory() {
     const table = document.getElementById('history-rows');
     table.innerHTML = '<tr><td colspan="5" class="chart-fallback">Querying system batch registry...</td></tr>';
     const data = await safeFetch(API_URLS.history);
+    AppState.cachedData.history = data;
     
     if (UI.isPlaceholder(data)) {
         table.innerHTML = '<tr><td colspan="5" class="chart-fallback">History endpoint is currently a placeholder (Backend gap). No batches retrieved.</td></tr>';

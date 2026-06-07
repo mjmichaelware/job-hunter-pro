@@ -3,6 +3,7 @@ async function loadWhyThree() {
     container.innerHTML = '<div class="chart-fallback">Retrieving top candidates...</div>';
     
     const data = await safeFetch(API_URLS.why_three);
+    AppState.cachedData.whyThree = data;
     
     if (UI.isPlaceholder(data)) {
         container.innerHTML = '<div class="chart-fallback">Why Three endpoint is a placeholder (Backend gap). Decision engine unavailable.</div>';

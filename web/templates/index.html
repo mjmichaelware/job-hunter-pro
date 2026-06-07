@@ -133,7 +133,17 @@
                     <div class="metric-num" id="overview-budget-burn">-</div>
                 </div>
             </div>
-            <div class="card">
+            <div class="grid-overview" style="margin-top:var(--space-md);">
+                <div class="card">
+                    <h3>Pipeline Funnel</h3>
+                    <div id="pipeline-funnel-chart" class="chart-wrapper"></div>
+                </div>
+                <div class="card">
+                    <h3>Industry Distribution</h3>
+                    <div id="industry-dist-chart" class="chart-wrapper"></div>
+                </div>
+            </div>
+            <div class="card" style="margin-top:var(--space-md);">
                 <h3>Pipeline Engine Stream</h3>
                 <div id="pipeline-stream" class="chart-wrapper">
                     <div class="chart-fallback">Live stream inactive. Connect pipeline to watch ingestion flow.</div>
@@ -160,6 +170,16 @@
 
         <!-- HISTORY TAB -->
         <section id="tab-history" class="tab-panel">
+            <div class="grid-overview" style="margin-bottom:var(--space-md);">
+                <div class="card">
+                    <h3>Accepted Over Time</h3>
+                    <div id="history-over-time-chart" class="chart-wrapper"></div>
+                </div>
+                <div class="card">
+                    <h3>Rejection Distribution</h3>
+                    <div id="rejection-dist-chart" class="chart-wrapper"></div>
+                </div>
+            </div>
             <div class="card">
                 <table id="history-table">
                     <thead>
@@ -214,6 +234,17 @@
             
             <div class="grid-overview" style="margin-top:var(--space-md);">
                 <div class="card">
+                    <h3>Budget Usage Over Time</h3>
+                    <div id="budget-usage-chart" class="chart-wrapper"></div>
+                </div>
+                <div class="card">
+                    <h3>Provider Mix</h3>
+                    <div id="provider-mix-chart" class="chart-wrapper"></div>
+                </div>
+            </div>
+
+            <div class="grid-overview" style="margin-top:var(--space-md);">
+                <div class="card">
                     <h3>Provider Quota Health</h3>
                     <div id="provider-budget-list">
                         <!-- Injected via JS -->
@@ -239,6 +270,7 @@
         <section id="tab-why_three" class="tab-panel">
             <div class="card">
                 <h3>Resonance Match Metrics</h3>
+                <div id="resonance-comparison-chart" class="chart-wrapper" style="margin-bottom:var(--space-md);"></div>
                 <div id="why-three-container"></div>
             </div>
         </section>
