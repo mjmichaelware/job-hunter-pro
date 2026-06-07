@@ -24,6 +24,10 @@ class Config:
     GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
     SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
     GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+    ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    XAI_API_KEY = os.environ.get("XAI_API_KEY", "").strip()
 
     ORIGIN_ADDRESS = os.environ.get(
         "ORIGIN_ADDRESS",
@@ -430,6 +434,22 @@ def health():
         "food_only": True,
     })
 
+
+@app.route("/api/ai/status", methods=["GET"])
+def ai_status():
+    return jsonify({
+        "status": "ok",
+        "google_maps_enabled": bool(Config.GOOGLE_MAPS_API_KEY),
+        "serpapi_enabled": bool(Config.SERPAPI_KEY),
+        "groq_enabled": bool(Config.GROQ_API_KEY),
+        "openai_enabled": bool(getattr(Config, "OPENAI_API_KEY", "")),
+        "gemini_enabled": bool(getattr(Config, "GEMINI_API_KEY", "")),
+        "claude_enabled": bool(getattr(Config, "ANTHROPIC_API_KEY", "")),
+        "grok_xai_enabled": bool(getattr(Config, "XAI_API_KEY", "")),
+        "note": "This proves secrets are mapped into Cloud Run. It does not expose secret values."
+    })
+
+
 @app.route("/api/jobs", methods=["GET"])
 def jobs():
     data = fetch_serpapi_jobs()
@@ -447,6 +467,41 @@ def jobs():
         },
         "data": data,
     })
+
+
+@app.route("/api/debug/jobs", methods=["GET"])
+def debug_jobs():
+    try:
+        jobs_response = jobs()
+        payload = jobs_response.get_json() if hasattr(jobs_response, "get_json") else {}
+    except Exception as exc:
+        return jsonify({
+            "status": "error",
+            "stage": "jobs_route_exception",
+            "error": str(exc),
+        }), 500
+
+    return jsonify({
+        "status": "success",
+        "debug": True,
+        "message": "Debug route is now live. If accepted_count is 0, the filters or source data are the issue, not deployment.",
+        "rules": {
+            "origin": getattr(Config, "ORIGIN_ADDRESS", None),
+            "job_location": getattr(Config, "JOB_LOCATION", None),
+            "max_transit_seconds": getattr(Config, "MAX_TRANSIT_SECONDS", None),
+            "max_radius_miles": getattr(Config, "MAX_RADIUS_MILES", None),
+            "food_only": True,
+        },
+        "ai": {
+            "groq_enabled": bool(getattr(Config, "GROQ_API_KEY", "")),
+            "openai_enabled": bool(getattr(Config, "OPENAI_API_KEY", "")),
+            "gemini_enabled": bool(getattr(Config, "GEMINI_API_KEY", "")),
+            "claude_enabled": bool(getattr(Config, "ANTHROPIC_API_KEY", "")),
+            "grok_xai_enabled": bool(getattr(Config, "XAI_API_KEY", "")),
+        },
+        "jobs_payload": payload,
+    })
+
 
 @app.route("/api/demo", methods=["GET"])
 def demo_alias():
