@@ -1,3 +1,34 @@
+
+function countArrayPayload(payload, keys) {
+  if (!payload || typeof payload !== 'object') return 0;
+  for (const key of keys) {
+    const value = payload[key];
+    if (Array.isArray(value)) return value.length;
+    if (typeof value === 'number') return value;
+  }
+  if (payload.data) {
+    if (Array.isArray(payload.data)) return payload.data.length;
+    if (typeof payload.data === 'object') {
+      for (const key of keys) {
+        const value = payload.data[key];
+        if (Array.isArray(value)) return value.length;
+        if (typeof value === 'number') return value;
+      }
+    }
+  }
+  return 0;
+}
+
+function pickUsageLeft(usage) {
+  if (!usage || typeof usage !== 'object') return null;
+  if (usage.total_searches_left !== undefined) return usage.total_searches_left;
+  if (usage.serpapi?.total_searches_left !== undefined) return usage.serpapi.total_searches_left;
+  if (usage.serpapi?.searches_left !== undefined) return usage.serpapi.searches_left;
+  if (usage.serpapi?.remaining !== undefined) return usage.serpapi.remaining;
+  return null;
+}
+
+
 async function loadOverview() {
     const acceptedCount = document.getElementById('overview-accepted-count');
     const oppCount = document.getElementById('overview-opp-count');
