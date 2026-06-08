@@ -661,26 +661,59 @@ def raw_job_queries() -> List[str]:
 
 def fetch_jobs_live() -> Dict[str, Any]:
     raw_jobs = []
-    seen_raw = set()
-    for query in raw_job_queries():
-        for raw in serpapi_jobs(query):
-            identity = clean(raw.get("job_id")) or clean(raw.get("title")) + clean(raw.get("company_name")) + clean(raw.get("location"))
-            if identity and identity not in seen_raw:
-                seen_raw.add(identity)
-                raw["_query_used"] = query
-                raw_jobs.append(raw)
+    provider_breakdown = {}
+    queries = raw_job_queries()
+    query_count = len(queries)
+
+    try:
+        from search.live_provider_bridge import fetch_provider_raw_jobs
+        fanout = fetch_provider_raw_jobs(
+            queries,
+            max_raw_jobs=Config.MAX_RAW_JOBS,
+            location="Salt Lake City, UT",
+        )
+        raw_jobs = fanout.get("raw_jobs", [])
+        provider_breakdown = fanout.get("provider_breakdown", {})
+        query_count = fanout.get("query_count", query_count)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Federated provider fan-out failed; falling back to legacy SerpAPI path", exc_info=True)
+        provider_breakdown = {
+            "legacy_serpapi_fallback": {
+                "available": True,
+                "status": "fallback",
+                "error": f"{type(exc).__name__}: {str(exc)[:180]}",
+                "queries_attempted": 0,
+                "raw_count": 0,
+            }
+        }
+
+        seen_raw = set()
+        for query in queries:
+            provider_breakdown["legacy_serpapi_fallback"]["queries_attempted"] += 1
+            for raw in serpapi_jobs(query):
+                identity = clean(raw.get("job_id")) or clean(raw.get("title")) + clean(raw.get("company_name")) + clean(raw.get("location"))
+                if identity and identity not in seen_raw:
+                    seen_raw.add(identity)
+                    raw["_query_used"] = query
+                    raw["_provider"] = "legacy_serpapi"
+                    raw_jobs.append(raw)
+                    provider_breakdown["legacy_serpapi_fallback"]["raw_count"] += 1
+                if len(raw_jobs) >= Config.MAX_RAW_JOBS:
+                    break
             if len(raw_jobs) >= Config.MAX_RAW_JOBS:
                 break
-        if len(raw_jobs) >= Config.MAX_RAW_JOBS:
-            break
+
     accepted = []
     rejected = []
     accepted_keys = set()
+
     for raw in raw_jobs:
         job = normalize_job(raw)
         reasons = rejection_reasons(job)
         if reasons:
             rejected.append({
+                "provider": raw.get("_provider") or raw.get("source") or raw.get("via"),
                 "query": raw.get("_query_used"),
                 "title": job.get("title"),
                 "company": job.get("company"),
@@ -697,17 +730,20 @@ def fetch_jobs_live() -> Dict[str, Any]:
             if key not in accepted_keys:
                 accepted_keys.add(key)
                 accepted.append(job)
+
     accepted.sort(key=lambda j: (
         j.get("radius_miles") if j.get("radius_miles") is not None else 999,
         j.get("commute_seconds") if j.get("commute_seconds") is not None else 999999,
         -j.get("match", 0),
     ))
+
     return {
         "raw_count": len(raw_jobs),
-        "query_count": len(raw_job_queries()),
+        "query_count": query_count,
         "nearby_restaurant_count": len(nearby_opportunities_cached(Config.MAX_RADIUS_MILES)),
         "accepted": accepted[:30],
         "rejected": rejected[:100],
+        "provider_breakdown": provider_breakdown,
     }
 
 def float_arg(name: str, default: Optional[float]) -> Optional[float]:
@@ -1070,12 +1106,19 @@ def jobs():
         return jsonify({
             "status": "ok",
             "dry_run": True,
-            "message": "Live jobs endpoint is available. This dry run did not spend SerpAPI searches.",
+            "message": "Live jobs endpoint is available. This dry run did not spend discovery provider budget.",
             "max_serp_queries": Config.MAX_SERP_QUERIES,
             "budget": serpapi_account_status(),
         })
+
     result = fetch_jobs_live()
     filtered = apply_filters(result["accepted"])
+
+    rejection_summary = {}
+    for item in result.get("rejected", []):
+        for reason in item.get("reasons", []):
+            rejection_summary[reason] = rejection_summary.get(reason, 0) + 1
+
     return jsonify({
         "status": "success",
         "source": VERSION,
@@ -1084,8 +1127,19 @@ def jobs():
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
         "nearby_restaurant_count": result["nearby_restaurant_count"],
-        "rules": {"origin": Config.ORIGIN_ADDRESS, "max_radius_miles": Config.MAX_RADIUS_MILES, "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60), "food_only": True},
+        "rejected_count": len(result.get("rejected", [])),
+        "rejection_summary": rejection_summary,
+        "provider_breakdown": result.get("provider_breakdown", {}),
+        "rules": {
+            "origin": Config.ORIGIN_ADDRESS,
+            "max_radius_miles": Config.MAX_RADIUS_MILES,
+            "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
+            "food_only": True,
+            "discovery": "federated_search_providers",
+            "reasoning_providers": "not_used_as_discovery",
+        },
         "data": filtered,
+        "rejected": result.get("rejected", [])[:100],
     })
 
 @app.route("/api/debug/jobs")
@@ -1099,6 +1153,7 @@ def debug_jobs():
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
         "nearby_restaurant_count": result["nearby_restaurant_count"],
+        "provider_breakdown": result.get("provider_breakdown", {}),
         "accepted": result["accepted"],
         "rejected": result["rejected"],
     })
