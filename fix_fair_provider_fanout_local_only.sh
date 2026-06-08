@@ -1,21 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "=== FAIR PROVIDER FANOUT FIX — LOCAL ONLY ==="
+echo "NO DEPLOY. NO PUSH. NO LIVE /api/jobs. NO /api/ingest."
+echo "PWD=$(pwd)"
+echo
+
+[ -f app.py ] || { echo "FAIL: not in repo root"; exit 1; }
+[ -f api/index.py ] || { echo "FAIL: api/index.py missing"; exit 1; }
+[ -f search/live_provider_bridge.py ] || { echo "FAIL: search/live_provider_bridge.py missing"; exit 1; }
+
+echo "=== 1) Provider truth: discovery vs reasoning ==="
+python3 - <<'PY'
+from providers import get_all_providers
+for p in get_all_providers():
+    print(f"{p.metadata.type.value:10} {p.metadata.key:20} available={p.is_available()} label={p.metadata.label}")
+PY
+
+echo
+echo "=== 2) Confirm /api/jobs is wired to provider fanout ==="
+grep -n "fetch_provider_raw_jobs\|provider_breakdown" api/index.py || {
+  echo "FAIL: api/index.py is not wired to provider fanout."
+  exit 1
+}
+
+echo
+echo "=== 3) Backup bridge ==="
+mkdir -p .repair_backups
+TS="$(date +%Y%m%d_%H%M%S)"
+cp search/live_provider_bridge.py ".repair_backups/live_provider_bridge.fair.${TS}"
+
+echo
+echo "=== 4) Write fair fanout bridge ==="
+cat > search/live_provider_bridge.py <<'PY'
 from __future__ import annotations
 
 import hashlib
 import inspect
 import logging
-import re
 from typing import Any, Dict, Iterable, List
 
 logger = logging.getLogger(__name__)
-
-_LOC_NOISE = re.compile(r'\b(jobs?|near|hiring|positions?|openings?|salt lake city|slc|utah|ut|\d{5})\b', re.I)
-
-
-def _clean_keywords(query: str) -> str:
-    q = (query or "").replace('"', ' ')
-    q = _LOC_NOISE.sub(' ', q)
-    q = re.sub(r'\s+', ' ', q).strip()
-    return q or "restaurant"
 
 
 def _metadata_value(provider: Any, name: str, default: Any = None) -> Any:
@@ -72,10 +97,6 @@ def _call_provider_search(provider: Any, query: str, location: str, limit: int) 
     method = getattr(provider, "search", None)
     if not callable(method):
         return []
-
-    key = _provider_key(provider)
-    if not str(key).startswith("serpapi"):
-        query = _clean_keywords(query)
 
     try:
         sig = inspect.signature(method)
@@ -237,3 +258,94 @@ def fetch_provider_raw_jobs(
         "max_raw_jobs": max_raw_jobs,
         "fair_fanout": True,
     }
+PY
+
+echo
+echo "=== 5) Compile ==="
+python3 -m py_compile $(git ls-files '*.py') search/live_provider_bridge.py
+
+echo
+echo "=== 6) Prove fairness with fake providers, no network ==="
+python3 - <<'PY'
+from dataclasses import dataclass
+import providers
+from search.live_provider_bridge import fetch_provider_raw_jobs
+
+@dataclass
+class Meta:
+    key: str
+    label: str
+    type: object = None
+    requires_api_key: bool = True
+
+class FakeProvider:
+    def __init__(self, key):
+        self.metadata = Meta(key=key, label=key)
+
+    def is_available(self):
+        return True
+
+    def search(self, query):
+        return [
+            {
+                "title": f"{self.metadata.key} job {i} {query}",
+                "company": f"{self.metadata.key} company {i}",
+                "url": f"https://example.com/{self.metadata.key}/{i}",
+                "snippet": "fake local proof only",
+                "location": "Salt Lake City, UT",
+            }
+            for i in range(10)
+        ]
+
+fake_keys = ["serpapi_jobs", "serpapi_organic", "adzuna", "usajobs", "jooble", "careerjet", "themuse"]
+fake = [FakeProvider(k) for k in fake_keys]
+
+orig = providers.get_providers_by_type
+providers.get_providers_by_type = lambda provider_type: fake
+
+try:
+    result = fetch_provider_raw_jobs(
+        ["server jobs Salt Lake City", "cook jobs Salt Lake City", "support jobs Salt Lake City"],
+        max_raw_jobs=35,
+        location="Salt Lake City, UT",
+    )
+finally:
+    providers.get_providers_by_type = orig
+
+breakdown = result["provider_breakdown"]
+print("RAW_COUNT=", len(result["raw_jobs"]))
+for key in fake_keys:
+    info = breakdown[key]
+    print(key, info)
+    assert info["available"] is True
+    assert info["queries_attempted"] >= 1, f"{key} was not attempted"
+    assert info["raw_count"] >= 1, f"{key} returned no raw jobs in fake proof"
+
+assert len(result["raw_jobs"]) == 35
+assert result["fair_fanout"] is True
+print("PASS: every search provider is attempted before one provider can dominate.")
+PY
+
+echo
+echo "=== 7) Local Flask safe proof, no live /api/jobs ==="
+python3 - <<'PY'
+from app import app
+c = app.test_client()
+
+for path in ["/", "/api/health", "/api/usage", "/api/jobs?dry_run=1", "/api/providers"]:
+    r = c.get(path)
+    print(path, r.status_code, r.content_type)
+    assert r.status_code == 200
+
+dry = c.get("/api/jobs?dry_run=1").get_json()
+assert dry.get("dry_run") is True
+print("PASS: safe boot proof passed.")
+PY
+
+echo
+echo "=== 8) Diff proof ==="
+git diff -- search/live_provider_bridge.py
+git diff --check
+
+echo
+echo "DONE: fair provider fanout is fixed locally and proven. No deploy happened."

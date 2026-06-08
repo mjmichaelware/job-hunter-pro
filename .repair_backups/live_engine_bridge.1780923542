@@ -169,7 +169,7 @@
   }
 
   async function runLiveDiscovery() {
-    const ok = true || window.confirm(
+    const ok = window.confirm(
       'Run live discovery now?\n\nThis calls /api/jobs and may use discovery provider budget. It is not run on page load.'
     );
     if (!ok) return;
@@ -222,7 +222,6 @@
     }
 
     refreshSurfacePanel();
-    runLiveDiscovery();
   }
 
   if (document.readyState === 'loading') {

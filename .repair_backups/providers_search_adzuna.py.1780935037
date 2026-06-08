@@ -34,7 +34,6 @@ class AdzunaProvider(SearchProvider):
                 "app_id": Config.ADZUNA_APP_ID,
                 "app_key": Config.ADZUNA_APP_KEY,
                 "what": query,
-                "where": "Salt Lake City, UT",
                 "content-type": "application/json"
             }
             

@@ -3,19 +3,9 @@ from __future__ import annotations
 import hashlib
 import inspect
 import logging
-import re
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Tuple
 
 logger = logging.getLogger(__name__)
-
-_LOC_NOISE = re.compile(r'\b(jobs?|near|hiring|positions?|openings?|salt lake city|slc|utah|ut|\d{5})\b', re.I)
-
-
-def _clean_keywords(query: str) -> str:
-    q = (query or "").replace('"', ' ')
-    q = _LOC_NOISE.sub(' ', q)
-    q = re.sub(r'\s+', ' ', q).strip()
-    return q or "restaurant"
 
 
 def _metadata_value(provider: Any, name: str, default: Any = None) -> Any:
@@ -38,7 +28,19 @@ def _provider_available(provider: Any) -> bool:
             return bool(attr())
         except Exception:
             return False
-    return bool(attr) if attr is not None else True
+    if attr is not None:
+        return bool(attr)
+
+    available = getattr(provider, "available", None)
+    if callable(available):
+        try:
+            return bool(available())
+        except Exception:
+            return False
+    if available is not None:
+        return bool(available)
+
+    return True
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -54,7 +56,9 @@ def _as_dict(value: Any) -> Dict[str, Any]:
             attr = getattr(value, name)
         except Exception:
             continue
-        if not callable(attr):
+        if callable(attr):
+            continue
+        if name in {"title", "url", "snippet", "provider", "query", "source", "source_name", "published_date", "raw_json", "raw", "confidence"}:
             out[name] = attr
     return out
 
@@ -73,38 +77,39 @@ def _call_provider_search(provider: Any, query: str, location: str, limit: int) 
     if not callable(method):
         return []
 
-    key = _provider_key(provider)
-    if not str(key).startswith("serpapi"):
-        query = _clean_keywords(query)
-
     try:
         sig = inspect.signature(method)
+        params = sig.parameters
         kwargs: Dict[str, Any] = {}
 
-        for name in sig.parameters:
-            if name == "self":
+        for name in params:
+            if name in {"self"}:
                 continue
             if name in {"query", "q", "keywords", "what"}:
                 kwargs[name] = query
             elif name in {"location", "where", "place"}:
                 kwargs[name] = location
             elif name in {"limit", "max_results", "num_results", "results_per_page", "page_size"}:
-                kwargs[name] = max(1, min(limit, 100))
+                kwargs[name] = max(1, min(limit, 10))
 
-        result = method(**kwargs) if kwargs else method(query)
+        if kwargs:
+            results = method(**kwargs)
+        else:
+            results = method(query)
+
     except TypeError:
         try:
-            result = method(query, location)
+            results = method(query, location)
         except TypeError:
-            result = method(query)
+            results = method(query)
     except Exception:
         raise
 
-    if result is None:
+    if results is None:
         return []
-    if isinstance(result, list):
-        return result
-    return list(result)
+    if isinstance(results, list):
+        return results
+    return list(results)
 
 
 def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str, default_location: str) -> Dict[str, Any]:
@@ -113,7 +118,12 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
     raw_dict = _as_dict(raw_payload)
 
     title = _pick(item_dict, raw_dict, keys=["title", "job_title", "name"], default="Untitled job")
-    company = _pick(item_dict, raw_dict, keys=["company", "company_name", "employer", "organization", "source_name", "source"], default=provider_label)
+    company = _pick(
+        item_dict,
+        raw_dict,
+        keys=["company", "company_name", "employer", "organization", "source_name", "source"],
+        default=provider_label,
+    )
     url = _pick(item_dict, raw_dict, keys=["url", "source_url", "apply_url", "redirect_url", "link"], default="")
     snippet = _pick(item_dict, raw_dict, keys=["snippet", "description", "summary", "body"], default="")
     location = _pick(item_dict, raw_dict, keys=["location", "formatted_location", "candidate_required_location", "where"], default=default_location)
@@ -142,68 +152,41 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
     return raw
 
 
-def fetch_provider_raw_jobs(
-    queries: List[str],
-    max_raw_jobs: int,
-    location: str = "Salt Lake City, UT",
-    per_provider_cap: int | None = None,
-) -> Dict[str, Any]:
-    """
-    Fair SEARCH-provider fanout.
-
-    Required invariant:
-    every available SEARCH provider gets attempted before any one provider can dominate the run.
-
-    Reasoning providers are not called here. They enrich/classify after discovery.
-    """
+def fetch_provider_raw_jobs(queries: List[str], max_raw_jobs: int, location: str = "Salt Lake City, UT") -> Dict[str, Any]:
     from providers import get_providers_by_type
     from providers.base import ProviderType
 
     search_providers = list(get_providers_by_type(ProviderType.SEARCH))
-    available_providers = [p for p in search_providers if _provider_available(p)]
-
     raw_jobs: List[Dict[str, Any]] = []
     seen = set()
     provider_breakdown: Dict[str, Dict[str, Any]] = {}
 
-    active_count = max(1, len(available_providers))
-    fair_default_cap = max(1, (max_raw_jobs + active_count - 1) // active_count)
-    provider_cap = int(per_provider_cap or fair_default_cap)
-
     for provider in search_providers:
         key = _provider_key(provider)
         label = _provider_label(provider)
-        is_available = _provider_available(provider)
 
         provider_breakdown[key] = {
             "label": label,
-            "available": is_available,
+            "available": False,
             "queries_attempted": 0,
             "raw_count": 0,
-            "status": "ok" if is_available else "dormant",
-            "cap": provider_cap,
+            "status": "dormant",
         }
 
-        if not is_available:
+        if not _provider_available(provider):
             continue
 
+        provider_breakdown[key]["available"] = True
+        provider_breakdown[key]["status"] = "ok"
+
         for query in queries:
-            if provider_breakdown[key]["raw_count"] >= provider_cap:
-                provider_breakdown[key]["status"] = "stopped_provider_cap_reached"
+            if len(raw_jobs) >= max_raw_jobs:
                 break
-
-            remaining_global = max_raw_jobs - len(raw_jobs)
-            if remaining_global <= 0:
-                provider_breakdown[key]["status"] = "not_attempted_global_cap_reached"
-                break
-
-            remaining_provider = provider_cap - provider_breakdown[key]["raw_count"]
-            request_limit = max(1, min(remaining_global, remaining_provider, 100))
 
             provider_breakdown[key]["queries_attempted"] += 1
 
             try:
-                results = _call_provider_search(provider, query, location, request_limit)
+                results = _call_provider_search(provider, query, location, max_raw_jobs - len(raw_jobs))
             except Exception as exc:
                 provider_breakdown[key]["status"] = "error"
                 provider_breakdown[key]["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
@@ -215,25 +198,14 @@ def fetch_provider_raw_jobs(
                 identity = raw.get("job_id") or f"{raw.get('title')}|{raw.get('company_name')}|{raw.get('source_url')}"
                 if identity in seen:
                     continue
-
                 seen.add(identity)
                 raw_jobs.append(raw)
                 provider_breakdown[key]["raw_count"] += 1
-
-                if provider_breakdown[key]["raw_count"] >= provider_cap:
-                    provider_breakdown[key]["status"] = "stopped_provider_cap_reached"
-                    break
                 if len(raw_jobs) >= max_raw_jobs:
                     break
 
-        if provider_breakdown[key]["available"] and provider_breakdown[key]["raw_count"] == 0 and provider_breakdown[key]["status"] == "ok":
-            provider_breakdown[key]["status"] = "available_returned_zero"
-
     return {
-        "raw_jobs": raw_jobs[:max_raw_jobs],
+        "raw_jobs": raw_jobs,
         "query_count": len(queries),
         "provider_breakdown": provider_breakdown,
-        "provider_cap": provider_cap,
-        "max_raw_jobs": max_raw_jobs,
-        "fair_fanout": True,
     }

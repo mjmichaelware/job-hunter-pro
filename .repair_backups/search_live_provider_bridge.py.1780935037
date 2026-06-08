@@ -3,19 +3,9 @@ from __future__ import annotations
 import hashlib
 import inspect
 import logging
-import re
 from typing import Any, Dict, Iterable, List
 
 logger = logging.getLogger(__name__)
-
-_LOC_NOISE = re.compile(r'\b(jobs?|near|hiring|positions?|openings?|salt lake city|slc|utah|ut|\d{5})\b', re.I)
-
-
-def _clean_keywords(query: str) -> str:
-    q = (query or "").replace('"', ' ')
-    q = _LOC_NOISE.sub(' ', q)
-    q = re.sub(r'\s+', ' ', q).strip()
-    return q or "restaurant"
 
 
 def _metadata_value(provider: Any, name: str, default: Any = None) -> Any:
@@ -72,10 +62,6 @@ def _call_provider_search(provider: Any, query: str, location: str, limit: int) 
     method = getattr(provider, "search", None)
     if not callable(method):
         return []
-
-    key = _provider_key(provider)
-    if not str(key).startswith("serpapi"):
-        query = _clean_keywords(query)
 
     try:
         sig = inspect.signature(method)

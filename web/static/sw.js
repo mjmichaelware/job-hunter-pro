@@ -1,4 +1,4 @@
-const CACHE_NAME = 'job-hunter-pro-shell-v1';
+const CACHE_NAME = 'job-hunter-pro-shell-v1780935037';
 const SHELL_ASSETS = [
   '/',
   '/static/manifest.json',

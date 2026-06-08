@@ -32,7 +32,7 @@ class JoobleProvider(SearchProvider):
             # Jooble uses POST with JSON body
             payload = {
                 "keywords": query,
-                "location": "Salt Lake City, UT",
+                # "location": "Salt Lake City, UT"
             }
             
             response = http_session.post(url, json=payload, timeout=Config.REQUEST_TIMEOUT)

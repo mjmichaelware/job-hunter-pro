@@ -565,23 +565,15 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
     company = clean_company(raw.get("company_name") or raw.get("company")) or "Company not listed"
     listing_location = clean(raw.get("location"), Config.JOB_LOCATION)
     description = clean(raw.get("description"), "No description available.")
-    if os.environ.get("FAST_JOBS", "0") == "1":
-        place = {}
-        resolved_address = ""
-        resolved_name = ""
-        transit = {"commute_seconds": None, "commute_label": "Not checked",
-                   "transit_distance_miles": None, "transit_distance_label": "Not checked"}
-        radius_miles = None
-    else:
-        place = resolve_place(raw)
-        resolved_address = clean(place.get("formatted_address"))
-        resolved_name = clean(place.get("name"))
-        destination = resolved_address or listing_location
-        transit = transit_to(destination)
-        origin = origin_latlng()
-        radius_miles = None
-        if origin and place.get("latlng"):
-            radius_miles = round(miles_between(origin, place["latlng"]), 2)
+    place = resolve_place(raw)
+    resolved_address = clean(place.get("formatted_address"))
+    resolved_name = clean(place.get("name"))
+    destination = resolved_address or listing_location
+    transit = transit_to(destination)
+    origin = origin_latlng()
+    radius_miles = None
+    if origin and place.get("latlng"):
+        radius_miles = round(miles_between(origin, place["latlng"]), 2)
     text = " ".join([title, company, description, resolved_name])
     tags = tags_for_text(text)
     job = {
@@ -614,7 +606,7 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
         "role_family": role_family_for_text(" ".join(tags + [title, description])),
     }
     job["match"] = match_score(job)
-    ri = {} if os.environ.get("FAST_JOBS", "0") == "1" else review_intelligence(job)
+    ri = review_intelligence(job)
     job["review_intelligence"] = ri
     job["google_rating"] = ri.get("google_rating") or job.get("place_rating")
     job["google_review_count"] = ri.get("google_review_count")

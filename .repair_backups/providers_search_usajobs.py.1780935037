@@ -37,7 +37,7 @@ class UsajobsProvider(SearchProvider):
             }
             params = {
                 "Keyword": query,
-                "LocationName": "Salt Lake City, UT",
+                # "LocationName": "Salt Lake City, UT" # Optional
             }
             
             response = http_session.get(url, params=params, headers=headers, timeout=Config.REQUEST_TIMEOUT)
