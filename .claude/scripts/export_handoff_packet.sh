@@ -12,6 +12,8 @@ FILES=(
 ".claude/context/SESSION_STATE.md"
 ".claude/context/AI_AGENT_TAKEOVER_PACKET.md"
 ".claude/context/HANDOFF_WORKFLOW.md"
+".claude/context/MASTER_WORKFLOW_INDEX.md"
+".claude/tasks/MASTER_AGENT_START_PROMPT.md"
 ".claude/context/DEFCON1_AGENT_RULES.md"
 ".claude/tasks/NEXT_AGENT_START_HERE.md"
 ".claude/context/DOCUMENT_CONTRADICTION_MATRIX.md"
