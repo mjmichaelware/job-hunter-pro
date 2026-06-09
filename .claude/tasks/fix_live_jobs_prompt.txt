@@ -1,0 +1,8 @@
+Run /fix-live-jobs.
+
+Use installed agents, skills, scripts, settings, hooks, and workflow.
+Do not deploy.
+Do not call live /api/jobs.
+Do not call /api/ingest.
+Do not print secrets.
+Do not fake data.

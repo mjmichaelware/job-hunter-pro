@@ -1,0 +1,63 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pwd)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(cat *)",
+      "Bash(sed -n *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git diff --check)",
+      "Bash(git diff --stat)",
+      "Bash(git ls-files *)",
+      "Bash(python3 -m py_compile *)",
+      "Bash(python3 .claude/scripts/proof_runner.py)",
+      "Bash(bash .claude/scripts/inspect_stack.sh)",
+      "Bash(bash .claude/scripts/safe_local_proof.sh)",
+      "Bash(bash .claude/scripts/predeploy_proof.sh)",
+      "Bash(bash .claude/scripts/make_backup.sh)",
+      "Bash(bash .claude/scripts/update_session_state.sh)",
+      "Bash(bash .claude/scripts/export_context_bundle.sh)"
+    ],
+    "ask": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(gcloud run deploy *)",
+      "Bash(curl *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(* /api/ingest*)",
+      "Bash(*api/ingest*)",
+      "Bash(*SERPAPI_KEY*)",
+      "Bash(*OPENAI_API_KEY*)",
+      "Bash(*ANTHROPIC_API_KEY*)",
+      "Bash(*GEMINI_API_KEY*)",
+      "Bash(*GROQ_API_KEY*)",
+      "Bash(*XAI_API_KEY*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/scripts/statusline.sh",
+    "refreshInterval": 5,
+    "padding": 1
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/guard_bash.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

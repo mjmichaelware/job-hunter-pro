@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('raw_count:', d.get\\('raw_count'\\)\\); print\\('accepted:', len\\(d.get\\('data',d.get\\('accepted',[]\\)\\)\\)\\); print\\('rejected:', len\\(d.get\\('rejected',[]\\)\\)\\); print\\('provider_breakdown keys:', list\\(d.get\\('provider_breakdown',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('accepted:', d.get\\('accepted_count'\\)\\); print\\('rejected:', d.get\\('rejected_count'\\)\\); print\\('raw:', d.get\\('raw_count'\\)\\); pbd=d.get\\('provider_breakdown',{}\\); [print\\(k,'→',v.get\\('raw_count'\\),v.get\\('status'\\)\\) for k,v in pbd.items\\(\\)]\")"
+    ]
+  }
+}

@@ -1,0 +1,280 @@
+﻿AI JOB AGENT 3.0
+Project AIM (3) (Gemini)
+
+
+PROJECT AIM: Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform / Fully Autonomous, Predictive, Multi-Industry Intelligence, Headless Execution, and Edge-Inference P2P Swarm Engine
+
+
+
+
+### [HANDOFF_DOC_4.0::OMEGA_CONGLOMERATE_BLUEPRINT]
+**TARGET_STATE:** Fully Autonomous, Predictive, Multi-Industry Intelligence, Headless Execution, and Edge-Inference P2P Swarm Engine.
+**RUNTIME_ENVIRONMENT:** Android ARM64 Termux cross-compiling to Google Cloud Run (ai-job-agent-498702) us-central1.
+**SYSTEM_THESIS:** Absolute integration of all prior documentation, zero-loss data synthesis, strict sub-module decoupling, and terminal-state autonomous workflows spanning deterministic discovery, stochastic prediction, and headless application payload delivery.
+### I. OMNI-TOPOLOGY: THE DECOUPLED FILESYSTEM MATRIX
+Combining the 110-file standard with Eventarc, WASM, and CRDT sub-systems. Single responsibility enforced at the byte level.
+```text
+job-hunter-pro/
+├── app.py                      # Flask factory + SSE streaming context + CRDT peer signaling router
+├── requirements.txt            # gunicorn, requests, opentelemetry, neo4j, playwright, numpy, scipy
+[span_5](start_span)├── .gcloudignore               # Excludes .env, TRASH_BIN/, .git/[span_5](end_span)
+├── env/
+│   └── cloudrun.env.yaml       # Radius, transit, max_searches. [span_6](start_span)NO SECRETS[span_6](end_span).
+├── core/
+│   ├── config.py               # Env injest. FinOps kill-switch state tracking.
+[span_7](start_span)│   ├── clock.py                # America/Denver TZ scaling + NTP sync[span_7](end_span).
+│   ├── tracing.py              # OpenTelemetry traceparent injection.
+[span_8](start_span)│   └── errors.py               # ProviderError, BudgetGuard, ResolveError, ATSDOMMutationError[span_8](end_span).
+├── geo/
+[span_9](start_span)│   ├── geocode.py              # Google Maps Geocoding API integration[span_9](end_span).
+[span_10](start_span)│   ├── places_text.py          # Solves the "Grand America" vs "Quality Inn" resolution bug[span_10](end_span).
+[span_11](start_span)│   ├── places_nearby.py        # Broad geospatial opportunity sweeping (zero job-post dependency)[span_11](end_span).
+[span_12](start_span)│   ├── distance.py             # Distance Matrix (transit < 35m boundaries)[span_12](end_span).
+[span_13](start_span)│   └── haversine.py            # Geometric pure-math fallback executing $d = 2R \arcsin(...)$[span_13](end_span).
+├── industries/
+[span_14](start_span)│   ├── base.py                 # Protocol Classes for role_families, licensing, deterministic_whitelist_regex[span_14](end_span).
+[span_15](start_span)│   ├── food_service.py         # Fixes 'rn' substring bug via strict token boundaries[span_15](end_span).
+[span_16](start_span)│   ├── care_social.py          # BHT/CPSS licensing enforcement[span_16](end_span).
+[span_17](start_span)│   ├── hospitality.py          # Hotel F&B, banquet operations[span_17](end_span).
+[span_18](start_span)│   └── customer_service.py     # Remote/hybrid boundary checking[span_18](end_span).
+├── providers/
+│   ├── registry.py             # Dormancy logic. [span_19](start_span)If SecretManager key drops, provider suspends[span_19](end_span).
+│   ├── search/                 # STRICT RETRIEVAL ONLY. [span_20](start_span)No LLM hallucination[span_20](end_span).
+│   │   ├── serpapi_jobs.py     # Google Jobs backend. [span_21](start_span)[span_22](start_span)[span_23](start_span)Gated by min_searches_left constraints[span_21](end_span)[span_22](end_span)[span_23](end_span).
+│   │   ├── utah_open_data.py   # Regional JSON scraping (zero API cost).
+│   │   ├── asn_dark_funnel.py  # BGP ASN Shodan enterprise staging portal discovery.
+[span_24](start_span)│   │   └── themuse.py          # Keyless day-one retrieval fallback[span_24](end_span).
+[span_25](start_span)[span_26](start_span)│   └── reasoning/              # PHYSICAL SEPARATION: Classification/Extraction/Consensus only[span_25](end_span)[span_26](end_span).
+│       ├── wasm_edge.py        # Local SLM WebGPU execution (zero cost).
+[span_27](start_span)│       ├── gemini.py           # Grounding web-search capabilities enabled[span_27](end_span).
+[span_28](start_span)│       ├── claude.py           # Multi-model consensus validator for ambiguous JSON payloads[span_28](end_span).
+[span_29](start_span)[span_30](start_span)│       └── groq.py             # High-speed deterministic extraction[span_29](end_span)[span_30](end_span).
+├── store/                      # PERSISTENCE MULTI-MODAL LAYER
+[span_31](start_span)│   ├── firestore_client.py     # Native Mode NoSQL transaction handlers[span_31](end_span).
+│   ├── graph_rag_client.py     # Neo4j AuraDB bipartite topology integration.
+│   ├── cache_repo.py           # Hash(query+provider+industry) ttl caching. [span_32](start_span)Stops re-spend[span_32](end_span).
+│   └── crdt_sync.py            # Yjs/Automerge peer-to-peer state merging across Termux/Desktop nodes.
+├── pipeline/
+│   ├── stochastic_forecast.py  # Continuous-time Markov chain execution for attrition prediction.
+[span_33](start_span)[span_34](start_span)│   ├── resolve_place.py        # Strict addressing matching; triggers 'ambiguous_place_resolution' rejection[span_33](end_span)[span_34](end_span).
+[span_35](start_span)│   ├── score_review.py         # Capped heuristic: 60% rating, 15% count, 15% sentiment, 10% consistency[span_35](end_span).
+[span_36](start_span)[span_37](start_span)│   ├── dedupe.py               # SHA-256 canonical hashing (title + normalized_address)[span_36](end_span)[span_37](end_span).
+[span_38](start_span)[span_39](start_span)│   └── reject.py               # 11-point rejection schema tracking[span_38](end_span)[span_39](end_span).
+├── execution/
+│   └── headless_agent.py       # Playwright Stealth DOM mutation. Injects Michael Ware's resume payload automatically.
+├── search/
+[span_40](start_span)[span_41](start_span)│   ├── federated.py            # Fan-out router across 14 Tier 1/2/3 endpoints[span_40](end_span)[span_41](end_span).
+[span_42](start_span)[span_43](start_span)│   └── budget.py               # SerpAPI quota guard limits (112/week cap execution)[span_42](end_span)[span_43](end_span).
+├── ingest/
+│   ├── oidc.py                 # Strictly verifies Audience + Service Account Email. [span_44](start_span)[span_45](start_span)Replaces plaintext URLs[span_44](end_span)[span_45](end_span).
+│   └── async_eventarc.py       # Decoupled ingestion listening for Firestore document.v1.written events.
+[span_46](start_span)├── api/                        # HTTP BOUNDARY (NO BUSINESS LOGIC)[span_46](end_span)
+[span_47](start_span)│   ├── jobs.py                 # /api/jobs, /api/jobs?dry_run=1[span_47](end_span).
+[span_48](start_span)[span_49](start_span)│   ├── opportunities.py        # /api/opportunities (Places text sweep)[span_48](end_span)[span_49](end_span).
+[span_50](start_span)[span_51](start_span)│   ├── history.py              # /api/history?hours=24, /api/batches[span_50](end_span)[span_51](end_span).
+│   └── streaming.py            # Server-Sent Events (SSE) `/api/pipeline/stream/<id>`.
+├── web/
+[span_52](start_span)[span_53](start_span)│   ├── templates/index.html    # Decoupled UI tabs: Overview, Live Jobs, History, Debug, Budget[span_52](end_span)[span_53](end_span).
+│   └── static/
+[span_54](start_span)[span_55](start_span)│       ├── css/base.css        # Dark glassmorphism, gradient hero UI tokens[span_54](end_span)[span_55](end_span).
+[span_56](start_span)[span_57](start_span)│       └── js/                 # API fetch wrappers, IndexedDB storage sync, CSS HTML bar charts[span_56](end_span)[span_57](end_span).
+└── scripts/
+    [span_58](start_span)├── deploy_gcp.sh           # Secret Manager injection + Cloud Build CI/CD compilation[span_58](end_span).
+    [span_59](start_span)[span_60](start_span)└── scheduler_oidc.sh       # Provisions job-hunter-scheduler IAM roles[span_59](end_span)[span_60](end_span).
+
+
+```
+### II. OMNI-DATA ONTOLOGY: PYDANTIC V2 & GRAPH SCHEMA SYNTHESIS
+A convergence of flat NoSQL analytics tracking and Neo4j Graph relationships for hyper-accurate matching.
+#### 1. Pydantic V2 Unified State Models
+```python
+from pydantic import BaseModel, Field, HttpUrl, confloat, conint
+from typing import Dict, List, Optional, Literal
+from datetime import datetime
+
+
+class MasterJobSnapshot(BaseModel):
+    canonical_key: str = Field(..., min_length=64, max_length=64, description="SHA-256 Title+Address dedupe hash")
+    place_id: str = Field(..., description="Google Places strict entity resolution anchor")
+    industry_taxonomy: Literal["food_service", "hospitality", "care_social", "sales", "customer_service"]
+    source_url: HttpUrl = Field(..., description="Target for Headless Playwright ATS injection")
+    commute_matrix_seconds: conint(ge=0) = Field(...)
+    haversine_radius_miles: confloat(ge=0.0) = Field(...)
+    review_heuristic_score: confloat(ge=0.0, le=100.0) = Field(...) # Based on 60/15/15/10 logic
+    rejection_flags: List[str] = Field(default_factory=list) # e.g., 'not_food_service', 'outside_radius_Xmi'
+    ats_application_status: Literal["PREDICTED", "DISCOVERED", "INJECTED", "INTERVIEWING", "REJECTED"]
+    telemetry: Dict[str, Any] = Field(default_factory=dict, description="OpenTelemetry cross-span traces")
+
+
+class BatchIngestionPayload(BaseModel):
+    batch_id: str = Field(...)
+    trigger_type: Literal["MANUAL", "SCHEDULER_OIDC", "CRDT_PEER_SYNC"]
+    budget_state: float = Field(..., description="Remaining API quota units post-execution")
+    metrics: Dict[str, int] = Field(default_factory=dict, description="Counts of raw, accepted, rejected, opportunities")
+
+
+```
+#### 2. Neo4j Cypher Bipartite Topology (The Michael Ware Resonance Match)
+Replaces substring rn bugs with multi-dimensional cognitive mapping.
+```cypher
+// Candidate Capability Schema Injection
+CREATE (mw:Candidate {name: "Michael Ware", origin_lat: 40.71, origin_lng: -111.89})
+CREATE (sk1:Skill {name: "De-escalation", tier: "Advanced"})
+CREATE (sk2:Skill {name: "Inventory Expo Flow", tier: "Expert"})
+CREATE (sk3:Language {code: "RU", level: "B1"})
+
+
+CREATE (mw)-[:POSSESSES {weight: 0.95, evidence_source: "August Sun LLC 2025"}]->(sk1)
+CREATE (mw)-[:POSSESSES {weight: 0.99, evidence_source: "Liberty Park Amusement 2026"}]->(sk2)
+
+
+// Intelligent Opportunity Resolution Routing
+MATCH (c:Candidate)-[p:POSSESSES]->(s:Skill)<-[r:REQUIRES {criticality: "HIGH"}]-(o:Opportunity)
+MATCH (o)-[:LOCATED_IN]->(geo:Zone)
+[span_63](start_span)WHERE point.distance(c.location, geo.centroid) < 4023.36 // 2.5 miles max_radius[span_63](end_span)
+RETURN o.canonical_key, SUM(p.weight * r.weight) AS Neural_Resonance_Score
+ORDER BY Neural_Resonance_Score DESC LIMIT 10;
+
+
+```
+### III. STOCHASTIC PREDICTION & PURE-MATH FALLBACKS
+Replacing reactive quota-burning with mathematical models that execute before jobs hit aggregators.
+#### 1. Continuous-Time Markov Chain Attrition Engine
+Estimates probability of imminent vacancies at targets (e.g., Urban Hill, Carson Kitchen) by calculating the transition matrix P(t):
+Where generator matrix Q processes sentiment volatility and recent review drop-offs. If \mathbb{P}(\text{Vacancy} \mid 14\text{ Days}) > 0.85, the state flips to PREDICTED, triggering proactive headless operations.
+#### 2. Haversine Spatial Geometric Engine
+When Maps Distance Matrix fails or rate-limits, execute zero-cost pure-math great-circle distance d:
+
+
+*Where R = 3958.8 miles. Ensures distance boundaries remain intact during API budget locks.*
+### IV. DECENTRALIZED DATA INGESTION & PIPELINE TOPOLOGY
+A three-tier firewall against API exhaustion, utilizing Cloud Tasks, Eventarc, and P2P Swarming.
+#### 1. CRDT Peer-to-Peer Swarm Discovery (Zero-IP Ban)
+Job Hunter Pro UI running on Termux and Chrome simultaneously negotiate WebRTC DataChannels.
+ * **Node A (Mobile):** Scrapes Utah Workforce UI JSON.
+ * **Node B (Desktop):** Scrapes Adzuna API.
+ * **Yjs/Automerge:** Interlocks the JSON trees client-side. The merged, deduplicated payload is pushed to Firestore Native in a single batch, reducing cloud write operations by 70%.
+#### 2. Eventarc & Cloud Tasks Rate-Limiting
+```bash
+# 1. [span_68](start_span)Throttle outward aggregator discovery to protect SerpApi quotas (min_searches_left guard)[span_68](end_span).
+gcloud tasks queues create serpapi-federated-guard --max-dispatches-per-second=2 --max-attempts=2
+
+
+# 2. Asynchronous Firestore pipeline enrichment trigger (Decouples API response from LLM inference).
+gcloud eventarc triggers create async-enrichment-loop \
+    --location="us-central1" \
+    --destination-run-service="job-hunter-pro" \
+    --destination-run-path="/api/pipeline/async-enrich" \
+    --event-filters="type=google.cloud.firestore.document.v1.written" \
+    --event-filters="document=jobs/{canonical_key}" \
+    --service-account="job-hunter-scheduler@ai-job-agent-498702.iam.gserviceaccount.com"
+
+
+```
+### V. HEADLESS AUTONOMOUS DOM INJECTION (PLAYWRIGHT)
+Bridges the gap between discovery and application tracking.
+ * **Trigger:** Evaluates JobSnapshot. If match_score >= 90, risk_level == LOW, and industry == "food_service" or "hospitality".
+ * **Action:** Spawns Chromium headless. Evaluates Shadow DOM. Bypasses changing CSS classes by mapping elements via aria-label or GPT-4o-Vision structural mapping.
+ * **Injection:** Fills contact (michaelware433@yahoo.com), phone ((801)-386-4047), and injects standardized C2 English/Spanish resume text automatically. Simulates human mouse entropy (jitter curves) to bypass CAPTCHA.
+### VI. MULTI-INDUSTRY DETERMINISTIC TAXONOMY MATRIX
+Expansion beyond restaurants into general local intelligence. Deterministic extraction runs *before* LLMs to save compute.
+| Industry Key | Whitelist Regex | Phrase Elimination (Negative) | License / Background Requirement |
+|---|---|---|---|
+| food_service | \bcook\b|\bchef\b|\bdishwasher\b|\bexpo\b | \bregistered\s+nurse\b|\bcnc\b | Utah Food Handler, ServSafe |
+| hospitality | \bhotel\b|\bfront\s+desk\b|\bbanquet\b | \bwarehouse\b|\bphlebotomist\b | SLED Background Clearance |
+| care_social | \bdsp\b|\bpeer\s+support\b|\bcase\s+aide\b | \bculinary\b|\bretail\s+cashier\b | BHT/CPSS, CPR, UT Dept Health Clear |
+| customer_service | \binbound\b|\bhelp\s+desk\b|\bticket\b | \bheavy\s+lifting\b|\bfield\b | Remote/Hybrid internet capability check |
+### VII. FINOPS KILL-SWITCH & CLOUD ARMOR
+Absolute protection of GCP billing and stored Secret Manager payloads (SerpApi, Groq, Google Maps, OpenAI, Anthropic, Supabase).
+**1. Pub/Sub Billing Kill Switch:**
+Subscribes to Google Billing events. If consumption_ratio >= 0.95, it updates the Cloud Run service labels to finops-status: suspended and injects HARD_BUDGET_LOCK=True into Firestore configuration. System instantly downgrades to cached IndexedDB historical browsing only.
+**2. Cloud Armor Layer-7 Security Policy:**
+```json
+{
+  "securityPolicy": {
+    "name": "job-hunter-shield",
+    "rules": [
+      {
+        "priority": 1000,
+        "action": "throttle",
+        "rateLimitOptions": { "rateLimitThreshold": { "count": 60, "intervalSec": 60 } },
+        "description": "Global endpoint rate-limit protection."
+      },
+      {
+        "priority": 2000,
+        "action": "deny(403)",
+        "match": {
+          "expr": { "expression": "request.path.matches('/api/ingest') && !inIpRange(request.headers['x-forwarded-for'][0], '10.0.0.0/8')" }
+        },
+        [span_80](start_span)"description": "Strict isolation of /api/ingest to internal OIDC Scheduler execution[span_80](end_span)."
+      }
+    ]
+  }
+}
+
+
+```
+### VIII. MASTER CONGLOMERATE DEPLOYMENT BLOCK (GCP CLI)
+The definitive, single terminal command block replacing all prior deployment scripts. Executes Secret Manager injection, builds images, applies IAM OIDC roles, sets Firestore indexes, provisions Tasks/Eventarc, and mounts the Cloud Run API.
+```bash
+#!/usr/bin/env bash
+set -eo pipefail
+
+
+export PROJECT_ID="ai-job-agent-498702"
+export REGION="us-central1"
+export SERVICE="job-hunter-pro"
+export SA_EMAIL="job-hunter-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
+
+
+cd ~/job-hunter-pro
+gcloud config set project $PROJECT_ID
+
+
+# 1. [span_83](start_span)Provision IAM & Firestore Native[span_83](end_span)
+gcloud iam service-accounts create job-hunter-scheduler --display-name="OIDC Scheduler" || true
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:${SA_EMAIL}" --role="roles/datastore.user"
+gcloud firestore databases create --location=$REGION --type=firestore-native || true
+
+
+# 2. [span_84](start_span)Secret Manager Binding (Assumes keys already stored securely via gcloud secrets create)[span_84](end_span)
+for SECRET in SERPAPI_KEY GROQ_API_KEY GOOGLE_MAPS_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY DATABASE_URL; do
+    gcloud secrets add-iam-policy-binding $SECRET \
+        --member="serviceAccount:${SA_EMAIL}" \
+        --role="roles/secretmanager.secretAccessor" || true
+done
+
+
+# 3. [span_85](start_span)Deploy Multi-Threaded Gunicorn Flask Image to Cloud Run[span_85](end_span)
+gcloud run deploy $SERVICE \
+    --source . \
+    --region $REGION \
+    --service-account=$SA_EMAIL \
+    --set-secrets="SERPAPI_KEY=SERPAPI_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,GOOGLE_MAPS_API_KEY=GOOGLE_MAPS_API_KEY:latest" \
+    --allow-unauthenticated \
+    --cpu=2 --memory=1Gi --concurrency=80 \
+    --timeout=300
+
+
+# 4. [span_86](start_span)Bind OIDC Invoker Rights[span_86](end_span)
+gcloud run services add-iam-policy-binding $SERVICE \
+    --region=$REGION \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="roles/run.invoker"
+
+
+# 5. [span_87](start_span)Cloud Scheduler Job (Runs 4 times/day for 16 SerpAPI limit)[span_87](end_span)
+gcloud scheduler jobs create http ingest-batch-trigger \
+    --location=$REGION \
+    --schedule="0 */6 * * *" \
+    --uri="https://${SERVICE}-5t3wttw2ua-uc.a.run.app/api/ingest" \
+    --http-method=POST \
+    --oidc-service-account-email=$SA_EMAIL \
+    --oidc-audience="https://${SERVICE}-5t3wttw2ua-uc.a.run.app/api/ingest" || true
+
+
+# 6. [span_88](start_span)Post-Deploy Automated Health Integrity Check[span_88](end_span)
+curl -f -s -X GET "https://${SERVICE}-5t3wttw2ua-uc.a.run.app/api/health"
+
+
+```

@@ -1,0 +1,265 @@
+﻿AI JOB AGENT 4.0
+Project Plan (4) (CLAUDE)
+
+
+PROJECT AIM: Job Hunter Pro /  Fully Autonomous, Predictive, Multi-Industry Intelligence, Headless Execution, and Edge-Inference P2P Swarm Engine
+
+
+
+
+# AI JOB AGENT 4.0
+## Definitive Convergence Workflow & Project Timeline
+### Job Hunter Pro / AI-Orchestrated Local Job Intelligence Platform
+
+
+Purpose: combine docs 1.0 (handoff), 2.0 (blueprint), and 3.0 (omega) into one authoritative workflow. State exactly how much work exists, in what order, with countable data points so progress is measurable, not guesswork.
+
+
+---
+
+
+## Section A — Reconciliation of the Three Prior Documents
+
+
+**1.0 (ChatGPT handoff):** the FACTS. Project IDs, confirmed bugs, the proven v3/v5 pipeline, budget reality (~155 SerpAPI searches left), security requirements, the full ~18-entity data model, multi-industry intent. Ground truth.
+
+
+**2.0 (Claude blueprint):** the STRUCTURE. ~118-file decoupled tree, Firestore Native, one-file-per-provider, one-file-per-industry, thin HTTP layer. Adopted as the spine.
+
+
+**3.0 (Gemini omega):** the AMBITION. Adds Neo4j graph matching, Playwright headless auto-apply, CRDT P2P swarm, WASM edge inference, Eventarc, Cloud Armor, Markov attrition prediction, Pydantic v2.
+
+
+Verdict on 3.0: most of it is deferred, and one piece is actively discouraged. Details:
+
+
+- **Playwright auto-apply / DOM injection / CAPTCHA evasion:** high legal and Terms-of-Service risk, breaks constantly, can get your real accounts banned, and submits applications you never reviewed. EXCLUDED from core. Apply tracking stays MANUAL — you click apply, the app records the status.
+- **Neo4j AuraDB:** a second database to run and pay for; Firestore covers the matching need now. DEFERRED.
+- **CRDT / WebRTC P2P swarm and WASM edge inference:** distributed-systems machinery built for a fleet of devices. You are one person in SLC. DEFERRED.
+- **Cloud Armor, Eventarc, Cloud Tasks, OpenTelemetry:** production-hardening for large-scale, under-attack traffic. DEFERRED until the core ships.
+
+
+Kept from 3.0: Pydantic v2 models (stronger validation than plain dataclasses), the deterministic-regex-before-LLM discipline, and a simple budget guard (not full Pub/Sub billing infrastructure).
+
+
+Converged target: build the 2.0 structure, grounded in 1.0 facts, with 3.0's validation discipline. Ship a real, persistent, multi-industry, multi-provider, budget-safe dashboard. Add 3.0's exotic layers only after the core is live and proven.
+
+
+---
+
+
+## Section B — Hard Data Points (counted from the blueprint, not estimated)
+
+
+### Files
+- **Total files in target build:** 118
+- **Total directories:** 20
+- **Files needing real code written:** 102
+  - Python logic modules: 81
+  - JavaScript modules: 10
+  - CSS files: 4
+  - HTML templates: 3
+  - Shell scripts: 4
+- **Trivial files (markers/config):** 16 (12 one-line `__init__.py` + 4 config/meta)
+- **Test files (subset of the 81 .py):** 5
+- **Already written + compile-verified:** 2 (taxonomy + provider-registry logic; fold into industries/ and providers/)
+
+
+### Dependencies (libraries to install)
+- **Core runtime libraries (required):** 6
+  `Flask, gunicorn, requests, python-dotenv, google-auth, google-cloud-firestore`
+- **Optional LLM SDKs (deferrable):** 4 (openai, google-generativeai, anthropic, groq — xAI via raw HTTP; all can be deferred)
+- **Excluded bloat from 3.0:** 5+ (neo4j, playwright, opentelemetry, numpy, scipy) — not in core build
+
+
+### API Keys
+- **Already in Secret Manager:** 7
+  `GOOGLE_MAPS_API_KEY, SERPAPI_KEY, GROQ_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY, XAI_API_KEY`
+- **New keys to create (all free):** 6 values, from 4 signups
+  - Adzuna → ADZUNA_APP_ID + ADZUNA_APP_KEY (1 signup, instant)
+  - USAJobs → USAJOBS_API_KEY + USAJOBS_EMAIL (1 signup, instant)
+  - Jooble → JOOBLE_API_KEY (1 request)
+  - Careerjet → CAREERJET_AFFID (1 request)
+- **Providers needing NO key:** 1 (The Muse — works day one, proves the multi-source pipeline before other keys arrive)
+
+
+### Google Cloud
+- **Services to enable:** 14
+- **Firestore collections (incl subcollections):** 10
+- **Service accounts to create:** 1 (job-hunter-scheduler, OIDC invoker)
+- **Cloud Scheduler jobs:** 1 (every 6h, OIDC-authenticated)
+- **GCS buckets:** 1 (batch archive — already exists)
+- **Firestore database:** 1 (already created: Native mode, free tier)
+
+
+### Surface Area
+- **HTTP endpoints:** 17
+- **Industry routes:** 6 (food_service, hospitality, sales, customer_service, care_social, retail_ops)
+- **Search providers:** 7 (incl 2 SerpAPI engines)
+- **LLM enrichment providers:** 5 (reasoning only, never discovery)
+
+
+---
+
+
+## Section C — Definitive Build Order (12 stages)
+
+
+Principle from 1.0: inspect → compile → commit → deploy → health → endpoint → logs. Nothing deploys until S12. Each stage is its own paste-once block with a proof step.
+
+
+1. **S0 SCAFFOLD** — create all 118 files + 20 dirs as empty/marker files; compile the package. Proof: tree matches blueprint, package compiles. (118 files created, 0 logic.)
+2. **S1 core/ + models/** — pure code, no I/O. config, logging, clock, http, errors + 10 Pydantic models + enums. Proof: import all, instantiate each model. (~16 files.)
+3. **S2 industries/** — 6 route files + base + registry, seeded from resume. Proof: registry loads 6 routes. (8 files.)
+4. **S3 providers/** — registry + base ABC + 7 search fetchers + 5 reasoning stubs; dormant/available key logic. Proof: with 0 keys only The Muse is available. (~22 files.)
+5. **S4 geo/** — 6 Maps-family files. Proof: geocode origin returns lat/lng. (7 files.)
+6. **S5 store/** — Firestore client + generic repo + 7 collection repos + cache_repo. Proof: write+read a test doc per collection; cache hit/miss works. (10 files.)
+7. **S6 pipeline/** — normalize, resolve_place, score_match, score_review (fixed formula), classify, dedupe, reject, run. Proof: unit tests for reject reasons, low-rating cap, dedupe key. (9 files.)
+8. **S7 search/** — federated fan-out + budget guard + usage tracker. Proof: federated run with only The Muse returns normalized results; guard blocks SerpAPI below threshold. (4 files.)
+9. **S8 ingest/** — OIDC verify + scheduler handler. Proof: handler builds a batch; OIDC rejects unsigned requests. (3 files.)
+10. **S9 api/ + app.py** — 12 thin blueprints + Flask factory. FIRST LOCAL BOOT. Proof: compiles, gunicorn boots, /api/health 200 locally. (13 files.)
+11. **S10 web/** — index.html shell + 4 css + 10 js (8 tabs, ~25 filters, 8 charts). Proof: tabs switch, default load calls usage/opps/history/dry-run (no SerpAPI burn). (~17 files.)
+12. **S11 scripts/** — add_key.sh, deploy.sh, seed_industries.sh, make_scheduler_oidc.sh. Proof: add_key.sh dry-run prints correct gcloud command, no secret echoed. (4 files.)
+13. **S12 DEPLOY** — deploy.sh → Cloud Run → /api/health 200 → endpoint proofs → create scheduler OIDC → run one batch → confirm stored in Firestore.
+
+
+Post-core (optional, only after S12 proven): P1 add the 4 free provider keys → 4 more live sources. P2 wire LLM enrichment using existing 5 keys. P3 resume-tailoring feature. P4 the 3.0 items if still wanted (Pydantic already in; Neo4j next; auto-apply still discouraged). P5 Markov prediction beta (see Section H).
+
+
+---
+
+
+## Section D — Dependency Graph (what blocks what)
+
+
+```
+core/models  ->  everything (no deps itself)
+industries   ->  needs models
+providers    ->  needs models, core
+geo          ->  needs core, GOOGLE_MAPS_API_KEY
+store        ->  needs models, google-cloud-firestore, Firestore DB (ready)
+pipeline     ->  needs models, geo, industries, store
+search       ->  needs providers, pipeline, store, budget
+ingest       ->  needs search, store, OIDC
+api          ->  needs all above (thin layer on top)
+web          ->  needs api endpoints to exist
+deploy       ->  needs everything
+```
+
+
+- **Critical path:** models → store → pipeline → search → api → deploy
+- **Parallelizable:** geo, industries, providers, web can be built alongside the critical path
+
+
+---
+
+
+## Section E — Realistic Timeline (in build sessions)
+
+
+A session = one focused paste-block plus its proof cycle. Each file is small (single responsibility), but 102 need real code.
+
+
+- S0 scaffold: 1 session
+- S1 core+models: 1–2 sessions
+- S2 industries: 1 session
+- S3 providers: 2 sessions
+- S4 geo: 1 session
+- S5 store: 2 sessions
+- S6 pipeline: 2 sessions
+- S7 search: 1–2 sessions
+- S8 ingest: 1 session
+- S9 api+app: 2 sessions
+- S10 web: 3 sessions (largest UI surface)
+- S11 scripts: 1 session
+- S12 deploy+prove: 1–2 sessions
+
+
+**CORE TOTAL: ~19–22 sessions to a deployed, working dashboard**
+**Post-core additions: +3–5 sessions**
+
+
+This is honest. It is not one terminal command. A 102-file decoupled app is real engineering. The payoff of the structure: each session is small, compiles in isolation, and a failure in one file never cascades — exactly the discipline 1.0 demanded after the Service Unavailable history.
+
+
+---
+
+
+## Section F — Your Manual Actions vs What Is Automated
+
+
+### Your manual actions (cannot be automated)
+1. Register 4 free accounts → 6 key values (Adzuna, USAJobs, Jooble, Careerjet). Anytime before S12/P1; The Muse needs nothing, so the pipeline proves first.
+2. Paste each build block into Termux and paste the proof output back.
+3. Decide post-core scope (Neo4j? resume tool? Markov beta? — your call after core ships).
+
+
+### Automated / handled in blocks
+- All 14 Google services enabled via one gcloud block.
+- Service account + OIDC + scheduler created via script.
+- All 118 files created and filled across staged blocks.
+- add_key.sh drops any key in later with one command — no code redeploy, no hardcoded secret; the provider wakes on next revision.
+
+
+---
+
+
+## Section G — Definition of Done (proof the core is complete)
+
+
+All of the following must be true:
+
+
+- [ ] /api/health returns 200 with version marker
+- [ ] /api/jobs?dry_run=1 spends ZERO SerpAPI searches
+- [ ] /api/opportunities returns many Google Places results (no SerpAPI)
+- [ ] /api/industries lists all 6 routes
+- [ ] /api/providers/status shows available/dormant per key correctly
+- [ ] /api/search?industry=retail returns retail-routed results
+- [ ] one scheduled OIDC batch runs and is stored in Firestore
+- [ ] /api/history?hours=24 returns that stored batch
+- [ ] /api/batches lists it; /api/batch/<id> fetches it
+- [ ] UI: 8 tabs switch; default load does NOT burn SerpAPI; charts render
+- [ ] cache: repeating a query within TTL does NOT re-spend the API
+- [ ] no secret value ever printed to terminal, logs, or code
+
+
+---
+
+
+## Section H — Markov Vacancy-Prediction (Beta Sub-Feature, Loosely Coupled)
+
+
+Kept by request, but deliberately walled off from the core so it can never destabilize discovery. This is the one 3.0 idea with real upside for a job seeker: estimate which nearby restaurants are likely to have an opening SOON, before a listing is posted, and surface them as leads to apply to proactively.
+
+
+### What it does
+For each known place (from the Google Places opportunities you already collect), it watches signals over time and produces a single probability: likelihood of a near-term vacancy. High-probability places become proactive leads — distinct from real posted jobs, clearly labeled as predictions.
+
+
+### Honest signals it can use (no fabrication)
+- Review velocity changes — a sudden drop in review frequency or rating can correlate with staff churn.
+- Hiring-history cadence — if a place posted openings repeatedly in past batches, it likely turns over on a rhythm.
+- Recency since last seen hiring — time elapsed since a place last had a listing in your stored batches.
+- Business status / new-location signals from Place Details.
+
+
+### How it stays loosely coupled (the engineering rule)
+- Lives in its own module: `predict/markov.py`, plus its own collection `predictions/{place_id}`. It imports FROM store/ and geo/ but nothing in the core imports it back.
+- Its own endpoint: `/api/predictions`. The core dashboard works fully whether or not this endpoint or module exists.
+- Its own UI tab labeled clearly as Beta / Predicted Leads — never mixed into Live Jobs or accepted results.
+- Off by default behind a flag (`ENABLE_PREDICTIONS`). Flip it on only after the core is proven.
+- Honest framing in the UI: predictions are heuristics from public signals, not facts. A predicted lead means "worth proactively contacting," not "a job exists."
+
+
+### Where it slots in the timeline
+Post-core, as P5 — after S12 and after the real free providers are added. It depends on having accumulated batch history (so the signals have data to work from), which only exists once the core has been running and storing batches for a while. Building it earlier would mean predicting from an empty dataset.
+
+
+### What it must never do
+- Never auto-apply to a predicted lead (same reason auto-apply is excluded everywhere).
+- Never present a prediction as a real listing or inflate it into the accepted-jobs count.
+- Never consume SerpAPI to generate predictions — it runs on already-stored data and free signals.
+
+
+---
