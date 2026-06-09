@@ -1,0 +1,24 @@
+Read `.claude/context/CODEX_TO_CLAUDE_HANDOFF.md` first.
+
+Then read `.claude/tasks/NEUTRON_STAR_AUTONOMOUS_REPAIR_PROMPT.txt`.
+
+But modify the mission with this correction:
+
+Documents 1–6 are not automatically true. Audit them against each other first. Create:
+
+- `.claude/context/DOCUMENT_CONTRADICTION_MATRIX.md`
+- `.claude/context/CANONICAL_RESOLVED_SPEC.md`
+
+Only after that, compare current code against the resolved canonical spec.
+
+Document 5 is high authority for UI/UX, but if it contradicts another document, record the contradiction and decide which claim wins with evidence.
+
+Do not edit app logic until the contradiction matrix, canonical spec, UI/UX extract, current-code maps, stub audit, bug ledger, and final patch plan exist.
+
+Do not call `/api/ingest`.
+Do not call live `/api/jobs`.
+Do not print secrets.
+Do not push.
+Do not deploy.
+
+Start by verifying safe proof still passes, then continue the full reconciliation and repair workflow.
