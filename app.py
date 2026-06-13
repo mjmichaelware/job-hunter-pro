@@ -100,7 +100,7 @@ def create_app():
 
     @app.get("/")
     def index():
-        return render_template("index.html")
+        return _proxy_to_real_api("/")
 
     @app.get("/favicon.ico")
     def favicon():
