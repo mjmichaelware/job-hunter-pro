@@ -54,9 +54,6 @@ def _proxy_to_real_api(path: str):
     if path.strip("/") == "":
         target_path = "/"
     else:
-        if path.strip("/") == "":
-        target_path = "/"
-    else:
         target_path = "/api/" + path.lstrip("/")
 
     if target_path == "/api/research":
