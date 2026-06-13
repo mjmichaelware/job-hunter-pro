@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+# Context Anchor for Subdirectory Migration
+cd "$(dirname "$0")/.."
+set -euo pipefail
+
+REPO_TERMUX="$HOME/Workspaces/Job_Hunter_Platform/job-hunter-pro"
+
+[ -d "$REPO_TERMUX" ] || { echo "FAIL: repo missing: $REPO_TERMUX"; exit 1; }
+
+proot-distro login ubuntu \
+  --bind "$HOME/Workspaces:/workspaces" \
+  --bind "$HOME/storage/downloads:/downloads" \
+  -- bash -lc '
+set -euo pipefail
+
+REPO="/workspaces/Job_Hunter_Platform/job-hunter-pro"
+cd "$REPO" || exit 1
+
+mkdir -p .claude/tasks .claude/context .claude/logs
+
+cat > .claude/tasks/ULTIMATE_AUTONOMOUS_REPAIR_PROMPT.txt <<'"'"'PROMPT'"'"'
+You are the autonomous master engineering system for Job Hunter Pro. Use the strongest regular Claude model available in this account/session, high effort, maximum practical context, maximum tool use, and the installed project agents/skills/commands/settings/hooks/scripts. Your job is to reconstruct the entire intended application from the project documents, compare that intent against the current code, discover every real defect, remove harmful stubs/placeholders/boilerplate, repair UI/UX/backend/provider/data-contract/security/deployment readiness, prove locally, then stop before commit/push/deploy unless Michael explicitly commands those actions.
+
+PROJECT: Owner Michael Ware. App Job Hunter Pro. Repo /workspaces/Job_Hunter_Platform/job-hunter-pro. GCP project ai-job-agent-498702. Cloud Run service job-hunter-pro. Region us-central1. Environment Android ARM64 Termux + Ubuntu proot. Tech Flask/Gunicorn/Python/Cloud Run.
+
+ABSOLUTE RULES: never print secrets; never hardcode secrets; never commit secrets; never inspect API key values; keys live only in Secret Manager/env; never put tokens in Scheduler URLs; never weaken /api/ingest; never call /api/ingest unless Michael explicitly says so; never call live /api/jobs unless Michael explicitly says so; never deploy unless Michael explicitly says deploy; never push unless Michael explicitly says push; never fake jobs/counts/telemetry/logs/proof/commits/deployment success; never claim LLM APIs search for jobs; OpenAI/Gemini/Claude/Groq/xAI are enrichment/classification only; discovery providers are SerpAPI Jobs, SerpAPI Organic, Adzuna, USAJobs, Jooble, Careerjet, The Muse, Google Places/opportunities; do not burn SerpAPI or paid provider quota on page load; inspect current code before patching; do not patch large files blindly with regex; if patch stack is corrupted write clean file and overwrite; compile before deploy; run safe proof before deploy; after deploy check /api/health and logs if health fails; follow S0-S12 without skipping.
+
+CONTEXT STRATEGY: do not stuff every byte every turn. Build durable memory files, index everything, read exact files on demand, compare targeted facts, update maps. At 75% context compact to .claude/context/SESSION_STATE.md. Read documents once, then use extracts/maps.
+
+DOCUMENT AUTHORITY: read in order .claude/context/AI_JOB_AGENT_1.txt through AI_JOB_AGENT_6.md. Reconstruct history, architecture intent, workflow, security, deployment, mistakes. Document 5 is ultimate UI/UX manifest. Extract Document 5 into .claude/context/UIUX_MANIFEST_EXTRACT.md and judge frontend against it unless newer current-code truth proves otherwise.
+
+STAGE S0 VERIFY OPERATING SYSTEM: run pwd; git status --short; find .claude -maxdepth 3 -type f | sort; list/count .claude/agents .claude/skills .claude/commands .claude/scripts .claude/hooks; confirm .claude/CLAUDE.md .claude/settings.json guard_bash.sh safe_local_proof.sh docs 1-6 exist; run bash .claude/scripts/inspect_stack.sh; run bash .claude/scripts/safe_local_proof.sh. If broken, repair Claude project OS before app logic.
+
+S1 HISTORY + INTENT: read docs 1-6 once. Create/update .claude/context/HISTORY_RECONSTRUCTION.md .claude/context/ARCHITECTURE_INTENT.md .claude/context/UIUX_MANIFEST_EXTRACT.md .claude/context/SESSION_STATE.md. Include intended identity, architecture, providers, UI/UX, workflow, security, deploy model, build stages, known mistakes, drift risks.
+
+S2 CURRENT TRUTH MAPS: inspect repo, not guesses. Create/update CODEBASE_INDEX.md ROUTE_MAP.md DATA_FLOW_MAP.md API_CONTRACTS.md UI_CONTRACTS.md PROVIDER_MATRIX.md SECURITY_MODEL.md STUB_PLACEHOLDER_AUDIT.md BUG_LEDGER.md. Include every Flask route/file/function/method/protection/quota/storage/external risk/blueprint/shadowing; every provider name/classification/module/entrypoint/env names without values/caps/timeouts/fields/wiring; UI endpoint calls; API payloads; static/template/JS purposes.
+
+S3 STUB/PLACEHOLDER/BOILERPLATE AUDIT: rg for stub placeholder TODO FIXME pass NotImplemented dummy fake mock sample demo lorem hardcoded temporary scaffold boilerplate "return []" "return {}" "coming soon" "test data" noop disabled fallback legacy shadow blueprint. Also find dead files, routes not used, frontend buttons without backend, backend endpoints without frontend, fake cards/counts/provider breakdown, duplicate route ownership, broad except hiding failures, dry-run accidentally used as real, Document 5 UI/UX violations. For each: file, line/function, evidence, severity, real defect yes/no, fix/defer.
+
+S4 AUTONOMOUS DEFECT DISCOVERY: find proven defects in imports, startup, routes, shadowing, payloads, UI calls, live jobs, dry-run jobs, provider fanout/caps/breakdown, source_url/apply_url preservation, rejection/resolution logic, LLM enrichment/discovery separation, page-load quota safety, usage/opportunities/history/health/scheduler ingest/OIDC/Cloud Run/requirements/runtime/mobile UI/buttons/loading/error/empty states/JS/templates/stale paths. Do not assume defects; prove them from code or safe tests.
+
+S5 AGENT WORKFLOW: use or emulate opus-architect, haiku-file-indexer, sonnet-route-surface-auditor, sonnet-provider-fanout-engineer, sonnet-job-visibility-engineer, sonnet-frontend-truth-engineer, sonnet-data-contract-auditor, sonnet-testing-engineer, opus-security-auditor, opus-final-reviewer. If missing, report and continue manually.
+
+S6 PATCH PLAN BEFORE EDITING: produce confirmed defects, violated doc/current requirement, code evidence, files to edit, intended fix, risk, proof, rollback. Do not edit until plan is clear.
+
+S7 REPAIR: patch surgically. Remove harmful stubs/placeholders. Replace fake boilerplate with real behavior when required. Preserve security/budget controls. Do not add hidden live calls. Do not call live /api/jobs. Do not call /api/ingest. Do not deploy/push. Required final properties: Document 5 UI/UX followed as scope allows; page boot no live quota spend; dry-run safe; live discovery explicit user action; fair provider fanout; one provider cannot consume raw cap before others attempt; LLMs enrichment/classification only; provider jobs not hidden solely because address/radius/transit unresolved; missing resolution becomes resolution_flags/needs_resolution; frontend renders accepted+unresolved truthfully; provider_breakdown truthful; source_url/apply_url preserved; /api/health works; /api/ingest protected; no URL tokens; no secrets printed/committed.
+
+S8 PROOF: run python3 -m py_compile $(git ls-files "*.py"); bash .claude/scripts/safe_local_proof.sh; git diff --check; git diff --stat; git diff. If fails, inspect/fix; never fake success.
+
+S9 FINAL REPORT: stop after proof. Report docs read, Document 5 conclusions, maps updated, stubs found, confirmed defects, files changed, exact fixes, proof results, remaining risks, safe to commit?, safe to deploy?
+
+S10 COMMIT GATE: do not commit unless Michael explicitly says commit. If yes: bash .claude/scripts/jhp_commit.sh "Repair Job Hunter Pro architecture UIUX live jobs and app correctness"
+
+S11 PUSH GATE: do not push unless Michael explicitly says push. If yes: bash .claude/scripts/jhp_push.sh
+
+S12 DEPLOY GATE: do not deploy unless Michael explicitly says deploy. If yes: run predeploy proof, deploy via existing Cloud Run workflow, check /api/health, check logs if health fails.
+
+START NOW: verify OS, read docs once, extract Document 5, build maps, audit stubs/placeholders, discover proven defects, produce patch plan, then repair only after plan is clear and safe.
+PROMPT
+
+cat > .claude/scripts/start_regular_claude.sh <<'"'"'SCRIPT'"'"'
+#!/usr/bin/env bash
+set -euo pipefail
+unset CLAUDE_CODE_USE_VERTEX
+unset ANTHROPIC_VERTEX_PROJECT_ID
+unset CLOUD_ML_REGION
+unset GOOGLE_CLOUD_PROJECT
+unset CLOUDSDK_CONFIG
+cd /workspaces/Job_Hunter_Platform/job-hunter-pro
+. .venv/bin/activate 2>/dev/null || true
+echo "Regular Claude mode requested. If your Claude usage is exhausted, wait until it resets."
+echo "When Claude opens, paste:"
+echo ".claude/tasks/ULTIMATE_AUTONOMOUS_REPAIR_PROMPT.txt"
+echo
+claude
+SCRIPT
+chmod +x .claude/scripts/start_regular_claude.sh
+
+echo "DONE."
+echo "Master prompt:"
+echo "$REPO/.claude/tasks/ULTIMATE_AUTONOMOUS_REPAIR_PROMPT.txt"
+echo
+echo "To start regular Claude later:"
+echo "proot-distro login ubuntu --bind \"\$HOME/Workspaces:/workspaces\" --bind \"\$HOME/storage/downloads:/downloads\" -- bash /workspaces/Job_Hunter_Platform/job-hunter-pro/.claude/scripts/start_regular_claude.sh"
+'

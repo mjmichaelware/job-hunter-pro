@@ -91,7 +91,7 @@ Owner: Michael Ware
 Cloud Run service: job-hunter-pro
 GCP project: ai-job-agent-498702
 Region: us-central1
-Termux repo: ~/Workspaces/Job_Hunter_Platform/job-hunter-pro
+Termux repo: ~/Workspaces/Agents/Job_Hunter_Platform/job-hunter-pro
 Ubuntu repo: /workspaces/Job_Hunter_Platform/job-hunter-pro
 
 ## Architecture
