@@ -10,7 +10,14 @@ class ProviderType(str, Enum):
     SEARCH = "search"
     REASONING = "reasoning"
 
-@dataclass(frozen=True)
+class ProviderStatus(str, Enum):
+    """Enum for the runtime status of a provider."""
+    AVAILABLE = "available"
+    DISABLED = "disabled"
+    QUARANTINED = "quarantined"
+    DORMANT = "dormant"
+
+@dataclass
 class ProviderMetadata:
     """A standard data structure for provider metadata."""
     key: str
@@ -18,6 +25,13 @@ class ProviderMetadata:
     type: ProviderType
     description: str
     requires_api_key: bool = True
+    # Capabilities
+    cost_sensitive: bool = True
+    safe_on_boot: bool = False
+    supports_opportunities: bool = False
+    supports_live_jobs: bool = False
+    # State
+    status: ProviderStatus = ProviderStatus.DORMANT
 
 class Provider(ABC):
     """Abstract Base Class for all providers."""

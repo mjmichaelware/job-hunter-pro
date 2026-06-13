@@ -1,7 +1,8 @@
 import logging
 from typing import List
+import requests
 from models import SearchResult
-from ..base import ProviderMetadata, ProviderType, SearchProvider
+from ..base import ProviderMetadata, ProviderType, SearchProvider, ProviderStatus
 from core import Config, http_session
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class CareerjetProvider(SearchProvider):
             label="Careerjet",
             type=ProviderType.SEARCH,
             description="International job search engine. Requires Affiliate ID.",
+            supports_live_jobs=True,
         )
 
     def is_available(self) -> bool:
@@ -24,12 +26,11 @@ class CareerjetProvider(SearchProvider):
         Calls Careerjet API: http://public.api.careerjet.net/search
         """
         if not self.is_available():
-            return list()
+            return []
 
         results = []
         try:
             url = "http://public.api.careerjet.net/search"
-            # Careerjet requires user_ip and user_agent
             params = {
                 "affid": Config.CAREERJET_AFFID,
                 "keywords": query,
@@ -53,13 +54,13 @@ class CareerjetProvider(SearchProvider):
                     source_name=item.get("company", "Careerjet"),
                     published_date=item.get("date"),
                     raw_json=item,
-                    confidence=1.0,
-                    cost_units=1.0
                 )
                 results.append(res)
-                
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"Careerjet search failed with HTTP error: {e.response.status_code}")
+            raise e
         except Exception as e:
-            logger.error(f"Careerjet search failed: {e}")
+            logger.error(f"Careerjet search failed with a general error: {e}")
             
         return results
 

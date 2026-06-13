@@ -1,7 +1,8 @@
 import logging
 from typing import List
+import requests
 from models import SearchResult
-from ..base import ProviderMetadata, ProviderType, SearchProvider
+from ..base import ProviderMetadata, ProviderType, SearchProvider, ProviderStatus
 from core import Config, http_session
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class AdzunaProvider(SearchProvider):
             label="Adzuna",
             type=ProviderType.SEARCH,
             description="Job search provider Adzuna. Requires App ID and Key.",
+            supports_live_jobs=True,
         )
 
     def is_available(self) -> bool:
@@ -58,6 +60,9 @@ class AdzunaProvider(SearchProvider):
                 )
                 results.append(res)
                 
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"Adzuna search failed with HTTP error: {e.response.status_code}")
+            raise e
         except Exception as e:
             logger.error(f"Adzuna search failed: {e}")
             

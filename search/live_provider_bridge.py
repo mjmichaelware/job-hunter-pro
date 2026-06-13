@@ -156,36 +156,38 @@ def fetch_provider_raw_jobs(
 
     Reasoning providers are not called here. They enrich/classify after discovery.
     """
-    from providers import get_providers_by_type
-    from providers.base import ProviderType
+    import requests
+    from core.provider_registry import get_provider_registry
+    from providers.base import ProviderStatus
 
-    search_providers = list(get_providers_by_type(ProviderType.SEARCH))
-    available_providers = [p for p in search_providers if _provider_available(p)]
+    registry = get_provider_registry()
+    search_providers = registry.get_providers_by_capability(
+        required_capabilities=["supports_live_jobs"],
+        allowed_statuses=[ProviderStatus.AVAILABLE]
+    )
 
     raw_jobs: List[Dict[str, Any]] = []
     seen = set()
-    provider_breakdown: Dict[str, Dict[str, Any]] = {}
+    
+    # Initialize breakdown from all providers in the registry, not just active ones
+    provider_breakdown: Dict[str, Dict[str, Any]] = {
+        p.metadata.key: {
+            "label": p.metadata.label,
+            "available": p.metadata.status == ProviderStatus.AVAILABLE,
+            "status": p.metadata.status.value,
+            "queries_attempted": 0,
+            "raw_count": 0,
+            "error": None,
+        } for p in registry.get_all_providers() if p.metadata.type == "search"
+    }
 
-    active_count = max(1, len(available_providers))
+    active_count = max(1, len(search_providers))
     fair_default_cap = max(1, (max_raw_jobs + active_count - 1) // active_count)
     provider_cap = int(per_provider_cap or fair_default_cap)
 
     for provider in search_providers:
         key = _provider_key(provider)
-        label = _provider_label(provider)
-        is_available = _provider_available(provider)
-
-        provider_breakdown[key] = {
-            "label": label,
-            "available": is_available,
-            "queries_attempted": 0,
-            "raw_count": 0,
-            "status": "ok" if is_available else "dormant",
-            "cap": provider_cap,
-        }
-
-        if not is_available:
-            continue
+        provider_breakdown[key]["cap"] = provider_cap
 
         for query in queries:
             if provider_breakdown[key]["raw_count"] >= provider_cap:
@@ -204,14 +206,27 @@ def fetch_provider_raw_jobs(
 
             try:
                 results = _call_provider_search(provider, query, location, request_limit)
-            except Exception as exc:
+            except requests.exceptions.HTTPError as e:
+                status_code = e.response.status_code
+                error_summary = f"HTTP {status_code}"
                 provider_breakdown[key]["status"] = "error"
-                provider_breakdown[key]["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
+                provider_breakdown[key]["error"] = error_summary
+                logger.warning("Provider %s failed for query %s: %s", key, query, error_summary)
+                
+                # Implement quarantine for hard-fail auth/rate-limit errors
+                if status_code in [401, 403, 429]:
+                    registry.update_provider_status(key, ProviderStatus.QUARANTINED)
+                    provider_breakdown[key]["status"] = ProviderStatus.QUARANTINED.value
+                continue
+            except Exception as exc:
+                error_summary = f"{type(exc).__name__}: {str(exc)[:180]}"
+                provider_breakdown[key]["status"] = "error"
+                provider_breakdown[key]["error"] = error_summary
                 logger.warning("Provider %s failed for query %s", key, query, exc_info=True)
                 continue
 
             for item in results:
-                raw = _result_to_raw(item, key, label, query, location)
+                raw = _result_to_raw(item, key, _provider_label(provider), query, location)
                 identity = raw.get("job_id") or f"{raw.get('title')}|{raw.get('company_name')}|{raw.get('source_url')}"
                 if identity in seen:
                     continue
@@ -226,7 +241,7 @@ def fetch_provider_raw_jobs(
                 if len(raw_jobs) >= max_raw_jobs:
                     break
 
-        if provider_breakdown[key]["available"] and provider_breakdown[key]["raw_count"] == 0 and provider_breakdown[key]["status"] == "ok":
+        if provider.metadata.status == ProviderStatus.AVAILABLE and provider_breakdown[key]["raw_count"] == 0 and provider_breakdown[key]["status"] == ProviderStatus.AVAILABLE.value:
             provider_breakdown[key]["status"] = "available_returned_zero"
 
     return {

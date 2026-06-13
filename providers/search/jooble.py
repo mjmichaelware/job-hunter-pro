@@ -1,7 +1,8 @@
 import logging
 from typing import List
+import requests
 from models import SearchResult
-from ..base import ProviderMetadata, ProviderType, SearchProvider
+from ..base import ProviderMetadata, ProviderType, SearchProvider, ProviderStatus
 from core import Config, http_session
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class JoobleProvider(SearchProvider):
             label="Jooble",
             type=ProviderType.SEARCH,
             description="Worldwide job aggregator. Requires API Key.",
+            supports_live_jobs=True,
         )
 
     def is_available(self) -> bool:
@@ -24,12 +26,11 @@ class JoobleProvider(SearchProvider):
         Calls Jooble API: https://jooble.org/api/queries/v1/us
         """
         if not self.is_available():
-            return list()
+            return []
 
         results = []
         try:
             url = f"https://jooble.org/api/queries/v1/us/{Config.JOOBLE_API_KEY}"
-            # Jooble uses POST with JSON body
             payload = {
                 "keywords": query,
                 "location": "Salt Lake City, UT",
@@ -50,13 +51,15 @@ class JoobleProvider(SearchProvider):
                     source_name=item.get("company", "Jooble"),
                     published_date=item.get("updated"),
                     raw_json=item,
-                    confidence=1.0,
-                    cost_units=1.0
                 )
                 results.append(res)
-                
+        except requests.exceptions.HTTPError as e:
+            # This will be used for the quarantine logic later
+            logger.error(f"Jooble search failed with HTTP error: {e.response.status_code}")
+            # Re-raise the exception so the bridge can handle it
+            raise e
         except Exception as e:
-            logger.error(f"Jooble search failed: {e}")
+            logger.error(f"Jooble search failed with a general error: {e}")
             
         return results
 

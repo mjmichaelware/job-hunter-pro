@@ -151,8 +151,30 @@ function loadHistory(){
     .catch(e=>setStatus("History failed: "+e));
 }
 
+function loadProviderStatus() {
+  setStatus("Loading provider status...");
+  fetch("/api/providers/status")
+    .then(res => res.json())
+    .then(data => {
+      const providers = data.providers || [];
+      const oppsProvider = providers.find(p => p.supports_opportunities && p.status === 'available');
+      const jobsProvider = providers.find(p => p.supports_live_jobs && p.status === 'available');
+
+      if (!oppsProvider) {
+        document.querySelector("[onclick='loadOpportunities()']").disabled = true;
+        setStatus("Opportunity provider is disabled, possibly for cost control.");
+      }
+      if (!jobsProvider) {
+          document.querySelector("[onclick='loadLiveJobs()']").disabled = true;
+          setStatus("Live job discovery providers are disabled.");
+      }
+    })
+    .catch(e => setStatus("Provider status check failed: " + e));
+}
+
 document.addEventListener("DOMContentLoaded",()=>{
   UI.bind();
+  loadProviderStatus();
   loadUsage();
   loadOpportunities();
   loadHistory();

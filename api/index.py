@@ -1082,8 +1082,34 @@ def why_three():
         ],
     })
 
+from core.provider_registry import get_provider_registry, ProviderStatus
+
+# ... (existing code) ...
+
+@app.route("/api/providers/status")
+def providers_status():
+    registry = get_provider_registry()
+    return jsonify({
+        "status": "success",
+        "providers": registry.get_all_provider_statuses(),
+    })
+
 @app.route("/api/opportunities")
 def opportunities():
+    registry = get_provider_registry()
+    opportunity_providers = registry.get_providers_by_capability(
+        required_capabilities=["supports_opportunities"],
+        allowed_statuses=[ProviderStatus.AVAILABLE]
+    )
+    if not opportunity_providers:
+        return jsonify({
+            "status": "disabled",
+            "source": "provider_registry",
+            "count": 0,
+            "message": "No opportunity providers are currently available. This may be due to cost control measures or configuration issues.",
+            "data": [],
+        })
+
     try:
         radius = float(request.args.get("max_radius", Config.MAX_RADIUS_MILES))
     except Exception:

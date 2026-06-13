@@ -1,7 +1,8 @@
 import logging
 from typing import List
+import requests
 from models import SearchResult
-from ..base import ProviderMetadata, ProviderType, SearchProvider
+from ..base import ProviderMetadata, ProviderType, SearchProvider, ProviderStatus
 from core import http_session
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ class TheMuseProvider(SearchProvider):
             type=ProviderType.SEARCH,
             description="Job board with a focus on company culture. Keyless access.",
             requires_api_key=False,
+            supports_live_jobs=True,
         )
 
     def is_available(self) -> bool:
@@ -64,6 +66,9 @@ class TheMuseProvider(SearchProvider):
                 )
                 results.append(res)
                 
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"The Muse search failed with HTTP error: {e.response.status_code}")
+            raise e
         except Exception as e:
             logger.error(f"The Muse search failed: {e}")
             

@@ -1,7 +1,8 @@
 import logging
 from typing import List, Dict
+import requests
 from models import SearchResult
-from ..base import Provider, ProviderMetadata, ProviderType, SearchProvider
+from ..base import Provider, ProviderMetadata, ProviderType, SearchProvider, ProviderStatus
 from core import Config, http_session
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class SerpApiJobsProvider(SearchProvider):
             label="SerpAPI (Google Jobs)",
             type=ProviderType.SEARCH,
             description="Performs job searches using the Google Jobs engine via SerpAPI.",
+            supports_live_jobs=True,
         )
 
     def is_available(self) -> bool:
@@ -74,6 +76,9 @@ class SerpApiJobsProvider(SearchProvider):
                 )
                 results.append(res)
                 
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"SerpAPI Jobs search failed with HTTP error: {e.response.status_code}")
+            raise e
         except Exception as e:
             logger.error(f"SerpAPI Jobs search failed: {e}")
             

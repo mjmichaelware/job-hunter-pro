@@ -1,7 +1,8 @@
 import logging
 from typing import List
+import requests
 from models import SearchResult
-from ..base import ProviderMetadata, ProviderType, SearchProvider
+from ..base import ProviderMetadata, ProviderType, SearchProvider, ProviderStatus
 from core import Config, http_session
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class UsajobsProvider(SearchProvider):
             label="USAJobs",
             type=ProviderType.SEARCH,
             description="Job search for US federal government positions. Requires API Key and Email.",
+            supports_live_jobs=True,
         )
 
     def is_available(self) -> bool:
@@ -61,6 +63,9 @@ class UsajobsProvider(SearchProvider):
                 )
                 results.append(res)
                 
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"USAJobs search failed with HTTP error: {e.response.status_code}")
+            raise e
         except Exception as e:
             logger.error(f"USAJobs search failed: {e}")
             
