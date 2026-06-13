@@ -68,19 +68,18 @@ class ProviderRegistry:
         """Returns a list of metadata for all registered providers for status reporting."""
         return [p.metadata.__dict__ for p in self._providers.values()]
 
-# Singleton instance of the registry
-# We need to load the providers from the original registry first.
-# This will be done in a new core/__init__.py file to avoid circular imports.
-# For now, this is a placeholder.
 provider_registry: Optional[ProviderRegistry] = None
+
+def initialize_registry():
+    """Initializes the provider registry singleton."""
+    global provider_registry
+    if provider_registry is None:
+        from providers import get_all_providers as get_static_providers
+        provider_registry = ProviderRegistry(providers=get_static_providers())
+        logger.info("ProviderRegistry initialized.")
 
 def get_provider_registry() -> ProviderRegistry:
     """Global accessor for the provider registry singleton."""
-    global provider_registry
     if provider_registry is None:
-        # This is a fallback and should be properly initialized at startup.
-        from providers import get_all_providers as get_static_providers
-        logger.warning("ProviderRegistry not initialized at startup. Performing fallback initialization.")
-        provider_registry = ProviderRegistry(providers=get_static_providers())
-
+        raise RuntimeError("ProviderRegistry has not been initialized. Call initialize_registry() at startup.")
     return provider_registry

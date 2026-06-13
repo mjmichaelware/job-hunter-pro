@@ -6,6 +6,10 @@ from flask import Flask, Response, jsonify, render_template, request, send_from_
 from werkzeug.datastructures import Headers
 
 from api.index import app as real_api_app
+from core import initialize_registry
+
+# Initialize the provider registry at the very top of the application entrypoint
+initialize_registry()
 import api.index as real_api
 
 
