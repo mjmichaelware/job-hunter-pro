@@ -1269,9 +1269,7 @@ def history():
     jobs_out.sort(key=lambda j: (j.get("batch_created_at_utc", ""), j.get("radius_miles") if j.get("radius_miles") is not None else 999), reverse=True)
     return jsonify({"status": "success", "source": "orchestration_batch_history_v1", "from": start_dt.isoformat(), "to": end_dt.isoformat(), "batch_count": len(batch_summaries), "job_count": len(jobs_out), "batches": batch_summaries, "data": jobs_out})
 
-@app.route("/api/demo")
-def demo():
-    return jobs()
+
 
 @app.route("/api/search", methods=["GET", "POST"])
 def search():
