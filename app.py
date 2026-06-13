@@ -51,7 +51,10 @@ def _copy_response_headers(source_headers) -> Headers:
 
 
 def _proxy_to_real_api(path: str):
-    target_path = "/api/" + path.lstrip("/")
+    if path.strip("/") == "":
+        target_path = "/"
+    else:
+        target_path = "/api/" + path.lstrip("/")
 
     if target_path == "/api/research":
         target_path = "/api/research/place"
@@ -114,13 +117,13 @@ def create_app():
         return jsonify({
             "status": "ok",
             "entrypoint": "app:app",
-            "ui": "web/templates/index.html",
+            "ui": "api.index root dashboard proxied through app.py /",
             "static": "web/static",
             "api_backend": "api.index:app",
             "api_index_proxy_routes": "enabled",
             "modular_routes": "enabled (providers, industries, applications, ingest)",
             "placeholder_blueprint_registered": False,
-            "truth": "S10 cockpit is served from web/. Traffic for core discovery/history is proxied to api.index. Modular routes handle metadata and local state.",
+            "truth": "Root UI is proxied to api.index /. Core discovery/history routes are proxied to api.index. Modular routes handle metadata and local state.",
         })
 
     from api import api_bp
