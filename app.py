@@ -5,7 +5,6 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from werkzeug.datastructures import Headers
 
-from api.index import app as real_api_app
 import api.index as real_api
 
 
