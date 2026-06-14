@@ -25,13 +25,3 @@ images:
 - '${_IMAGE_URI}:$COMMIT_SHA'
 options:
   logging: CLOUD_LOGGING_ONLY
-# Defaults so this config runs standalone (gcloud builds submit --config cloudbuild.yaml).
-# Override any value with --substitutions=_KEY=VALUE, or set them in a Cloud Build trigger.
-# Simplest path needs none of this:
-#   gcloud run deploy job-hunter-pro --source . --region us-central1 --allow-unauthenticated
-substitutions:
-  _PROJECT_ID: ai-job-agent-498702
-  _SERVICE_NAME: job-hunter-pro
-  _RUN_REGION: us-central1
-  _APP_MODULE: app:app
-  _IMAGE_URI: us-central1-docker.pkg.dev/ai-job-agent-498702/cloud-run-source-deploy/job-hunter-pro
