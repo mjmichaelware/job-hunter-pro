@@ -1,0 +1,69 @@
+name: Vercel Deploy
+
+# Auto-deploy to Vercel on every push to the working branches.
+# One-time setup: add a single repository secret named VERCEL_TOKEN
+#   GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret
+#   Name: VERCEL_TOKEN   Value: a Vercel access token (vercel.com/account/tokens)
+# The org/project IDs below are identifiers (not secrets) for this Vercel project.
+
+on:
+  push:
+    branches:
+      - claude/job-hunter-pro-repair-v2a815
+      - main
+  workflow_dispatch: {}
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_QvNVEXRXtzoPqAV3HJF28nI2
+  VERCEL_PROJECT_ID: prj_aE7a5kAZ3Re3et8hn5SOLBsqyPWN
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Guard - require VERCEL_TOKEN
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Add it under repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Build (Flask via @vercel/python from vercel.json)
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Deploy to production
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "Deployed: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test the live deployment
+        run: |
+          BASE="${{ steps.deploy.outputs.url }}"
+          echo "Checking $BASE/api/health"
+          code=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "$BASE/api/health" || echo 000)
+          echo "health HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "::warning::/api/health returned $code (check Vercel function logs)"
+          fi
