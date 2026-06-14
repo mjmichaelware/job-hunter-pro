@@ -1,0 +1,37 @@
+{
+  "role_families": {
+    "software": {
+      "keywords": ["software engineer", "backend developer", "frontend developer", "full stack engineer", "devops engineer", "SRE", "software developer"],
+      "expansions": ["remote", "entry level", "senior", "principal"]
+    },
+    "product": {
+      "keywords": ["product manager", "product owner", "product analyst"],
+      "expansions": ["remote", "senior"]
+    },
+    "design": {
+      "keywords": ["UX designer", "UI designer", "product designer", "graphic designer"],
+      "expansions": ["remote", "senior"]
+    },
+    "data": {
+      "keywords": ["data scientist", "data analyst", "data engineer", "business intelligence analyst"],
+      "expansions": ["remote", "senior"]
+    },
+    "marketing": {
+      "keywords": ["marketing manager", "digital marketing", "content marketing", "SEO specialist"],
+      "expansions": ["remote"]
+    },
+    "sales": {
+      "keywords": ["sales representative", "account executive", "business development manager"],
+      "expansions": ["remote"]
+    },
+    "customer_support": {
+      "keywords": ["customer support representative", "customer success manager", "technical support specialist"],
+      "expansions": ["remote"]
+    },
+    "restaurant": {
+        "keywords": ["server", "cook", "line cook", "prep cook", "busser", "host", "dishwasher", "barista", "chef", "restaurant manager"],
+        "expansions": ["fine dining", "casual", "part-time"]
+    }
+  },
+  "global_expansions": ["jobs near Salt Lake City UT", "hiring near 84115"]
+}
