@@ -5,6 +5,22 @@ from typing import List, Dict, Any, NamedTuple
 
 from models import SearchResult
 
+
+def check_hard_failure(provider_key: str, response) -> None:
+    """Raise ProviderHardFailure on an auth/rate-limit status (401/403/429).
+
+    Search adapters should call this immediately after an HTTP response so the
+    federated bridge can quarantine a dead provider for the rest of the run
+    instead of swallowing the error and re-hitting it on every keyword.
+    """
+    from services.provider_status import is_hard_failure
+    from core.errors import ProviderHardFailure
+
+    status = getattr(response, "status_code", None)
+    if status is not None and is_hard_failure(status):
+        raise ProviderHardFailure(provider_key, status)
+
+
 class ProviderType(str, Enum):
     """Enum to differentiate types of providers."""
     SEARCH = "search"

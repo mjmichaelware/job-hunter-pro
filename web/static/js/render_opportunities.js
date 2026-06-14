@@ -22,6 +22,16 @@ function renderOpportunitiesList(data) {
   const container = document.getElementById('opportunities-container');
   if (!container) return;
 
+  // Honest cost-control state: the feature is intentionally off, not broken.
+  if (data && data.status === 'disabled') {
+    container.innerHTML = `
+      <div class="state-cost-disabled">
+        <strong>Places opportunities radar is off (cost control).</strong><br>
+        ${escapeHtml(data.message || 'This optional Google Maps feature is disabled to protect quota. Core job discovery does not depend on it.')}
+      </div>`;
+    return;
+  }
+
   const opportunities = normalizeOpportunitiesPayload(data);
 
   if (!opportunities.length) {

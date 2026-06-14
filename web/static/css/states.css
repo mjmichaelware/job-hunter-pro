@@ -1,0 +1,52 @@
+/* states.css — UI STATE concern (separate from layout/components/data views).
+ *
+ * Honest, data-driven state styling: empty / loading / disabled / quarantined /
+ * needs-resolution. Kept decoupled from discovery/business logic so provider and
+ * render code never embed styling rules. Tokens come from base.css.
+ */
+
+/* Empty / fallback states */
+.empty-state,
+.chart-fallback {
+  color: var(--muted);
+}
+
+/* A provider or feature intentionally turned off (policy/cost), not broken. */
+.state-disabled {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.state-disabled-note {
+  font-size: 0.75rem;
+  color: var(--warning);
+  margin-top: var(--space-xs, 4px);
+}
+
+/* A provider quarantined for the current run after a hard auth/rate failure. */
+.state-quarantined {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.quarantine-note {
+  font-size: 0.8rem;
+  color: var(--danger);
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-sm, 8px);
+  padding-top: var(--space-sm, 8px);
+}
+
+/* A real job whose address/radius/transit could not be resolved. Visible, not
+ * deleted — distinct from a verified accepted job. */
+.state-needs-resolution {
+  border-color: var(--warning);
+}
+
+/* Cost-honest disabled feature panel (e.g. Places opportunities turned off). */
+.state-cost-disabled {
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-md, 16px);
+}

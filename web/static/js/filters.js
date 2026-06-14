@@ -71,9 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
       el.addEventListener(eventType, (e) => {
         let val = e.target.value;
         if (el.type === 'range') val = parseFloat(val);
-        
-        AppState.filters[ctrl.key] = val;
-        
+
+        // radius/matchScore at 0 means "Any" -> no narrowing (store '').
+        const isAnyZero = (ctrl.key === 'radius' || ctrl.key === 'matchScore') && (!val || Number(val) <= 0);
+        AppState.filters[ctrl.key] = isAnyZero ? '' : val;
+
+        let display = val;
+        if (ctrl.key === 'radius') display = isAnyZero ? 'Any' : `${val}mi`;
+        else if (ctrl.key === 'matchScore') display = isAnyZero ? 'Any' : `${val}%`;
+
         // Sync other elements
         if (mainEl && mainEl !== el) mainEl.value = val;
         if (drawerEl && drawerEl !== el) drawerEl.value = val;
@@ -82,12 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ctrl.valEls) {
           ctrl.valEls.forEach(vid => {
             const vdisplay = document.getElementById(vid);
-            if (vdisplay) vdisplay.textContent = val;
+            if (vdisplay) vdisplay.textContent = display;
           });
         }
         if (ctrl.valEl) {
           const vdisplay = document.getElementById(ctrl.valEl);
-          if (vdisplay) vdisplay.textContent = val;
+          if (vdisplay) vdisplay.textContent = display;
         }
 
         applyLocalFilters();
@@ -113,12 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function resetFilters() {
   const defaults = {
     mode: '',
-    radius: 5,
+    radius: '',
     industry: '',
     provider: '',
     status: '',
     sort: 'newest',
-    matchScore: 60,
+    matchScore: '',
     maxWalk: 30,
     maxTransit: 60,
     minRating: 0,
@@ -164,14 +170,22 @@ function resetFilters() {
   ];
 
   idMaps.forEach(map => {
+    const raw = AppState.filters[map.key];
+    // radius/matchScore reset to "Any" (slider 0, no narrowing).
+    const isAny = (map.key === 'radius' || map.key === 'matchScore') && (raw === '' || raw === null || Number(raw) <= 0);
+    const sliderVal = isAny ? 0 : raw;
+    let display = raw;
+    if (map.key === 'radius') display = isAny ? 'Any' : `${raw}mi`;
+    else if (map.key === 'matchScore') display = isAny ? 'Any' : `${raw}%`;
+
     map.ids.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.value = AppState.filters[map.key];
+      if (el) el.value = sliderVal;
     });
     if (map.vids) {
       map.vids.forEach(vid => {
         const el = document.getElementById(vid);
-        if (el) el.textContent = AppState.filters[map.key];
+        if (el) el.textContent = display;
       });
     }
   });
@@ -189,12 +203,12 @@ function renderFilterChips() {
 
   const defaults = {
     mode: '',
-    radius: 5,
+    radius: '',
     industry: '',
     provider: '',
     status: '',
     sort: 'newest',
-    matchScore: 60,
+    matchScore: '',
     maxWalk: 30,
     maxTransit: 60,
     minRating: 0,
@@ -232,19 +246,21 @@ function renderFilterChips() {
   }
 
   if (resetBtn) {
-    resetBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+    // Always available so the user can guarantee "show all" at any time.
+    resetBtn.style.display = 'inline-flex';
+    resetBtn.textContent = count > 0 ? `Show All / Reset (${count})` : 'Show All / Reset';
   }
 }
 
 window.removeFilter = function(key) {
   const defaults = {
     mode: '',
-    radius: 5,
+    radius: '',
     industry: '',
     provider: '',
     status: '',
     sort: 'newest',
-    matchScore: 60,
+    matchScore: '',
     maxWalk: 30,
     maxTransit: 60,
     minRating: 0,

@@ -56,7 +56,7 @@
 
         <div id="filter-bar" style="padding: 0 var(--space-md); margin-bottom: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center;">
             <div id="active-filters-chips" style="display: flex; flex-wrap: wrap; gap: var(--space-xs);"></div>
-            <button id="reset-all-filters" class="badge" style="display:none; cursor:pointer; background:var(--border);">Reset All</button>
+            <button id="reset-all-filters" class="badge" style="cursor:pointer; background:var(--border);" title="Clear every filter and show all jobs">Show All / Reset</button>
         </div>
 
         <div id="always-visible-filters" style="padding: 0 var(--space-md); margin-bottom: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-md); font-size: 0.85rem;">
@@ -113,12 +113,12 @@
                 </select>
             </div>
             <div class="filter-group" style="min-width: 120px;">
-                <label for="filter-radius">Radius: <span id="radius-val">5</span>mi</label>
-                <input type="range" id="filter-radius" min="1" max="25" value="5">
+                <label for="filter-radius">Radius: <span id="radius-val">Any</span></label>
+                <input type="range" id="filter-radius" min="0" max="25" value="0">
             </div>
             <div class="filter-group" style="min-width: 120px;">
-                <label for="filter-match">Match: <span id="match-val">60</span>%</label>
-                <input type="range" id="filter-match" min="0" max="100" value="60">
+                <label for="filter-match">Match: <span id="match-val">Any</span></label>
+                <input type="range" id="filter-match" min="0" max="100" value="0">
             </div>
         </div>
 
@@ -359,11 +359,11 @@
                 <option value="distance">Nearest</option>
             </select>
 
-            <label for="drawer-filter-radius">Radius: <span id="drawer-radius-val">5</span>mi</label>
-            <input type="range" id="drawer-filter-radius" min="1" max="25" value="5">
+            <label for="drawer-filter-radius">Radius: <span id="drawer-radius-val">Any</span></label>
+            <input type="range" id="drawer-filter-radius" min="0" max="25" value="0">
 
-            <label for="drawer-filter-match">Match: <span id="drawer-match-val">60</span>%</label>
-            <input type="range" id="drawer-filter-match" min="0" max="100" value="60">
+            <label for="drawer-filter-match">Match: <span id="drawer-match-val">Any</span></label>
+            <input type="range" id="drawer-filter-match" min="0" max="100" value="0">
         </div>
 
         <div class="filter-section">

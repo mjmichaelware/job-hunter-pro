@@ -1,8 +1,9 @@
 import logging
 from typing import List
 from models import SearchResult
-from ..base import ProviderMetadata, ProviderType, SearchProvider
+from ..base import ProviderMetadata, ProviderType, SearchProvider, check_hard_failure
 from core import http_session
+from core.errors import ProviderHardFailure
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class TheMuseProvider(SearchProvider):
             }
             
             response = http_session.get(url, params=params, timeout=10)
+            check_hard_failure(self.metadata.key, response)
             response.raise_for_status()
             data = response.json()
             
@@ -63,10 +65,12 @@ class TheMuseProvider(SearchProvider):
                     cost_units=0.0
                 )
                 results.append(res)
-                
+
+        except ProviderHardFailure:
+            raise
         except Exception as e:
             logger.error(f"The Muse search failed: {e}")
-            
+
         return results
 
 themuse_provider = TheMuseProvider()

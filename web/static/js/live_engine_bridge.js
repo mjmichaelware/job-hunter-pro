@@ -169,11 +169,9 @@
   }
 
   async function runLiveDiscovery() {
-    const ok = true || window.confirm(
-      'Run live discovery now?\n\nThis calls /api/jobs and may use discovery provider budget. It is not run on page load.'
-    );
-    if (!ok) return;
-
+    // Only ever runs from an explicit user click (Run Live Discovery button /
+    // confirm guard). It is NEVER called on page load. The click itself is the
+    // explicit consent to spend discovery provider budget.
     const btn = ensureLiveButton();
     if (btn) {
       btn.disabled = true;
@@ -221,8 +219,9 @@
       trigger.addEventListener('click', runLiveDiscovery);
     }
 
+    // Safe boot: only the read-only surface panel loads automatically.
+    // Live discovery is user-triggered via the bound buttons above.
     refreshSurfacePanel();
-    runLiveDiscovery();
   }
 
   if (document.readyState === 'loading') {

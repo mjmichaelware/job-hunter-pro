@@ -24,12 +24,23 @@ async function loadProviders() {
         const name = UI.safeField(p.label, 'Unknown Provider');
         const type = UI.safeField(p.type, 'Unknown Type');
         const available = p.is_available === true;
-        
+        const disabled = p.disabled_by_policy === true;
+
+        let badgeClass = 'badge-cached';
+        let badgeText = 'DORMANT';
+        if (disabled) { badgeClass = 'badge-budget-guarded'; badgeText = 'DISABLED'; }
+        else if (available) { badgeClass = 'badge-safe'; badgeText = 'READY'; }
+
+        const reason = disabled && p.reason
+            ? `<p style="font-size:0.75rem; color:var(--warning); margin-top:var(--space-xs);">${UI.safeField(p.reason, '')}</p>`
+            : '';
+
         return `
         <div class="card">
             <h4>${name}</h4>
             <p style="font-size:0.8rem; color:var(--muted);">${type.toUpperCase()}</p>
-            <span class="badge ${available ? 'badge-safe' : 'badge-cached'}">${available ? 'READY' : 'DORMANT'}</span>
+            <span class="badge ${badgeClass}">${badgeText}</span>
+            ${reason}
         </div>`;
     }).join('');
 }

@@ -51,14 +51,16 @@ const AppState = {
     // Add more translation targets if needed
   },
   filters: {
-    // Always visible
+    // Always visible.
+    // radius and matchScore default to '' (no narrowing) so the UI shows ALL
+    // valid jobs by default. They only narrow when the user explicitly sets them.
     mode: '',
-    radius: 5,
+    radius: '',
     industry: '',
     provider: '',
     status: '',
     sort: 'newest',
-    matchScore: 60,
+    matchScore: '',
 
     // Advanced
     maxWalk: 30,

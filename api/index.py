@@ -51,6 +51,10 @@ class Config:
 
     ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "0").strip() == "1"
     ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "0").strip() == "1"
+    # Google Places "opportunities" radar costs Maps quota per call. It is an
+    # OPTIONAL feature and core job discovery does not depend on it. Off by
+    # default for cost control; the endpoint reports this honestly when disabled.
+    ENABLE_PLACES_OPPORTUNITIES = os.environ.get("ENABLE_PLACES_OPPORTUNITIES", "0").strip() == "1"
 
     BATCH_BUCKET = os.environ.get("BATCH_BUCKET", "").strip()
 
@@ -450,7 +454,6 @@ def resolve_place(raw: Dict[str, Any]) -> Dict[str, Any]:
         }
     queries = [
         f"{company} Salt Lake City",
-        f"{company} restaurant Salt Lake City",
         f"{company} near 84115 Salt Lake City UT",
         f"{company} {title} Salt Lake City",
     ]
@@ -561,7 +564,7 @@ def match_score(job: Dict[str, Any]) -> int:
     return max(1, min(score, 99))
 
 def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
-    title = clean(raw.get("title"), "Untitled Restaurant Role")
+    title = clean(raw.get("title"), "Untitled role")
     company = clean_company(raw.get("company_name") or raw.get("company")) or "Company not listed"
     listing_location = clean(raw.get("location"), Config.JOB_LOCATION)
     description = clean(raw.get("description"), "No description available.")
@@ -623,29 +626,10 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
     job["risk_level"] = ri.get("risk_level")
     return job
 
-def rejection_reasons(job: Dict[str, Any]) -> List[str]:
-    reasons = []
-    food_text = " ".join([
-        clean(job.get("title")),
-        clean(job.get("company")),
-        clean(job.get("description")),
-        clean(job.get("restaurant_name")),
-        clean(job.get("resolved_place_name")),
-        " ".join(job.get("tags") or []),
-    ])
-    if not is_food_text(food_text):
-        reasons.append("not_food_service")
-    if not job.get("resolved_address"):
-        reasons.append("no_exact_restaurant_address_resolved")
-    if job.get("radius_miles") is None:
-        reasons.append("radius_unavailable")
-    elif job["radius_miles"] > Config.MAX_RADIUS_MILES:
-        reasons.append(f"outside_radius_{job['radius_miles']}mi")
-    if job.get("commute_seconds") is None:
-        reasons.append("transit_unavailable")
-    elif job["commute_seconds"] >= Config.MAX_TRANSIT_SECONDS:
-        reasons.append(f"transit_too_long_{round(job['commute_seconds'] / 60)}min")
-    return []
+# NOTE: Accept/reject partitioning now lives in services.job_aggregator. Broad
+# mode keeps every usable job and records missing address/radius/transit as
+# non-fatal resolution_flags rather than deleting the job. Food-service gating is
+# no longer applied to the default discovery universe.
 
 def canonical_key(job: Dict[str, Any]) -> str:
     title = clean(job.get("title")).lower()
@@ -656,23 +640,42 @@ def canonical_key(job: Dict[str, Any]) -> str:
         return f"{title}|{uniq}"
     return f"{title}|{name}|{addr}"
 
-def raw_job_queries() -> List[str]:
-    queries = list(ROLE_QUERIES)
-    for restaurant in nearby_opportunities_cached(Config.MAX_RADIUS_MILES)[:8]:
-        name = clean(restaurant.get("name"))
-        if name:
-            queries.append(f'"{name}" restaurant jobs Salt Lake City')
-            queries.append(f'"{name}" server cook dishwasher jobs')
-    unique = []
-    for query in queries:
+def raw_job_queries(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None) -> List[str]:
+    """Build the discovery query bank.
+
+    Broad, all-jobs discovery is the default and does NOT depend on Google Places
+    (that was both a cost problem and a food-service bias). Domain presets are
+    optional and explicit. Falls back to the legacy restaurant queries only if
+    the data-driven builder cannot be imported, so discovery never breaks.
+    """
+    selected = (domain or mode or "broad").strip().lower()
+    try:
+        from services.query_builder import build_queries
+
+        queries = build_queries(
+            mode=selected,
+            city="Salt Lake City, UT",
+            postal=Config.JOB_LOCATION,
+            max_queries=24,
+            extra_terms=extra_terms,
+        )
+        if queries:
+            return queries
+    except Exception:
+        logger.warning("query_builder unavailable; using legacy query bank", exc_info=True)
+
+    # Legacy fallback (no Google Places dependency).
+    unique: List[str] = []
+    for query in ROLE_QUERIES:
         if query not in unique:
             unique.append(query)
     return unique
 
-def fetch_jobs_live() -> Dict[str, Any]:
+def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None) -> Dict[str, Any]:
     raw_jobs = []
     provider_breakdown = {}
-    queries = raw_job_queries()
+    quarantined_providers: Dict[str, Any] = {}
+    queries = raw_job_queries(mode=mode, domain=domain, extra_terms=extra_terms)
     query_count = len(queries)
 
     try:
@@ -685,6 +688,7 @@ def fetch_jobs_live() -> Dict[str, Any]:
         raw_jobs = fanout.get("raw_jobs", [])
         provider_breakdown = fanout.get("provider_breakdown", {})
         query_count = fanout.get("query_count", query_count)
+        quarantined_providers = fanout.get("quarantined_providers", {})
     except Exception as exc:
         import logging
         logging.getLogger(__name__).warning("Federated provider fan-out failed; falling back to legacy SerpAPI path", exc_info=True)
@@ -714,32 +718,26 @@ def fetch_jobs_live() -> Dict[str, Any]:
             if len(raw_jobs) >= Config.MAX_RAW_JOBS:
                 break
 
-    accepted = []
-    rejected = []
-    accepted_keys = set()
+    normalized = [normalize_job(raw) for raw in raw_jobs]
 
-    for raw in raw_jobs:
-        job = normalize_job(raw)
-        reasons = rejection_reasons(job)
-        if reasons:
-            rejected.append({
-                "provider": raw.get("_provider") or raw.get("source") or raw.get("via"),
-                "query": raw.get("_query_used"),
-                "title": job.get("title"),
-                "company": job.get("company"),
-                "restaurant_name": job.get("restaurant_name"),
-                "resolved_address": job.get("resolved_address"),
-                "commute_label": job.get("commute_label"),
-                "radius_label": job.get("radius_label"),
-                "tags": job.get("tags"),
-                "source_url": job.get("source_url"),
-                "reasons": reasons,
-            })
-        else:
+    # Partition into accepted (every usable job; missing resolution becomes
+    # non-fatal resolution_flags) and rejected (genuinely unusable: no title,
+    # nothing to apply to, duplicate, or — only in a domain preset — a clear
+    # domain mismatch). Falls back to a permissive accept-all if the aggregator
+    # cannot be imported, so jobs are never silently lost.
+    try:
+        from services.job_aggregator import partition
+
+        accepted, rejected = partition(normalized, mode=mode, domain=domain)
+    except Exception:
+        logger.warning("job_aggregator unavailable; accepting all normalized jobs", exc_info=True)
+        accepted, rejected, seen = [], [], set()
+        for job in normalized:
             key = canonical_key(job)
-            if key not in accepted_keys:
-                accepted_keys.add(key)
-                accepted.append(job)
+            if key in seen:
+                continue
+            seen.add(key)
+            accepted.append(job)
 
     accepted.sort(key=lambda j: (
         j.get("radius_miles") if j.get("radius_miles") is not None else 999,
@@ -747,13 +745,22 @@ def fetch_jobs_live() -> Dict[str, Any]:
         -j.get("match", 0),
     ))
 
+    flag_summary: Dict[str, int] = {}
+    for job in accepted:
+        for flag in job.get("resolution_flags", []) or []:
+            flag_summary[flag] = flag_summary.get(flag, 0) + 1
+
     return {
         "raw_count": len(raw_jobs),
         "query_count": query_count,
-        "nearby_restaurant_count": len(nearby_opportunities_cached(Config.MAX_RADIUS_MILES)),
+        "mode": mode,
+        "domain": domain,
         "accepted": accepted,
         "rejected": rejected[:100],
+        "rejected_total": len(rejected),
+        "resolution_flag_summary": flag_summary,
         "provider_breakdown": provider_breakdown,
+        "quarantined_providers": quarantined_providers,
     }
 
 def float_arg(name: str, default: Optional[float]) -> Optional[float]:
@@ -765,59 +772,32 @@ def float_arg(name: str, default: Optional[float]) -> Optional[float]:
     except Exception:
         return default
 
+def request_filter_params() -> Dict[str, Any]:
+    """Collect ONLY the filter params the caller explicitly provided.
+
+    Absent or blank params are omitted so the service never narrows by default.
+    """
+    params: Dict[str, Any] = {}
+    for name in ("min_rating", "max_radius", "max_transit", "min_score", "min_match",
+                 "industry", "provider", "role", "house", "q"):
+        value = request.args.get(name)
+        if value not in (None, ""):
+            params[name] = value
+    return params
+
+
 def apply_filters(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    min_rating = float_arg("min_rating", None)
-    max_radius = float_arg("max_radius", None)
-    max_transit = float_arg("max_transit", None)
-    min_score = float_arg("min_score", None)
-    role = clean(request.args.get("role", "all")).lower()
-    house = clean(request.args.get("house", "all")).lower()
-    q = clean(request.args.get("q", "")).lower()
-    out = []
-    for job in jobs:
-        if min_rating is not None:
-            try:
-                if float(job.get("google_rating") or 0) < min_rating:
-                    continue
-            except Exception:
-                continue
-        if max_radius is not None:
-            try:
-                rv = job.get("radius_miles")
-                if rv is not None and float(rv) > max_radius:
-                    continue
-            except Exception:
-                continue
-        if max_transit is not None:
-            try:
-                cv = job.get("commute_seconds")
-                if cv is not None and float(cv) / 60 > max_transit:
-                    continue
-            except Exception:
-                continue
-        if min_score is not None:
-            try:
-                if float(job.get("review_score") or 0) < min_score:
-                    continue
-            except Exception:
-                continue
-        text = " ".join([clean(job.get("title")), " ".join(job.get("tags") or [])]).lower()
-        if role and role != "all" and role not in text:
-            continue
-        if house and house != "all" and clean(job.get("role_family")).lower() != house:
-            continue
-        if q:
-            haystack = " ".join([
-                clean(job.get("title")),
-                clean(job.get("restaurant_name")),
-                clean(job.get("resolved_address")),
-                clean(job.get("description")),
-                " ".join(job.get("tags") or []),
-            ]).lower()
-            if q not in haystack:
-                continue
-        out.append(job)
-    return out
+    """Apply only explicitly-set filters (delegates to services.filtering)."""
+    params = request_filter_params()
+    if not params:
+        return list(jobs)
+    try:
+        from services.filtering import apply_filters as _apply
+
+        return _apply(jobs, params)
+    except Exception:
+        logger.warning("services.filtering unavailable; returning unfiltered jobs", exc_info=True)
+        return list(jobs)
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -1084,6 +1064,18 @@ def why_three():
 
 @app.route("/api/opportunities")
 def opportunities():
+    if not Config.ENABLE_PLACES_OPPORTUNITIES:
+        # Honest cost-control state: feature intentionally off, not broken.
+        return jsonify({
+            "status": "disabled",
+            "source": "google_places_opportunities",
+            "enabled": False,
+            "reason": "disabled_for_cost_control",
+            "message": "Places opportunities radar is off to protect Google Maps quota. Core job discovery does not depend on it. Set ENABLE_PLACES_OPPORTUNITIES=1 to enable.",
+            "count": 0,
+            "rules": {"origin": Config.ORIGIN_ADDRESS, "uses_serpapi": False, "uses_google_maps": True},
+            "data": [],
+        })
     try:
         radius = float(request.args.get("max_radius", Config.MAX_RADIUS_MILES))
     except Exception:
@@ -1123,7 +1115,12 @@ def jobs():
             "budget": serpapi_account_status(),
         })
 
-    result = fetch_jobs_live()
+    mode = clean(request.args.get("mode", "broad")).lower() or "broad"
+    domain = clean(request.args.get("domain", "")).lower()
+    extra = clean(request.args.get("q", ""))
+    extra_terms = [extra] if extra else None
+
+    result = fetch_jobs_live(mode=mode, domain=domain, extra_terms=extra_terms)
     filtered = apply_filters(result["accepted"])
 
     rejection_summary = {}
@@ -1134,21 +1131,29 @@ def jobs():
     return jsonify({
         "status": "success",
         "source": VERSION,
+        "mode": result.get("mode", mode),
+        "domain": result.get("domain", domain),
         "count": len(filtered),
+        "visible_count": len(filtered),
+        "accepted_count": len(result["accepted"]),
         "unfiltered_count": len(result["accepted"]),
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
-        "nearby_restaurant_count": result["nearby_restaurant_count"],
-        "rejected_count": len(result.get("rejected", [])),
+        "rejected_count": result.get("rejected_total", len(result.get("rejected", []))),
         "rejection_summary": rejection_summary,
+        "resolution_flag_summary": result.get("resolution_flag_summary", {}),
         "provider_breakdown": result.get("provider_breakdown", {}),
+        "quarantined_providers": result.get("quarantined_providers", {}),
         "rules": {
             "origin": Config.ORIGIN_ADDRESS,
             "max_radius_miles": Config.MAX_RADIUS_MILES,
             "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
-            "food_only": True,
+            "default_mode": "broad",
+            "food_only": mode == "food_service" or domain == "food_service",
+            "missing_resolution": "kept_as_resolution_flags_not_rejected",
             "discovery": "federated_search_providers",
             "reasoning_providers": "not_used_as_discovery",
+            "places_opportunities": "optional_separate_endpoint_/api/opportunities",
         },
         "data": filtered,
         "rejected": result.get("rejected", [])[:100],
@@ -1156,16 +1161,21 @@ def jobs():
 
 @app.route("/api/debug/jobs")
 def debug_jobs():
-    result = fetch_jobs_live()
+    mode = clean(request.args.get("mode", "broad")).lower() or "broad"
+    domain = clean(request.args.get("domain", "")).lower()
+    result = fetch_jobs_live(mode=mode, domain=domain)
     return jsonify({
         "status": "success",
         "source": VERSION,
+        "mode": result.get("mode", mode),
+        "domain": result.get("domain", domain),
         "accepted_count": len(result["accepted"]),
-        "rejected_count": len(result["rejected"]),
+        "rejected_count": result.get("rejected_total", len(result["rejected"])),
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
-        "nearby_restaurant_count": result["nearby_restaurant_count"],
+        "resolution_flag_summary": result.get("resolution_flag_summary", {}),
         "provider_breakdown": result.get("provider_breakdown", {}),
+        "quarantined_providers": result.get("quarantined_providers", {}),
         "accepted": result["accepted"],
         "rejected": result["rejected"],
     })
@@ -1200,7 +1210,7 @@ def ingest():
         "source": VERSION,
         "rules": {"origin": Config.ORIGIN_ADDRESS, "max_radius_miles": Config.MAX_RADIUS_MILES, "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60), "food_only": True},
         "budget": {"serpapi": serpapi_account_status(), "max_serp_queries": Config.MAX_SERP_QUERIES, "max_raw_jobs": Config.MAX_RAW_JOBS},
-        "counts": {"accepted": len(result["accepted"]), "rejected": len(result["rejected"]), "raw": result["raw_count"], "queries": result["query_count"], "nearby_restaurants": result["nearby_restaurant_count"]},
+        "counts": {"accepted": len(result["accepted"]), "rejected": result.get("rejected_total", len(result["rejected"])), "raw": result["raw_count"], "queries": result["query_count"]},
         "accepted": result["accepted"],
         "rejected": result["rejected"],
     }

@@ -29,6 +29,15 @@ function jobNumber(value, fallback = null) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// Returns a positive numeric filter value only when the user explicitly set one.
+// Blank, zero, or non-numeric => null (means "do not narrow").
+function numericFilter(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
 function safeJobHref(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -92,14 +101,21 @@ function renderJobsList(data, options = {}) {
     return;
   }
 
+  // Only narrow on filters the user EXPLICITLY set. Blank/empty filters must
+  // never silently hide valid jobs (that was the original bug).
+  const filterRadius = numericFilter(AppState.filters?.radius);
+  const filterMatch = numericFilter(AppState.filters?.matchScore);
+  const filterIndustry = (AppState.filters?.industry || '').trim();
+
   const filteredAccepted = accepted.filter((job) => {
     const industry = pickJobField(job, ['industry', 'industry_key'], '');
     const radius = jobNumber(pickJobField(job, ['haversine_radius_miles', 'radius_miles', 'distance_miles'], null), null);
     const match = jobNumber(pickJobField(job, ['match_score', 'score', 'resonance_score', 'match'], null), null);
 
-    if (AppState.filters?.industry && industry && industry !== AppState.filters.industry) return false;
-    if (radius !== null && AppState.filters?.radius && radius > Number(AppState.filters.radius)) return false;
-    if (match !== null && AppState.filters?.matchScore && match < Number(AppState.filters.matchScore)) return false;
+    if (filterIndustry && industry && industry !== filterIndustry) return false;
+    // Unknown radius/match is NOT excluded — keep unresolved-but-real jobs visible.
+    if (filterRadius !== null && radius !== null && radius > filterRadius) return false;
+    if (filterMatch !== null && match !== null && match < filterMatch) return false;
     return true;
   });
 

@@ -15,7 +15,7 @@ def _clean_keywords(query: str) -> str:
     q = (query or "").replace('"', ' ')
     q = _LOC_NOISE.sub(' ', q)
     q = re.sub(r'\s+', ' ', q).strip()
-    return q or "restaurant"
+    return q or "jobs"
 
 
 def _metadata_value(provider: Any, name: str, default: Any = None) -> Any:
@@ -158,10 +158,20 @@ def fetch_provider_raw_jobs(
     """
     from providers import get_providers_by_type
     from providers.base import ProviderType
+    from core.errors import ProviderHardFailure
+    from services.provider_status import (
+        RunQuarantine,
+        is_policy_disabled,
+        policy_disable_reason,
+    )
 
     search_providers = list(get_providers_by_type(ProviderType.SEARCH))
-    available_providers = [p for p in search_providers if _provider_available(p)]
+    available_providers = [
+        p for p in search_providers
+        if _provider_available(p) and not is_policy_disabled(_provider_key(p))
+    ]
 
+    quarantine = RunQuarantine()
     raw_jobs: List[Dict[str, Any]] = []
     seen = set()
     provider_breakdown: Dict[str, Dict[str, Any]] = {}
@@ -174,15 +184,28 @@ def fetch_provider_raw_jobs(
         key = _provider_key(provider)
         label = _provider_label(provider)
         is_available = _provider_available(provider)
+        policy_disabled = is_policy_disabled(key)
+
+        if policy_disabled:
+            status = "disabled_by_policy"
+        elif is_available:
+            status = "ok"
+        else:
+            status = "dormant"
 
         provider_breakdown[key] = {
             "label": label,
-            "available": is_available,
+            "available": is_available and not policy_disabled,
+            "disabled_by_policy": policy_disabled,
             "queries_attempted": 0,
             "raw_count": 0,
-            "status": "ok" if is_available else "dormant",
+            "status": status,
             "cap": provider_cap,
         }
+
+        if policy_disabled:
+            provider_breakdown[key]["reason"] = policy_disable_reason(key)
+            continue
 
         if not is_available:
             continue
@@ -204,6 +227,17 @@ def fetch_provider_raw_jobs(
 
             try:
                 results = _call_provider_search(provider, query, location, request_limit)
+            except ProviderHardFailure as hard:
+                # Hard auth/rate-limit failure (401/403/429): quarantine this
+                # provider for the rest of the run so we do not hammer a dead
+                # source across the whole keyword fanout.
+                reason = f"quarantined_http_{hard.status_code}"
+                quarantine.quarantine(key, reason)
+                provider_breakdown[key]["status"] = reason
+                provider_breakdown[key]["quarantined"] = True
+                provider_breakdown[key]["error"] = f"HTTP {hard.status_code} hard failure; stopped retrying this run."
+                logger.warning("Provider %s quarantined for run after HTTP %s", key, hard.status_code)
+                break
             except Exception as exc:
                 provider_breakdown[key]["status"] = "error"
                 provider_breakdown[key]["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
@@ -236,4 +270,5 @@ def fetch_provider_raw_jobs(
         "provider_cap": provider_cap,
         "max_raw_jobs": max_raw_jobs,
         "fair_fanout": True,
+        "quarantined_providers": quarantine.as_dict(),
     }
