@@ -36,11 +36,14 @@ class UsajobsProvider(SearchProvider):
                 "User-Agent": Config.USAJOBS_EMAIL,
                 "Authorization-Key": Config.USAJOBS_API_KEY
             }
+            import os
             params = {
                 "Keyword": query,
-                "LocationName": "Salt Lake City, UT",
+                "LocationName": os.environ.get("USAJOBS_LOCATION", "Salt Lake City, Utah"),
+                "Radius": os.environ.get("USAJOBS_RADIUS_MI", "50"),
+                "ResultsPerPage": os.environ.get("USAJOBS_RESULTS_PER_PAGE", "500"),
             }
-            
+
             response = http_session.get(url, params=params, headers=headers, timeout=Config.REQUEST_TIMEOUT)
             check_hard_failure(self.metadata.key, response)
             response.raise_for_status()

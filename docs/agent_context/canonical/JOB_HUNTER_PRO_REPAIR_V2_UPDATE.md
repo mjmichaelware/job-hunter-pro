@@ -107,16 +107,56 @@ global `~/AGENTS.md`.
 - Working providers (e.g. The Muse keyless; Adzuna/USAJobs/SerpAPI when keyed)
   continue contributing regardless of a dead peer.
 
-## 5. How to add a new API later (low friction)
+## 4b. Volume: why it was capped, and what changed (repair v3)
 
-1. Create `providers/search/<name>.py` implementing `SearchProvider`
-   (`metadata`, `is_available`, `search`). Call `check_hard_failure(key, resp)`
-   after the HTTP call and re-raise `ProviderHardFailure`.
-2. Register the instance in `providers/__init__.py` `_PROVIDER_REGISTRY`.
+The engine was returning ~20 jobs because of hard throttles, not lack of data:
+- `MAX_RAW_JOBS` was **35** (global cap across ALL providers) → raised to **500**
+  (env `MAX_RAW_JOBS`).
+- Each provider fetched a single small page. Now they paginate / request large
+  pages, all env-tunable:
+  - The Muse: `THEMUSE_MAX_PAGES` (10), `THEMUSE_LOCATIONS` (Salt Lake City, UT);
+    no longer over-filters broad seeds.
+  - Adzuna: `ADZUNA_MAX_PAGES` (3) × `results_per_page=50`, `ADZUNA_WHERE`,
+    `ADZUNA_DISTANCE_KM` (80km ≈ 50mi).
+  - USAJobs: `ResultsPerPage=500`, `USAJOBS_RADIUS_MI` (50).
+  - Jooble: `JOOBLE_MAX_PAGES` (3) × `ResultOnPage=50`, `JOOBLE_LOCATION` (Utah).
+  - Careerjet: `pagesize=99`, `CAREERJET_LOCATION` (Utah).
+- Proven locally: The Muse alone now yields 500 raw → 133 unique accepted (was
+  20), and the cockpit renders 233 cards. With keyed Adzuna/USAJobs/SerpAPI in
+  production this fills the 500 cap (raise `MAX_RAW_JOBS` for more).
+
+## 4c. SerpAPI budget protection (unchanged cardinal rule)
+
+Raised caps must not blow SerpAPI quota. `providers/search/_serpapi_budget.py`
+(shared, not a provider) checks cached `account.json` and both SerpAPI providers
+skip when `total_searches_left <= SERPAPI_MIN_SEARCHES_LEFT`. `serpapi_organic`
+is OFF by default (`ENABLE_SERPAPI_ORGANIC=1`).
+
+## 5. Provider on/off is OWNED BY EACH PROVIDER (decoupled)
+
+There is **no central list of provider names** anywhere. Each provider decides
+its own on/off policy in its own file via `Provider.disabled_reason()` (empty =
+enabled). `services/provider_status.py` is fully generic (quarantine + a safe
+`disabled_reason(provider)` passthrough). Current defaults:
+- `jooble`, `careerjet`: OFF by default (owner reports upstream not working) —
+  `ENABLE_JOOBLE=1` / `ENABLE_CAREERJET=1` to turn on once fixed.
+- `serpapi_organic`: OFF by default — `ENABLE_SERPAPI_ORGANIC=1`.
+- Run quarantine: any provider returning 401/403/429 is quarantined for the rest
+  of that run (`provider_breakdown[key].status = quarantined_http_<code>`).
+
+## 5b. Adding API #8 … #50 — drop ONE file, nothing else
+
+The registry is **auto-discovered** (`providers/__init__.py` scans
+`providers/search/` and `providers/reasoning/`). To add a source:
+1. Create `providers/search/<name>.py` with a concrete `SearchProvider` instance
+   (`metadata`, `is_available`, `search`; optional `disabled_reason`). Call
+   `check_hard_failure(key, resp)` after the HTTP call and re-raise
+   `ProviderHardFailure` so quarantine works. Keep config in env vars in-file.
+2. That's it — it self-registers. No edits to `__init__.py`, the bridge, the API,
+   or any shared list. A broken provider file is skipped (logged), never taking
+   down the swarm. Files prefixed `_` are ignored (use for shared helpers).
 3. (Optional) add domain queries/terms in `industries/<domain>.py` or broad
    seeds in `config/search_taxonomy.py`.
-   No route/API edits are required — the bridge fans out fairly to every
-   available SEARCH provider and the aggregator normalizes results.
 
 ## 6. What remains for future scaling
 

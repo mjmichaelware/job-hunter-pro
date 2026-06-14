@@ -49,6 +49,17 @@ class Provider(ABC):
         """Checks if the provider is configured and ready to use."""
         pass
 
+    def disabled_reason(self) -> str:
+        """Why this provider is intentionally turned off (empty string = enabled).
+
+        Each provider owns its own on/off policy here so the registry, the
+        federated bridge, and the API surface stay generic — no central list of
+        provider names anywhere. Override to return a human-readable reason when
+        a provider should be skipped (e.g. a broken/untrusted upstream that is
+        off until an env flag re-enables it).
+        """
+        return ""
+
 class SearchProvider(Provider):
     """Abstract Base Class for providers that discover jobs."""
     

@@ -44,7 +44,7 @@ class Config:
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "12"))
 
     MAX_SERP_QUERIES = int(os.environ.get("MAX_SERP_QUERIES", "4"))
-    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "35"))
+    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "500"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "40"))
     SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "1").strip() == "1"

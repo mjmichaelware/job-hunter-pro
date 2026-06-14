@@ -159,16 +159,12 @@ def fetch_provider_raw_jobs(
     from providers import get_providers_by_type
     from providers.base import ProviderType
     from core.errors import ProviderHardFailure
-    from services.provider_status import (
-        RunQuarantine,
-        is_policy_disabled,
-        policy_disable_reason,
-    )
+    from services.provider_status import RunQuarantine, disabled_reason
 
     search_providers = list(get_providers_by_type(ProviderType.SEARCH))
     available_providers = [
         p for p in search_providers
-        if _provider_available(p) and not is_policy_disabled(_provider_key(p))
+        if _provider_available(p) and not disabled_reason(p)
     ]
 
     quarantine = RunQuarantine()
@@ -184,9 +180,9 @@ def fetch_provider_raw_jobs(
         key = _provider_key(provider)
         label = _provider_label(provider)
         is_available = _provider_available(provider)
-        policy_disabled = is_policy_disabled(key)
+        off_reason = disabled_reason(provider)
 
-        if policy_disabled:
+        if off_reason:
             status = "disabled_by_policy"
         elif is_available:
             status = "ok"
@@ -195,16 +191,16 @@ def fetch_provider_raw_jobs(
 
         provider_breakdown[key] = {
             "label": label,
-            "available": is_available and not policy_disabled,
-            "disabled_by_policy": policy_disabled,
+            "available": is_available and not off_reason,
+            "disabled_by_policy": bool(off_reason),
             "queries_attempted": 0,
             "raw_count": 0,
             "status": status,
             "cap": provider_cap,
         }
 
-        if policy_disabled:
-            provider_breakdown[key]["reason"] = policy_disable_reason(key)
+        if off_reason:
+            provider_breakdown[key]["reason"] = off_reason
             continue
 
         if not is_available:

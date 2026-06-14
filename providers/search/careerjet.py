@@ -1,12 +1,15 @@
 import logging
 from typing import List
 from models import SearchResult
+import os
 from ..base import ProviderMetadata, ProviderType, SearchProvider, check_hard_failure
 from core import Config, http_session
 from core.errors import ProviderHardFailure
-from services.provider_status import is_policy_disabled
 
 logger = logging.getLogger(__name__)
+
+def _enabled() -> bool:
+    return str(os.environ.get("ENABLE_CAREERJET", "")).strip() in {"1", "true", "True", "yes", "on"}
 
 class CareerjetProvider(SearchProvider):
     @property
@@ -15,15 +18,16 @@ class CareerjetProvider(SearchProvider):
             key="careerjet",
             label="Careerjet",
             type=ProviderType.SEARCH,
-            description="International job search engine. Disabled by default (compromised/unreliable upstream; set ENABLE_CAREERJET=1).",
+            description="International job search engine. OFF by default (upstream not working); set ENABLE_CAREERJET=1 once fixed.",
         )
 
+    def disabled_reason(self) -> str:
+        # Owner reports this upstream does not work; keep it off so it never
+        # blocks the run. Flip on with ENABLE_CAREERJET=1 when the source is fixed.
+        return "" if _enabled() else "off_by_default (ENABLE_CAREERJET=1 to enable)"
+
     def is_available(self) -> bool:
-        # Disabled by default: repeated 403s upstream and credentials treated as
-        # compromised. Re-enable only via ENABLE_CAREERJET=1.
-        if is_policy_disabled(self.metadata.key):
-            return False
-        return bool(Config.CAREERJET_AFFID)
+        return _enabled() and bool(Config.CAREERJET_AFFID)
 
     def search(self, query: str) -> List[SearchResult]:
         """
@@ -34,12 +38,14 @@ class CareerjetProvider(SearchProvider):
 
         results = []
         try:
+            import os
             url = "http://public.api.careerjet.net/search"
-            # Careerjet requires user_ip and user_agent
+            # Careerjet requires user_ip and user_agent; supports pagesize (max 99).
             params = {
                 "affid": Config.CAREERJET_AFFID,
                 "keywords": query,
-                "location": "Salt Lake City, UT",
+                "location": os.environ.get("CAREERJET_LOCATION", "Utah"),
+                "pagesize": os.environ.get("CAREERJET_PAGESIZE", "99"),
                 "user_ip": "127.0.0.1",
                 "user_agent": "JobHunterPro/1.0"
             }

@@ -27,12 +27,11 @@ class SerpApiJobsProvider(SearchProvider):
             logger.warning(f"{self.metadata.label} key missing.")
             return list()
 
-        # Simple budget guard check if enabled
-        if Config.SERPAPI_BUDGET_MODE:
-            # We don't have the current account status here easily without a separate call,
-            # but we assume the caller or a higher-level budget manager handles the check.
-            # Here we just implement the fetch logic.
-            pass
+        # Budget guard: never spend SerpAPI when remaining quota is at/under floor.
+        from ._serpapi_budget import allows_search
+        if not allows_search():
+            logger.warning("SerpAPI budget guard active; skipping SerpAPI jobs search.")
+            return list()
 
         results = []
         try:

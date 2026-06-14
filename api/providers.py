@@ -6,17 +6,16 @@ from providers import get_all_providers
 def providers():
     """Returns a list of all providers and their current status."""
     try:
-        from services.provider_status import is_policy_disabled, policy_disable_reason
+        from services.provider_status import disabled_reason
     except Exception:
-        is_policy_disabled = lambda k: False
-        policy_disable_reason = lambda k: ""
+        disabled_reason = lambda p: ""
 
     all_providers = get_all_providers()
     data = []
     for p in all_providers:
         meta = p.metadata
-        disabled = is_policy_disabled(meta.key)
-        if disabled:
+        reason = disabled_reason(p)
+        if reason:
             status = "disabled_by_policy"
         elif p.is_available():
             status = "ready"
@@ -28,9 +27,9 @@ def providers():
             "type": meta.type.value,
             "description": meta.description,
             "is_available": p.is_available(),
-            "disabled_by_policy": disabled,
+            "disabled_by_policy": bool(reason),
             "status": status,
-            "reason": policy_disable_reason(meta.key) if disabled else "",
+            "reason": reason,
             "requires_api_key": meta.requires_api_key
         })
     return jsonify({"providers": data})
