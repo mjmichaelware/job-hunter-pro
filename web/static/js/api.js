@@ -130,6 +130,13 @@ UI.escape = function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 };
 
+// Expose a global escapeHtml: render_jobs.js / render_opportunities.js and the
+// live bridges call a bare/`window.escapeHtml`. Without this the Live Jobs
+// renderer throws ReferenceError and NO jobs render. Keep this global.
+if (typeof window !== 'undefined') {
+  window.escapeHtml = UI.escape;
+}
+
 UI.renderUnavailable = function renderUnavailable(label = 'Unavailable') {
   return `<span class="muted">${UI.escape(label)}</span>`;
 };
