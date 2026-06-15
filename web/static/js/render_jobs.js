@@ -68,12 +68,18 @@ function renderProviderBreakdown(data) {
 }
 
 async function loadJobs(options = {}) {
-  const { live = false } = options || {};
+  const { live = false, forceRefresh = false } = options || {};
   const container = document.getElementById('jobs-container');
   if (!container) return;
 
+  // Return immediately with cached live data on repeat tab visits.
+  if (!forceRefresh && live && AppState.cachedData.jobs && !AppState.cachedData.jobs.dry_run) {
+    renderJobsList(AppState.cachedData.jobs, { live: true });
+    return;
+  }
+
   container.innerHTML = live
-    ? '<div class="chart-fallback">Running live discovery. This may use discovery provider budget.</div>'
+    ? '<div class="chart-fallback">Running live discovery — The Muse (free) + active paid providers within budget...</div>'
     : '<div class="chart-fallback">Checking safe dry-run status. Opening this dashboard does not run live discovery.</div>';
 
   const url = live ? API_URLS.jobs : `${API_URLS.jobs}?dry_run=1`;
