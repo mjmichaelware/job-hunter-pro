@@ -1,7 +1,10 @@
+from dataclasses import dataclass
 from typing import Optional
-from pydantic import BaseModel, Field
+from ._base import Model
 
-class ApiUsage(BaseModel):
+
+@dataclass
+class ApiUsage(Model):
     """
     Records a single call to an external, billable API.
     """
