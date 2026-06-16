@@ -151,9 +151,7 @@ const AppState = {
       case 'live_jobs':
         if (typeof loadJobs === 'function') {
           // Auto-run live on first visit; use cached live result on return visits.
-          const cached = AppState.cachedData.jobs;
-          const hasLiveData = cached && !cached.dry_run && (Array.isArray(cached.accepted) ? cached.accepted.length : 0) >= 0;
-          await loadJobs({ live: !hasLiveData });
+          await loadJobs({ live: true, forceRefresh: true });
         }
         break;
       case 'opportunities':
