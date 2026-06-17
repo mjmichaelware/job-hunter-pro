@@ -10,8 +10,9 @@
   body { font-family: sans-serif; font-size: 16px; line-height: 1.4; padding: 16px; max-width: 760px; margin: 0 auto; }
   h1 { font-size: 22px; margin: 0 0 8px; }
   h2 { font-size: 16px; margin: 24px 0 8px; }
-  #status { margin: 8px 0 16px; }
-  button { font: inherit; padding: 8px 14px; border: 1px solid #000; background: #fff; color: #000; cursor: pointer; }
+  #status { margin: 8px 0 12px; }
+  .controls { margin-bottom: 8px; }
+  button { font: inherit; padding: 8px 14px; border: 1px solid #000; background: #fff; color: #000; cursor: pointer; margin: 0 6px 6px 0; }
   .job { border-top: 1px solid #000; padding: 12px 0; }
   .job .title { font-weight: bold; }
   .job .meta { font-size: 14px; margin-top: 2px; }
@@ -22,7 +23,10 @@
 <body>
   <h1>Jobs</h1>
   <div id="status">Loading…</div>
-  <button id="reload" type="button">Reload (runs live discovery)</button>
+  <div class="controls">
+    <button id="reloadSaved" type="button">Reload saved jobs (free)</button>
+    <button id="runLive" type="button">Run fresh discovery (spends SerpAPI quota)</button>
+  </div>
   <div id="accepted"></div>
   <div id="unresolved"></div>
 
@@ -55,6 +59,13 @@ function href(v) {
   return (s.startsWith('http://') || s.startsWith('https://')) ? s : '';
 }
 
+function arr(payload, keys) {
+  for (const k of keys) {
+    if (payload && Array.isArray(payload[k])) return payload[k];
+  }
+  return [];
+}
+
 function jobHtml(job) {
   const title = esc(pick(job, ['title', 'job_title', 'name'], 'Untitled role'));
   const company = esc(pick(job, ['company', 'company_name', 'restaurant_name', 'employer', 'place_name'], 'Company not listed'));
@@ -72,47 +83,72 @@ function jobHtml(job) {
     + '</div>';
 }
 
-function arr(payload, keys) {
-  for (const k of keys) {
-    if (payload && Array.isArray(payload[k])) return payload[k];
-  }
-  return [];
-}
-
-async function load() {
-  const status = document.getElementById('status');
+function render(jobs, rejected) {
   const acc = document.getElementById('accepted');
   const unres = document.getElementById('unresolved');
-  status.textContent = 'Running live discovery — one moment…';
-  acc.innerHTML = '';
-  unres.innerHTML = '';
+  acc.innerHTML = jobs.length ? jobs.map(jobHtml).join('') : '<p>No jobs in this set.</p>';
+  unres.innerHTML = rejected.length
+    ? '<h2>Need resolution (' + rejected.length + ')</h2>' + rejected.map(jobHtml).join('')
+    : '';
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// Load the most recent saved batch from Cloud Storage. FREE — spends no quota.
+async function loadSaved() {
+  setStatus('Loading saved jobs…');
   try {
-    const res = await fetch('/api/jobs?dry_run=0');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const list = await (await fetch('/api/batches')).json();
+    const batches = arr(list, ['batches']);
+    if (!batches.length) {
+      setStatus('No saved jobs yet. Press "Run fresh discovery" once to build the first batch.');
+      render([], []);
+      return false;
+    }
+    // Object names are timestamped, so the lexicographically largest is newest.
+    batches.sort((a, b) => String(b.object_name || '').localeCompare(String(a.object_name || '')));
+    const newest = batches[0].object_name;
+    const res = await (await fetch('/api/batch/' + newest)).json();
+    const batch = res.batch || {};
+    const jobs = arr(batch, ['accepted', 'data', 'jobs']);
+    const rejected = arr(batch, ['rejected']);
+    const when = batch.created_at_utc || '';
+    setStatus(jobs.length + ' saved jobs' + (when ? ' from ' + when : '') + ' · ' + batches.length + ' saved batches · free, no quota spent');
+    render(jobs, rejected);
+    return true;
+  } catch (err) {
+    setStatus('Could not load saved jobs: ' + err.message);
+    return false;
+  }
+}
+
+// Run a fresh live discovery. SPENDS SerpAPI quota. The backend saves the result.
+async function runLive() {
+  setStatus('Running fresh discovery across all providers — this spends quota and can take a minute…');
+  render([], []);
+  try {
+    const data = await (await fetch('/api/jobs?dry_run=0')).json();
     const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
     const rejected = arr(data, ['rejected']);
     const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
     const count = data.count != null ? data.count : jobs.length;
-
-    status.textContent = count + ' jobs · ' + raw + ' raw scanned · ' + rejected.length + ' need resolution';
-
-    if (jobs.length) {
-      acc.innerHTML = jobs.map(jobHtml).join('');
-    } else {
-      acc.innerHTML = '<p>No jobs returned by the providers.</p>';
-    }
-
-    if (rejected.length) {
-      unres.innerHTML = '<h2>Need resolution (' + rejected.length + ')</h2>' + rejected.map(jobHtml).join('');
-    }
+    const saved = data.stored ? 'saved to backend' : 'NOT saved (storage error)';
+    setStatus(count + ' jobs · ' + raw + ' raw scanned · ' + rejected.length + ' need resolution · ' + saved);
+    render(jobs, rejected);
   } catch (err) {
-    status.textContent = 'Could not load jobs: ' + err.message + '. The live endpoint can be slow if FAST_JOBS is off. Press Reload to retry.';
+    setStatus('Discovery failed or timed out: ' + err.message + '. Try again.');
   }
 }
 
-document.getElementById('reload').addEventListener('click', load);
-load();
+document.getElementById('reloadSaved').addEventListener('click', loadSaved);
+document.getElementById('runLive').addEventListener('click', runLive);
+
+// On open: show saved jobs for free. If none exist yet, run one live discovery
+// to build the first batch.
+(async function boot() {
+  const hadSaved = await loadSaved();
+  if (!hadSaved) await runLive();
+})();
 </script>
 </body>
 </html>

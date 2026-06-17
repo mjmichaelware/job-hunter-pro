@@ -44,10 +44,11 @@ class Config:
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "12"))
 
     MAX_SERP_QUERIES = int(os.environ.get("MAX_SERP_QUERIES", "4"))
-    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "500"))
+    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "100000"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
-    SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "40"))
+    SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
     SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "1").strip() == "1"
+    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "50"))
 
     ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "0").strip() == "1"
     ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "0").strip() == "1"
@@ -656,8 +657,9 @@ def raw_job_queries(mode: str = "broad", domain: str = "", extra_terms: Optional
             mode=selected,
             city="Salt Lake City, UT",
             postal=Config.JOB_LOCATION,
-            max_queries=24,
+            max_queries=Config.MAX_QUERIES,
             extra_terms=extra_terms,
+            offset=int(time.time() // 60),
         )
         if queries:
             return queries
@@ -1128,7 +1130,7 @@ def jobs():
         for reason in item.get("reasons", []):
             rejection_summary[reason] = rejection_summary.get(reason, 0) + 1
 
-    return jsonify({
+    response_payload = {
         "status": "success",
         "source": VERSION,
         "mode": result.get("mode", mode),
@@ -1157,7 +1159,51 @@ def jobs():
         },
         "data": filtered,
         "rejected": result.get("rejected", [])[:100],
-    })
+    }
+
+    # Persist live run to Cloud Storage so quota spend is captured.
+    # Wrapped in try/except so a storage failure NEVER breaks the jobs response.
+    stored = False
+    batch_object: Optional[str] = None
+    try:
+        created_dt = datetime.now(timezone.utc)
+        batch = {
+            "batch_schema": "job_hunter_batch_v1",
+            "created_at_utc": created_dt.replace(microsecond=0).isoformat(),
+            "source": VERSION,
+            "trigger": "live_ui",
+            "rules": {
+                "origin": Config.ORIGIN_ADDRESS,
+                "max_radius_miles": Config.MAX_RADIUS_MILES,
+                "max_transit_minutes": round(Config.MAX_TRANSIT_SECONDS / 60),
+                "mode": mode,
+                "domain": domain,
+            },
+            "budget": {
+                "serpapi": serpapi_account_status(),
+                "max_queries": Config.MAX_QUERIES,
+                "max_raw_jobs": Config.MAX_RAW_JOBS,
+            },
+            "counts": {
+                "accepted": len(result["accepted"]),
+                "rejected": result.get("rejected_total", len(result.get("rejected", []))),
+                "raw": result["raw_count"],
+                "queries": result["query_count"],
+            },
+            "accepted": result["accepted"],
+            "rejected": result.get("rejected", []),
+        }
+        batch_object = f"batches/{created_dt.strftime('%Y/%m/%d/%H%M%S')}_job_batch.json"
+        stored = gcs_upload_json(batch_object, batch)
+        if not stored:
+            batch_object = None
+    except Exception as _store_exc:
+        logger.warning("jobs() persistence failed (response unaffected): %s", _store_exc)
+
+    response_payload["stored"] = stored
+    response_payload["batch_object"] = batch_object
+
+    return jsonify(response_payload)
 
 @app.route("/api/debug/jobs")
 def debug_jobs():

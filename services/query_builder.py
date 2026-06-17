@@ -14,6 +14,7 @@ the broad seeds still work, so discovery never hard-depends on it.
 
 from __future__ import annotations
 
+import os
 from typing import List, Optional
 
 from config.search_taxonomy import DEFAULT_CITY, DEFAULT_POSTAL, broad_queries
@@ -63,26 +64,38 @@ def build_queries(
     mode: str = BROAD_MODE,
     city: str = DEFAULT_CITY,
     postal: str = DEFAULT_POSTAL,
-    max_queries: Optional[int] = 24,
+    max_queries: Optional[int] = int(os.environ.get("MAX_QUERIES", "50")),
     extra_terms: Optional[List[str]] = None,
+    offset: int = 0,
 ) -> List[str]:
     """Build the query bank for a discovery run.
 
     Args:
         mode: ``broad`` (default) or an industry/domain key.
         city / postal: location seeds for broad templates.
-        max_queries: hard cap on returned queries (protects provider fanout).
-        extra_terms: optional user keyword(s) promoted to the front of the bank.
+        max_queries: hard cap on returned queries. When ``None`` or ``<=0``
+            ALL unique queries are returned (no cap). Defaults to the
+            ``MAX_QUERIES`` environment variable (default ``"50"``).
+        extra_terms: optional user keyword(s) promoted to the front of the
+            bank. These are always included and are not subject to the
+            rotation/cap.
+        offset: when a cap applies, rotate the deduplicated bank by this many
+            positions before slicing so that successive runs sample different
+            keyword slices. The ``extra_terms`` front section is not rotated.
+            ``offset=0`` gives the same result as the original behaviour.
     """
     mode = (mode or BROAD_MODE).strip().lower()
-    queries: List[str] = []
 
+    # Collect extra_terms first — these are always promoted to the front and
+    # are not subject to rotation or cap.
+    promoted: List[str] = []
     if extra_terms:
         for term in extra_terms:
             term = (term or "").strip()
             if term:
-                queries.append(f"{term} jobs {city}")
+                promoted.append(f"{term} jobs {city}")
 
+    queries: List[str] = []
     if mode == BROAD_MODE or mode == "all":
         queries.extend(broad_queries(city, postal))
         queries.extend(_all_industry_queries(per_route=3))
@@ -98,6 +111,22 @@ def build_queries(
             queries.extend(_all_industry_queries(per_route=2))
 
     unique = _dedupe(queries)
-    if max_queries and max_queries > 0:
-        return unique[:max_queries]
-    return unique
+
+    if not max_queries or max_queries <= 0:
+        # No cap — return promoted + full bank.
+        return _dedupe(promoted + unique)
+
+    # Apply rotation to the main bank before slicing, then prepend promoted.
+    if unique:
+        n = len(unique)
+        start = offset % n
+        rotated = unique[start:] + unique[:start]
+    else:
+        rotated = unique
+
+    # Slots for the main bank after reserving space for promoted entries.
+    # promoted entries are de-duplicated into their own list first so we do
+    # not accidentally cut the cap below len(promoted).
+    promoted_deduped = _dedupe(promoted)
+    remaining_cap = max(0, max_queries - len(promoted_deduped))
+    return _dedupe(promoted_deduped + rotated[:remaining_cap])
