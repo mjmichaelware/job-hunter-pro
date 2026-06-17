@@ -36,11 +36,12 @@ async function loadOverview() {
     const budgetBurn = document.getElementById('overview-budget-burn');
     const systemStatus = document.getElementById('system-status-badge');
 
-    // Safe Boot: Fetch cached/safe endpoints only
-    const [health, usage, jobs, opps, history] = await Promise.all([
+    // Safe status endpoints. Do NOT re-fetch jobs here: reuse whatever the
+    // Live Jobs tab already discovered so we never clobber the live cache with a
+    // dry-run (which would force another paid run on the next visit).
+    const [health, usage, opps, history] = await Promise.all([
         safeFetch(API_URLS.health),
         safeFetch(API_URLS.usage),
-        fetchJobsDryRun(), // explicit safe dry-run; no live discovery on boot
         safeFetch(API_URLS.opportunities),
         safeFetch(API_URLS.history)
     ]);
@@ -48,14 +49,17 @@ async function loadOverview() {
     // Update global state
     AppState.cachedData.health = health;
     AppState.cachedData.usage = usage;
-    AppState.cachedData.jobs = jobs;
     AppState.cachedData.opportunities = opps;
     AppState.cachedData.history = history;
 
-    // Render Stats
+    // Render Stats — real accepted count from the live run, if one has happened.
     if (acceptedCount) {
-        const items = UI.getArray(jobs);
-        acceptedCount.textContent = items.filter(j => j.status === 'accepted').length || '0';
+        const jobs = AppState.cachedData.jobs;
+        if (jobs && !jobs.dry_run) {
+            acceptedCount.textContent = jobs.count ?? jobs.accepted_count ?? UI.getArray(jobs).length ?? '0';
+        } else {
+            acceptedCount.textContent = '—';
+        }
     }
 
     if (oppCount) {

@@ -92,7 +92,7 @@ async function loadBudget() {
             const prevState = AppState.budgetState;
             AppState.budgetState = BUDGET_STATES.DRY_RUN;
             
-            const dryRunData = await safeFetch(`${API_URLS.jobs}?dry_run=1`);
+            const dryRunData = await fetchJobsDryRun();
             
             if (UI.isPlaceholder(dryRunData)) {
                 dryRunOutput.textContent = 'Backend GAP: Jobs endpoint returned a placeholder. Cannot generate dry-run execution plan.';

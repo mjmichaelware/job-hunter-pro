@@ -182,5 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCommands(e.target.value);
   });
 
-  AppState.setTab('overview');
+  // Land on Live Jobs and show the jobs immediately.
+  AppState.setTab('live_jobs');
 });

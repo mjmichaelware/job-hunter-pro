@@ -1,6 +1,6 @@
 // Imports will be added here once render_overview and render_why_three are created
 const AppState = {
-  activeTab: 'overview',
+  activeTab: 'live_jobs',
   budgetState: 'safe',
   lang: 'en',
   translations: {
@@ -149,12 +149,8 @@ const AppState = {
         if (typeof loadOverview === 'function') await loadOverview();
         break;
       case 'live_jobs':
-        if (typeof loadJobs === 'function') {
-          // Auto-run live on first visit; use cached live result on return visits.
-          const cached = AppState.cachedData.jobs;
-          const hasLiveData = cached && !cached.dry_run && (Array.isArray(cached.accepted) ? cached.accepted.length : 0) >= 0;
-          await loadJobs({ live: !hasLiveData });
-        }
+        // loadJobs() defaults to live and session-caches, so revisits don't re-spend.
+        if (typeof loadJobs === 'function') await loadJobs();
         break;
       case 'opportunities':
         if (typeof loadOpportunities === 'function') await loadOpportunities();
