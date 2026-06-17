@@ -44,11 +44,18 @@ class Config:
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "12"))
 
     MAX_SERP_QUERIES = int(os.environ.get("MAX_SERP_QUERIES", "4"))
-    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "100000"))
+    # Bounded but large. A live run is synchronous, so the global cap must let
+    # fetch_jobs_live early-stop and RETURN within Cloud Run's request timeout.
+    # 100000 (effectively no cap) caused the run to grind through every query and
+    # never respond. 1200 returns far more than the old 500 yet still completes.
+    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "1200"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
     SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "1").strip() == "1"
-    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "50"))
+    # Per-run query count. The full ~1400-keyword bank rotates across runs (see
+    # raw_job_queries offset), so coverage accumulates over saved batches rather
+    # than in one impossible request. 24 is the count that reliably completes.
+    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "24"))
 
     ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "0").strip() == "1"
     ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "0").strip() == "1"
