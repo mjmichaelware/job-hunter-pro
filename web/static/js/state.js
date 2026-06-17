@@ -149,7 +149,9 @@ const AppState = {
         if (typeof loadOverview === 'function') await loadOverview();
         break;
       case 'live_jobs':
-        // loadJobs() defaults to live and session-caches, so revisits don't re-spend.
+        // Auto-run live on first visit; use cached live result on return visits.
+        // (loadJobs() defaults to live + session-caches, so revisits don't re-spend
+        //  quota. The explicit "Run Live Discovery" button forces a fresh run.)
         if (typeof loadJobs === 'function') await loadJobs();
         break;
       case 'opportunities':
