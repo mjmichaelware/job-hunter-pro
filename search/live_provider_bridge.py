@@ -3,7 +3,10 @@ from __future__ import annotations
 import hashlib
 import inspect
 import logging
+import os
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Iterable, List
 
 logger = logging.getLogger(__name__)
@@ -171,11 +174,19 @@ def fetch_provider_raw_jobs(
     raw_jobs: List[Dict[str, Any]] = []
     seen = set()
     provider_breakdown: Dict[str, Dict[str, Any]] = {}
+    # One lock guards the shared raw_jobs list, the seen-dedupe set, and the
+    # quarantine ledger. Each provider's own breakdown entry is written only by
+    # that provider's worker thread, so it needs no lock.
+    lock = threading.Lock()
 
     active_count = max(1, len(available_providers))
     fair_default_cap = max(1, (max_raw_jobs + active_count - 1) // active_count)
     provider_cap = int(per_provider_cap or fair_default_cap)
 
+    # First pass (single thread): seed a breakdown entry for EVERY provider and
+    # collect the ones that should actually run. Keeps dormant/disabled providers
+    # visible in the response exactly as before.
+    runnable: List[Any] = []
     for provider in search_providers:
         key = _provider_key(provider)
         label = _provider_label(provider)
@@ -202,24 +213,25 @@ def fetch_provider_raw_jobs(
         if off_reason:
             provider_breakdown[key]["reason"] = off_reason
             continue
-
         if not is_available:
             continue
+        runnable.append((provider, key, label))
 
+    def _run_provider(provider: Any, key: str, label: str) -> None:
+        bd = provider_breakdown[key]
         for query in queries:
-            if provider_breakdown[key]["raw_count"] >= provider_cap:
-                provider_breakdown[key]["status"] = "stopped_provider_cap_reached"
-                break
-
-            remaining_global = max_raw_jobs - len(raw_jobs)
+            if bd["raw_count"] >= provider_cap:
+                bd["status"] = "stopped_provider_cap_reached"
+                return
+            with lock:
+                remaining_global = max_raw_jobs - len(raw_jobs)
             if remaining_global <= 0:
-                provider_breakdown[key]["status"] = "not_attempted_global_cap_reached"
-                break
+                bd["status"] = "not_attempted_global_cap_reached"
+                return
 
-            remaining_provider = provider_cap - provider_breakdown[key]["raw_count"]
+            remaining_provider = provider_cap - bd["raw_count"]
             request_limit = max(1, min(remaining_global, remaining_provider, 100))
-
-            provider_breakdown[key]["queries_attempted"] += 1
+            bd["queries_attempted"] += 1
 
             try:
                 results = _call_provider_search(provider, query, location, request_limit)
@@ -228,36 +240,49 @@ def fetch_provider_raw_jobs(
                 # provider for the rest of the run so we do not hammer a dead
                 # source across the whole keyword fanout.
                 reason = f"quarantined_http_{hard.status_code}"
-                quarantine.quarantine(key, reason)
-                provider_breakdown[key]["status"] = reason
-                provider_breakdown[key]["quarantined"] = True
-                provider_breakdown[key]["error"] = f"HTTP {hard.status_code} hard failure; stopped retrying this run."
+                with lock:
+                    quarantine.quarantine(key, reason)
+                bd["status"] = reason
+                bd["quarantined"] = True
+                bd["error"] = f"HTTP {hard.status_code} hard failure; stopped retrying this run."
                 logger.warning("Provider %s quarantined for run after HTTP %s", key, hard.status_code)
-                break
+                return
             except Exception as exc:
-                provider_breakdown[key]["status"] = "error"
-                provider_breakdown[key]["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
+                bd["status"] = "error"
+                bd["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
                 logger.warning("Provider %s failed for query %s", key, query, exc_info=True)
                 continue
 
             for item in results:
                 raw = _result_to_raw(item, key, label, query, location)
                 identity = raw.get("job_id") or f"{raw.get('title')}|{raw.get('company_name')}|{raw.get('source_url')}"
-                if identity in seen:
-                    continue
+                with lock:
+                    if identity in seen:
+                        continue
+                    if len(raw_jobs) >= max_raw_jobs:
+                        return
+                    seen.add(identity)
+                    raw_jobs.append(raw)
+                bd["raw_count"] += 1
 
-                seen.add(identity)
-                raw_jobs.append(raw)
-                provider_breakdown[key]["raw_count"] += 1
+                if bd["raw_count"] >= provider_cap:
+                    bd["status"] = "stopped_provider_cap_reached"
+                    return
 
-                if provider_breakdown[key]["raw_count"] >= provider_cap:
-                    provider_breakdown[key]["status"] = "stopped_provider_cap_reached"
-                    break
-                if len(raw_jobs) >= max_raw_jobs:
-                    break
+        if bd["available"] and bd["raw_count"] == 0 and bd["status"] == "ok":
+            bd["status"] = "available_returned_zero"
 
-        if provider_breakdown[key]["available"] and provider_breakdown[key]["raw_count"] == 0 and provider_breakdown[key]["status"] == "ok":
-            provider_breakdown[key]["status"] = "available_returned_zero"
+    # Concurrent fanout: every available provider runs in parallel (each provider
+    # still walks its own queries sequentially so per-provider caps/quarantine are
+    # simple). This is what lets the run scale to many providers without the old
+    # sequential timeout. Caps + MAX_QUERIES keep total work bounded.
+    if runnable:
+        max_workers = min(len(runnable), max(1, int(os.environ.get("FANOUT_MAX_WORKERS", "12"))))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(_run_provider, p, k, l) for (p, k, l) in runnable]
+            for future in futures:
+                # Each worker handles its own exceptions; surface anything unexpected.
+                future.result()
 
     return {
         "raw_jobs": raw_jobs[:max_raw_jobs],
