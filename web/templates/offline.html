@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Job Hunter Pro — Offline</title>
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components/cards.css">
+</head>
+<body>
+<canvas id="halo-canvas" aria-hidden="true"></canvas>
+<main class="app-main" style="max-width:640px;margin:0 auto;padding:32px 16px;">
+  <h1 style="margin-bottom:12px;">You're offline</h1>
+  <div class="info-box">
+    <p>No network connection. Job Hunter Pro is showing the cached shell.</p>
+    <p style="margin-top:8px;color:var(--c-muted)">Saved batches you've already loaded remain available from your device.
+    Live discovery needs a connection and will resume when you're back online.</p>
+  </div>
+  <div id="offline-batches" style="margin-top:16px;"></div>
+</main>
+<script src="/static/js/core/api.js"></script>
+<script src="/static/js/core/state.js"></script>
+<script src="/static/js/core/pwa/db.js"></script>
+<script>
+// Render whatever batches we cached in IndexedDB — honest, no network, no fake data.
+JHP_DB.listBatches().then(function (batches) {
+  var el = document.getElementById('offline-batches');
+  if (!batches || !batches.length) { el.innerHTML = '<p class="state-empty">No cached batches on this device yet.</p>'; return; }
+  el.innerHTML = '<h2 class="section-heading">Cached batches (' + batches.length + ')</h2>'
+    + batches.map(function (b) { return '<div class="stat-card"><div class="stat-card__label">' + b.id + '</div><div class="stat-card__value">' + ((b.jobs && b.jobs.length) || 0) + ' jobs</div></div>'; }).join('');
+}).catch(function () {});
+</script>
+</body>
+</html>

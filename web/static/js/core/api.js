@@ -1,6 +1,6 @@
-/* api.js — safe fetch helpers. No hardcoded data. No live discovery on boot. */
+/* core/api.js — safe fetch helpers + query builders. No hardcoded data.
+   No live discovery on boot: only fetchJobsLive() (explicit) hits /api/jobs. */
 
-// Escape HTML entities
 function esc(v) {
   return String(v == null ? '' : v)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -30,10 +30,10 @@ function href(v) {
   return (s.startsWith('http://') || s.startsWith('https://')) ? s : '';
 }
 
-// Build a query string from a params object (omits null/undefined/empty)
+// Build a query string (omits null/undefined/empty)
 function buildQuery(params) {
   const parts = [];
-  for (const [k, v] of Object.entries(params)) {
+  for (const [k, v] of Object.entries(params || {})) {
     if (v !== null && v !== undefined && v !== '') {
       parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
     }
@@ -45,10 +45,7 @@ function buildQuery(params) {
 async function safeFetch(url) {
   try {
     const res = await fetch(url);
-    if (!res.ok) {
-      console.warn('[api] HTTP ' + res.status + ' from ' + url);
-      return null;
-    }
+    if (!res.ok) { console.warn('[api] HTTP ' + res.status + ' from ' + url); return null; }
     return await res.json();
   } catch (err) {
     console.warn('[api] fetch error ' + url + ':', err.message);
@@ -58,12 +55,10 @@ async function safeFetch(url) {
 
 // Fresh live discovery — SPENDS quota. Called only on explicit user action.
 async function fetchJobsLive(filters) {
-  const params = Object.assign({ dry_run: 0 }, filters || {});
-  return safeFetch('/api/jobs' + buildQuery(params));
+  return safeFetch('/api/jobs' + buildQuery(Object.assign({ dry_run: 0 }, filters || {})));
 }
 
 // Dry-run query plan — does NOT spend discovery budget.
 async function fetchJobsDryRun(filters) {
-  const params = Object.assign({ dry_run: 1 }, filters || {});
-  return safeFetch('/api/jobs' + buildQuery(params));
+  return safeFetch('/api/jobs' + buildQuery(Object.assign({ dry_run: 1 }, filters || {})));
 }

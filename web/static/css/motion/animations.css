@@ -1,0 +1,30 @@
+/* animations.css — skeleton shimmer, badge flash, gauge sweep, pipeline pulse.
+   Every animation here is triggered by real state, never idle decoration. */
+
+/* skeleton shimmer for loading states */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--c-glass-2);
+  border-radius: var(--radius-sm);
+  min-height: 18px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: shimmer 1.3s infinite;
+}
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* badge flash when a real count/state changes */
+.flash { animation: flash 0.6s var(--ease); }
+@keyframes flash { 0% { box-shadow: 0 0 0 0 var(--c-cyan); } 100% { box-shadow: 0 0 0 8px transparent; } }
+
+/* trust gauge sweep — driven by the real capped value via --gauge-deg */
+.gauge__arc { transition: stroke-dashoffset 0.7s var(--ease); }
+
+/* pipeline reactor node ignition (only fires on real SSE events) */
+.reactor-node.is-active { animation: ignite 0.5s var(--spring); }
+@keyframes ignite { 0% { transform: scale(0.9); filter: brightness(1); } 50% { transform: scale(1.06); filter: brightness(1.6); } 100% { transform: scale(1); } }

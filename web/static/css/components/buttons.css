@@ -1,0 +1,49 @@
+/* buttons.css — tap-friendly (44px) glass buttons with cyan-glow primary. */
+
+.btn, .icon-btn, .btn-link, .btn-sm {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: transform 0.18s var(--spring), background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.btn {
+  min-height: var(--tap);
+  padding: 0 18px;
+  background: var(--c-glass-2);
+  color: var(--c-text);
+  border: 1px solid var(--c-border-strong);
+  font-weight: 600;
+}
+.btn:hover { border-color: var(--c-cyan); }
+.btn:active { transform: scale(0.96); }
+
+.btn-warn {
+  background: linear-gradient(180deg, rgba(255,93,108,0.22), rgba(255,93,108,0.10));
+  border-color: var(--c-live);
+  color: #ffd9dd;
+}
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.btn-sm { min-height: 34px; padding: 0 12px; font-size: 0.82rem;
+  background: var(--c-glass-2); color: var(--c-text); border: 1px solid var(--c-border); }
+
+.icon-btn {
+  min-height: var(--tap); min-width: var(--tap);
+  padding: 0 10px;
+  background: var(--c-glass-2);
+  color: var(--c-cyan);
+  border: 1px solid var(--c-border);
+  font-weight: 700; font-size: 0.78rem;
+}
+.icon-btn:active { transform: scale(0.94); }
+
+.btn-link {
+  display: inline-flex; align-items: center; min-height: var(--tap);
+  padding: 0 14px; color: var(--c-cyan);
+  border: 1px solid var(--c-border); background: transparent;
+}
+.btn-link:hover { text-decoration: none; border-color: var(--c-cyan); }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
+.toolbar-actions, .filter-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }

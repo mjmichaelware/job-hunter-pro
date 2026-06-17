@@ -1,0 +1,33 @@
+/* badges.css — honest-state vocabulary. One class per real state. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.badge-safe    { color: var(--c-safe); }
+.badge-live    { color: var(--c-live); }
+.badge-cached  { color: var(--c-cached); }
+.badge-warn, .badge-budget-guarded { color: var(--c-warn); }
+.badge-error   { color: var(--c-err); }
+.badge-disabled, .badge-unavailable, .badge-dry-run { color: var(--c-disabled); }
+
+/* small tag chips (roles, flags) */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--c-glass-2);
+  border: 1px solid var(--c-border);
+  color: var(--c-muted);
+  font-size: 0.72rem;
+}

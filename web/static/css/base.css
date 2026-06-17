@@ -1,0 +1,88 @@
+/* base.css — OLED Dark Volumetric Cockpit design tokens, reset, type scale.
+   Pure #000000 canvas. All surfaces are translucent glass above the halo field. */
+
+:root {
+  /* Void / Obsidian canvas */
+  --c-void: #000000;
+  --c-glass: rgba(15, 15, 15, 0.60);
+  --c-glass-2: rgba(28, 28, 32, 0.66);
+  --c-border: rgba(255, 255, 255, 0.10);
+  --c-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Text */
+  --c-text: #f2f4f8;
+  --c-muted: #9aa3b2;
+  --c-faint: #5b6473;
+
+  /* Halo accents */
+  --c-cyan: #00ffcc;
+  --c-violet: #9d00ff;
+  --c-accent: var(--c-cyan);
+
+  /* Semantic state */
+  --c-safe: #34e3a0;
+  --c-warn: #ffc24b;
+  --c-err: #ff5d6c;
+  --c-live: #ff5d6c;
+  --c-cached: #62b8ff;
+  --c-disabled: #6b7280;
+
+  /* Geometry */
+  --blur: 16px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --tap: 44px;
+
+  /* Spring physics curve (Elastic/Rebound) */
+  --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease: cubic-bezier(0.4, 0.0, 0.2, 1);
+
+  /* Spacing */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
+
+  /* Safe areas (iOS notch / home indicator) */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--c-void);
+  color: var(--c-text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body { overflow-x: hidden; }
+
+h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.05rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85em; }
+
+a { color: var(--c-cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.view-title { margin-bottom: var(--s-4); font-size: 1.35rem; }
+
+/* honest-state copy blocks */
+.state-loading, .state-empty, .state-error, .na {
+  color: var(--c-muted);
+  padding: var(--s-4) 0;
+}
+.state-error { color: var(--c-err); }
+.na { color: var(--c-faint); font-style: italic; }
+
+.section-heading { margin: var(--s-5) 0 var(--s-3); font-size: 1.05rem; color: var(--c-text); }
+.section-note { color: var(--c-muted); font-size: 0.9rem; margin-bottom: var(--s-3); }
+.status-line { color: var(--c-muted); font-size: 0.9rem; }

@@ -1,0 +1,60 @@
+/* transitions.css — View Transitions API names + spring bottom-sheet. */
+
+/* Cross-view morph (Origami/Morphic). Browsers without the API just swap instantly. */
+@view-transition { navigation: auto; }
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 0.28s; }
+
+/* ── bottom-sheet host (Evidence drawer, Filters) ─────────────────────── */
+.sheet-host {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet-host[hidden] { display: none; }
+.sheet-host__scrim {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  animation: scrim-in 0.25s var(--ease);
+}
+@keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--c-glass-2);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--c-border-strong);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--s-3) var(--s-4) calc(var(--s-5) + var(--safe-b));
+  /* Elastic spring slide-up */
+  animation: sheet-up 0.42s var(--spring);
+}
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-host.is-closing .sheet { animation: sheet-down 0.3s var(--ease) forwards; }
+.sheet-host.is-closing .sheet-host__scrim { animation: scrim-out 0.3s var(--ease) forwards; }
+@keyframes sheet-down { to { transform: translateY(100%); } }
+@keyframes scrim-out { to { opacity: 0; } }
+
+.sheet__grab { display: flex; justify-content: center; padding: 4px 0 var(--s-2); }
+.sheet__handle { width: 40px; height: 5px; border-radius: 999px; background: var(--c-border-strong); }
+.sheet__title { margin-bottom: var(--s-3); }
+
+@media (min-width: 880px) {
+  .sheet-host { align-items: center; }
+  .sheet { border-radius: var(--radius-lg); border-bottom: 1px solid var(--c-border-strong);
+    animation: sheet-pop 0.32s var(--spring); }
+  @keyframes sheet-pop { from { transform: scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+
+/* view enter */
+.view-enter { animation: view-in 0.25s var(--ease); }
+@keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Job Hunter Pro">
+  <defs>
+    <radialGradient id="g" cx="30%" cy="25%" r="90%">
+      <stop offset="0%" stop-color="#00ffcc"/>
+      <stop offset="60%" stop-color="#9d00ff"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="#000000"/>
+  <circle cx="256" cy="256" r="150" fill="url(#g)" opacity="0.9"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#00ffcc" stroke-width="6" opacity="0.6"/>
+  <text x="256" y="300" font-family="-apple-system, system-ui, sans-serif" font-size="160" font-weight="800"
+        text-anchor="middle" fill="#ffffff">J</text>
+</svg>

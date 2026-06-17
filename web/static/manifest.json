@@ -1,0 +1,19 @@
+{
+  "name": "Job Hunter Pro",
+  "short_name": "JHP",
+  "description": "Local opportunity intelligence cockpit — discover, resolve, and track jobs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/static/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
