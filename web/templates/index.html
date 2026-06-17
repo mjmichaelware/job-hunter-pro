@@ -1,176 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jobs</title>
-<style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #ffffff; color: #000000; }
-  body { font-family: sans-serif; font-size: 16px; line-height: 1.4; padding: 16px; max-width: 760px; margin: 0 auto; }
-  h1 { font-size: 22px; margin: 0 0 8px; }
-  h2 { font-size: 16px; margin: 24px 0 8px; }
-  #status { margin: 8px 0 12px; }
-  .controls { margin-bottom: 8px; }
-  button { font: inherit; padding: 8px 14px; border: 1px solid #000; background: #fff; color: #000; cursor: pointer; margin: 0 6px 6px 0; }
-  .job { border-top: 1px solid #000; padding: 12px 0; }
-  .job .title { font-weight: bold; }
-  .job .meta { font-size: 14px; margin-top: 2px; }
-  .job .flags { font-size: 13px; margin-top: 4px; }
-  a { color: #000; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Hunter Pro</title>
+  <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body>
-  <h1>Jobs</h1>
-  <div id="status">Loading…</div>
-  <div class="controls">
-    <button id="reloadSaved" type="button">Reload saved jobs (free)</button>
-    <button id="runLive" type="button">Run fresh discovery (spends SerpAPI quota)</button>
-  </div>
-  <div id="accepted"></div>
-  <div id="unresolved"></div>
+<div class="app-shell">
+
+  <header class="app-header">
+    <span class="app-header__title">Job Hunter Pro</span>
+    <span id="health-strip">Checking backend…</span>
+  </header>
+
+  <nav class="app-nav" id="main-nav">
+    <!-- nav buttons injected by app.js -->
+  </nav>
+
+  <main class="app-main">
+    <h2 id="view-title" class="section-heading" style="margin-top:0; margin-bottom:12px;"></h2>
+    <div id="view-mount">
+      <p class="state-loading">Initializing…</p>
+    </div>
+  </main>
+
+</div>
 
 <script>
 // Kill any old service worker + caches from the previous PWA frontend so the
 // browser stops serving the deleted cockpit shell.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+  navigator.serviceWorker.getRegistrations()
+    .then(rs => rs.forEach(r => r.unregister()))
+    .catch(function() {});
 }
 if (window.caches && caches.keys) {
-  caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+  caches.keys().then(function(keys) { keys.forEach(function(k) { caches.delete(k); }); }).catch(function() {});
 }
-
-function esc(v) {
-  return String(v == null ? '' : v)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function pick(obj, keys, fallback) {
-  for (const k of keys) {
-    const v = obj ? obj[k] : undefined;
-    if (v !== undefined && v !== null && v !== '') return v;
-  }
-  return fallback;
-}
-
-function href(v) {
-  const s = String(v || '').trim();
-  return (s.startsWith('http://') || s.startsWith('https://')) ? s : '';
-}
-
-function arr(payload, keys) {
-  for (const k of keys) {
-    if (payload && Array.isArray(payload[k])) return payload[k];
-  }
-  return [];
-}
-
-function jobHtml(job) {
-  const title = esc(pick(job, ['title', 'job_title', 'name'], 'Untitled role'));
-  const company = esc(pick(job, ['company', 'company_name', 'restaurant_name', 'employer', 'place_name'], 'Company not listed'));
-  const location = esc(pick(job, ['resolved_address', 'normalized_address', 'location', 'listing_location', 'detected_location'], 'Location not resolved'));
-  const source = esc(pick(job, ['source', '_provider', 'provider', 'via'], 'source'));
-  const url = href(pick(job, ['source_url', 'url', 'apply_url', 'share_link'], ''));
-  const flags = []
-    .concat(Array.isArray(job.resolution_flags) ? job.resolution_flags : [])
-    .concat(Array.isArray(job.reasons) ? job.reasons : []);
-  return '<div class="job">'
-    + '<div class="title">' + title + '</div>'
-    + '<div class="meta">' + company + ' · ' + location + ' · ' + source + '</div>'
-    + (flags.length ? '<div class="flags">' + esc(flags.join(', ')) + '</div>' : '')
-    + (url ? '<div class="meta"><a href="' + esc(url) + '" target="_blank" rel="noopener">Open / Apply</a></div>' : '')
-    + '</div>';
-}
-
-function render(jobs, rejected) {
-  const acc = document.getElementById('accepted');
-  const unres = document.getElementById('unresolved');
-  acc.innerHTML = jobs.length ? jobs.map(jobHtml).join('') : '<p>No jobs in this set.</p>';
-  unres.innerHTML = rejected.length
-    ? '<h2>Need resolution (' + rejected.length + ')</h2>' + rejected.map(jobHtml).join('')
-    : '';
-}
-
-function setStatus(msg) { document.getElementById('status').textContent = msg; }
-
-// Load and MERGE every recent saved batch from Cloud Storage. FREE — no quota.
-// Each fresh run rotates through a different slice of the ~1400-keyword bank,
-// so unioning batches makes the visible job count grow every time you run.
-async function loadSaved() {
-  setStatus('Loading all saved jobs…');
-  try {
-    const list = await (await fetch('/api/batches')).json();
-    let batches = arr(list, ['batches']);
-    if (!batches.length) {
-      setStatus('No saved jobs yet. Press "Run fresh discovery" once to build the first batch.');
-      render([], []);
-      return false;
-    }
-    // Newest first (object names are timestamped), keep the most recent 30.
-    batches.sort((a, b) => String(b.object_name || '').localeCompare(String(a.object_name || '')));
-    batches = batches.slice(0, 30);
-
-    const results = await Promise.all(
-      batches.map(b => fetch('/api/batch/' + b.object_name).then(r => r.json()).catch(() => null))
-    );
-
-    const seen = new Set();
-    const jobs = [];
-    const rejected = [];
-    for (const res of results) {
-      const batch = res && res.batch ? res.batch : null;
-      if (!batch) continue;
-      for (const j of arr(batch, ['accepted', 'data', 'jobs'])) {
-        const key = [pick(j, ['source_url', 'url'], ''), pick(j, ['title'], ''),
-                     pick(j, ['company', 'company_name'], ''), pick(j, ['location', 'resolved_address'], '')].join('|');
-        if (seen.has(key)) continue;
-        seen.add(key);
-        jobs.push(j);
-      }
-      for (const j of arr(batch, ['rejected'])) {
-        const key = 'R|' + [pick(j, ['source_url', 'url'], ''), pick(j, ['title'], ''), pick(j, ['company', 'company_name'], '')].join('|');
-        if (seen.has(key)) continue;
-        seen.add(key);
-        rejected.push(j);
-      }
-    }
-    setStatus(jobs.length + ' unique jobs across ' + batches.length + ' saved batches · free, no quota spent');
-    render(jobs, rejected);
-    return true;
-  } catch (err) {
-    setStatus('Could not load saved jobs: ' + err.message);
-    return false;
-  }
-}
-
-// Run a fresh live discovery. SPENDS SerpAPI quota. The backend saves the result.
-async function runLive() {
-  setStatus('Running fresh discovery across all providers — this spends quota and can take a minute…');
-  render([], []);
-  try {
-    const data = await (await fetch('/api/jobs?dry_run=0')).json();
-    const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
-    const rejected = arr(data, ['rejected']);
-    const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
-    const count = data.count != null ? data.count : jobs.length;
-    const saved = data.stored ? 'saved to backend' : 'NOT saved (storage error)';
-    setStatus(count + ' jobs · ' + raw + ' raw scanned · ' + rejected.length + ' need resolution · ' + saved);
-    render(jobs, rejected);
-  } catch (err) {
-    setStatus('Discovery failed or timed out: ' + err.message + '. Try again.');
-  }
-}
-
-document.getElementById('reloadSaved').addEventListener('click', loadSaved);
-document.getElementById('runLive').addEventListener('click', runLive);
-
-// On open: show saved jobs for free. If none exist yet, run one live discovery
-// to build the first batch.
-(async function boot() {
-  const hadSaved = await loadSaved();
-  if (!hadSaved) await runLive();
-})();
 </script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/views.js"></script>
 </body>
 </html>
