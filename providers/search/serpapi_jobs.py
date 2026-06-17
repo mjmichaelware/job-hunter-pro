@@ -14,6 +14,7 @@ class SerpApiJobsProvider(SearchProvider):
             label="SerpAPI (Google Jobs)",
             type=ProviderType.SEARCH,
             description="Performs job searches using the Google Jobs engine via SerpAPI.",
+            budget_class="serpapi_quota",
         )
 
     def is_available(self) -> bool:

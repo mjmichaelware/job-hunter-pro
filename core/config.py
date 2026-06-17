@@ -46,6 +46,21 @@ class Config:
     # Logging
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 
+    @classmethod
+    def provider_key(cls, name: str, default: str = "") -> str:
+        """Generic runtime key lookup for a provider.
+
+        A new provider can read its credential with Config.provider_key("FOO_API_KEY")
+        without anyone adding a new class attribute here — this is what keeps a
+        50-provider swarm to "just a provider file" with no Config edit. Falls back
+        to a named class attribute if one exists, then to default.
+        """
+        value = os.environ.get(name)
+        if value:
+            return value
+        attr = getattr(cls, name, None)
+        return attr if isinstance(attr, str) and attr else default
+
 @lru_cache()
 def get_config():
     """Returns a cached instance of the Config class."""

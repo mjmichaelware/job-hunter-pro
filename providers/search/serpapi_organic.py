@@ -18,6 +18,7 @@ class SerpApiOrganicProvider(SearchProvider):
             label="SerpAPI (Google Organic)",
             type=ProviderType.SEARCH,
             description="Organic web search via SerpAPI. OFF by default to protect quota; set ENABLE_SERPAPI_ORGANIC=1.",
+            budget_class="serpapi_quota",
         )
 
     def disabled_reason(self) -> str:

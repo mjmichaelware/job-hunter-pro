@@ -34,6 +34,10 @@ class ProviderMetadata:
     type: ProviderType
     description: str
     requires_api_key: bool = True
+    # Budget class drives the budget guard generically (no central name list).
+    # "free" = always affordable; "serpapi_quota" = gated on SerpAPI account quota.
+    # A new provider declares its own cost behavior here.
+    budget_class: str = "free"
 
 class Provider(ABC):
     """Abstract Base Class for all providers."""
