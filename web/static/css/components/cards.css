@@ -61,6 +61,38 @@
 
 .source-chip { color: var(--c-cyan); }
 
+/* landing + home */
+.landing { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s-4); text-align: center; min-height: 60vh; padding: var(--s-5) var(--s-4); }
+.landing__mark { filter: drop-shadow(0 0 16px var(--c-cyan)); }
+.landing__title { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+.landing__tag { color: var(--c-muted); max-width: 30ch; }
+.landing__note { color: var(--c-faint); font-size: 0.8rem; }
+.home__hero { padding: var(--s-5); border-radius: var(--radius-lg); margin-bottom: var(--s-4); }
+.home__hero h2 { font-size: 1.5rem; }
+.stat-card--link { text-align: left; cursor: pointer; color: var(--c-text); font: inherit; }
+.stat-card--link:hover { border-color: var(--c-cyan); }
+.stat-card__sub { font-size: 0.72rem; color: var(--c-faint); margin-top: 4px; }
+
+/* job card meta + density tiers */
+.bento__meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bento__loc { color: var(--c-muted); font-size: 0.85rem; }
+.bento__minirow { display: flex; justify-content: flex-start; }
+.bento--key .bento__title, .bento--tight .bento__title { font-size: 0.92rem; }
+.bento--micro { padding: var(--s-2); gap: var(--s-2); }
+.bento--micro .bento__title { font-size: 0.8rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.bento--micro .bento__company { font-size: 0.72rem; }
+.group-heading { margin: var(--s-3) 0 var(--s-2); font-size: 0.85rem; color: var(--c-cyan); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* typeahead suggestions */
+.suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.suggest__item { min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--c-border);
+  background: var(--c-glass-2); color: var(--c-text); font: inherit; font-size: 0.76rem; cursor: pointer; }
+.suggest__item:hover { border-color: var(--c-cyan); }
+
+/* discovery */
+.discovery__actions { display: flex; flex-wrap: wrap; gap: var(--s-4); justify-content: center; margin: var(--s-5) 0; }
+
 /* trust gauge */
 .gauge { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; }
 .gauge__num { position: absolute; font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }

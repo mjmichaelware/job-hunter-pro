@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <title>Job Hunter Pro</title>
   <link rel="manifest" href="/static/manifest.json">
@@ -18,16 +18,27 @@
   <link rel="stylesheet" href="/static/css/components/command.css">
   <link rel="stylesheet" href="/static/css/motion/transitions.css">
   <link rel="stylesheet" href="/static/css/motion/animations.css">
+  <link rel="stylesheet" href="/static/css/motion/boot.css">
 </head>
 <body>
 <a href="#view-mount" class="skip-link">Skip to content</a>
 
 <canvas id="halo-canvas" aria-hidden="true"></canvas>
 
+<!-- one-per-session animated launch sequence (boot_sequence.js controls it) -->
+<div id="boot-splash" hidden aria-hidden="true">
+  <svg id="boot-mark" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+    <circle class="boot-mark__halo" cx="60" cy="60" r="44"/>
+    <path class="boot-mark__stroke" d="M78 26 L78 78 a22 22 0 1 1 -22 -22" fill="none"/>
+  </svg>
+  <div class="boot-splash__name">JOB HUNTER PRO</div>
+</div>
+
 <div class="app-shell">
 
   <header class="app-header">
-    <span class="app-header__title" data-i18n="app.title">Job Hunter Pro</span>
+    <div class="app-header__left"></div>
+    <button type="button" id="app-title" class="app-header__title" data-i18n="app.title" aria-label="Job Hunter Pro — go home">Job Hunter Pro</button>
     <div class="app-header__tools">
       <button type="button" id="btn-command" class="icon-btn" aria-label="Open command palette" title="Search (⌘K)">⌘K</button>
       <select id="lang-select" class="lang-select" aria-label="Language">
@@ -35,9 +46,12 @@
         <option value="es">ES</option>
         <option value="ru">RU</option>
       </select>
-      <span id="health-strip" class="health-strip" data-i18n="health.checking">Checking backend…</span>
     </div>
   </header>
+
+  <nav class="app-nav" id="main-nav" aria-label="Primary">
+    <!-- nav buttons injected by core/router.js -->
+  </nav>
 
   <main class="app-main">
     <h2 id="view-title" class="view-title"></h2>
@@ -46,13 +60,9 @@
     </div>
   </main>
 
-  <nav class="app-nav" id="main-nav" aria-label="Primary">
-    <!-- nav buttons injected by core/router.js -->
-  </nav>
-
 </div>
 
-<!-- generic spring bottom-sheet host (evidence drawer, filters, command palette mount here) -->
+<!-- generic spring bottom-sheet host (evidence drawer, filters mount here) -->
 <div id="sheet-host" class="sheet-host" hidden aria-hidden="true">
   <div class="sheet-host__scrim" data-sheet-close></div>
   <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
@@ -89,26 +99,33 @@ if ('serviceWorker' in navigator) {
 <script src="/static/js/components/trust_geometry.js"></script>
 <script src="/static/js/components/sheet_drawer.js"></script>
 <script src="/static/js/components/evidence_drawer.js"></script>
+<script src="/static/js/components/layout_toggle.js"></script>
+<script src="/static/js/components/group_by.js"></script>
+<script src="/static/js/components/sort.js"></script>
 <script src="/static/js/components/job_bento.js"></script>
 <script src="/static/js/components/chart_builder.js"></script>
 <script src="/static/js/components/filters.js"></script>
 <script src="/static/js/components/command_palette.js"></script>
 <script src="/static/js/components/geo_radar.js"></script>
 <script src="/static/js/components/pipeline_reactor.js"></script>
+<script src="/static/js/components/boot_sequence.js"></script>
 
 <!-- visuals (feature-detected, degrade gracefully) -->
 <script src="/static/js/visuals/volumetric.js"></script>
 <script src="/static/js/visuals/halos.js"></script>
 
 <!-- views (each registers itself) -->
-<script src="/static/js/views/render_health.js"></script>
+<script src="/static/js/views/render_landing.js"></script>
+<script src="/static/js/views/render_home.js"></script>
 <script src="/static/js/views/render_jobs.js"></script>
+<script src="/static/js/views/render_discovery.js"></script>
+<script src="/static/js/views/render_opportunities.js"></script>
+<script src="/static/js/views/render_history.js"></script>
+<script src="/static/js/views/render_applications.js"></script>
 <script src="/static/js/views/render_providers.js"></script>
 <script src="/static/js/views/render_budget.js"></script>
-<script src="/static/js/views/render_history.js"></script>
-<script src="/static/js/views/render_opportunities.js"></script>
-<script src="/static/js/views/render_applications.js"></script>
 <script src="/static/js/views/render_debug.js"></script>
 <script src="/static/js/views/render_why_three.js"></script>
+<script src="/static/js/views/render_diagnostics.js"></script>
 </body>
 </html>

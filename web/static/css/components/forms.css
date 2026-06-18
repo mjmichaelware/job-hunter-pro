@@ -54,3 +54,11 @@ input[type="range"] {
   cursor: pointer; min-height: var(--tap); display: flex; align-items: center;
   color: var(--c-cyan); font-weight: 600;
 }
+
+/* filter sheet form */
+.filter-form { display: flex; flex-direction: column; gap: var(--s-3); }
+.filter-form > label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--c-muted); }
+.filter-form label.check { flex-direction: row; align-items: center; gap: var(--s-2); }
+.filter-block { display: flex; flex-direction: column; gap: 6px; }
+.filter-block__label { font-size: 0.8rem; color: var(--c-muted); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }

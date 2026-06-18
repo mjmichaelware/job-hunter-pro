@@ -4,7 +4,7 @@
 let _cmdRelease = null;
 
 function _cmdItems() {
-  return Object.keys(Views).map(function (id) {
+  return Object.keys(Views).filter(function (id) { return !Views[id].hidden; }).map(function (id) {
     return { id: id, label: (typeof t === 'function' ? t('nav.' + id) : null) || Views[id].label };
   });
 }

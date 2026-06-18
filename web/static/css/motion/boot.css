@@ -1,0 +1,41 @@
+/* boot.css — one-per-session animated launch sequence over an obsidian field.
+   Logo stroke draws in; cyan halo blooms; then fades into the app. */
+
+#boot-splash {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s-4);
+  background: #000000;
+}
+#boot-splash[hidden] { display: none; }
+#boot-splash.is-leaving { animation: boot-out 0.5s var(--ease) forwards; }
+@keyframes boot-out { to { opacity: 0; visibility: hidden; } }
+
+#boot-mark { filter: drop-shadow(0 0 18px var(--c-cyan)); }
+.boot-mark__halo {
+  fill: none; stroke: var(--c-cyan); stroke-width: 2; opacity: 0;
+  transform-origin: 60px 60px;
+  animation: halo-bloom 1.6s var(--ease) forwards;
+}
+@keyframes halo-bloom {
+  0% { opacity: 0; transform: scale(0.4); }
+  55% { opacity: 0.7; transform: scale(1.12); }
+  100% { opacity: 0.35; transform: scale(1); }
+}
+.boot-mark__stroke {
+  stroke: var(--c-text); stroke-width: 6; stroke-linecap: round;
+  stroke-dasharray: 240; stroke-dashoffset: 240;
+  animation: boot-draw 1.3s var(--ease) forwards;
+}
+@keyframes boot-draw { to { stroke-dashoffset: 0; } }
+
+.boot-splash__name {
+  font-weight: 800; letter-spacing: 0.18em; font-size: 0.95rem; color: var(--c-text);
+  opacity: 0; animation: boot-name 0.6s var(--ease) 0.9s forwards;
+}
+@keyframes boot-name { to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-mark__halo, .boot-mark__stroke, .boot-splash__name { animation: none; opacity: 1; stroke-dashoffset: 0; }
+  #boot-splash.is-leaving { animation: boot-out 0.15s linear forwards; }
+}

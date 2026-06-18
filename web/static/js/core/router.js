@@ -7,6 +7,7 @@ function buildNav() {
   if (!nav) return;
   nav.innerHTML = '';
   for (const id of Object.keys(Views)) {
+    if (Views[id].hidden) continue;   // landing etc. are routable but not in the rail
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'nav-btn';
@@ -51,12 +52,20 @@ async function navigate(viewId) {
 
 function routeFromHash() {
   const hash = window.location.hash.replace('#', '').trim();
-  return (hash && Views[hash]) ? hash : 'jobs';
+  if (hash && Views[hash]) return hash;
+  // First entry of a session lands on the landing page; otherwise home.
+  let seen = false;
+  try { seen = sessionStorage.getItem('jhp_entered') === '1'; } catch (e) {}
+  return seen ? 'home' : 'landing';
 }
 
 window.addEventListener('hashchange', function () { navigate(routeFromHash()); });
 
 document.addEventListener('DOMContentLoaded', function () {
+  // title routes home
+  const titleBtn = document.getElementById('app-title');
+  if (titleBtn) titleBtn.addEventListener('click', function () { navigate('home'); });
+
   // language selector
   const langSel = document.getElementById('lang-select');
   if (langSel) langSel.addEventListener('change', function (e) { setLang(e.target.value); });
@@ -72,7 +81,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   applyI18n(document);
   buildNav();
-  if (typeof renderHealth === 'function') renderHealth();   // safe: /api/health only
   if (typeof initVolumetric === 'function') initVolumetric();
-  navigate(routeFromHash());
+
+  // One-per-session animated launch, then route. Boot spends nothing.
+  const go = function () { navigate(routeFromHash()); };
+  if (typeof runBootSequence === 'function') runBootSequence(go); else go();
 });

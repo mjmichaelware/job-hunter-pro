@@ -10,9 +10,9 @@ function buildEvidenceHtml(job) {
   return '<table class="evidence-table">'
     + evidenceRow('Raw title', pick(job, ['raw_title'], null))
     + evidenceRow('Normalized title', pick(job, ['title', 'job_title'], null))
-    + evidenceRow('Company', pick(job, ['company', 'company_name', 'restaurant_name'], null))
+    + evidenceRow('Company', cleanText(pick(job, ['company', 'company_name', 'restaurant_name'], null), null))
     + evidenceRow('Place ID', pick(job, ['place_id'], null))
-    + evidenceRow('Resolved address', pick(job, ['resolved_address', 'normalized_address', 'location'], null))
+    + evidenceRow('Resolved address', cleanText(pick(job, ['resolved_address', 'normalized_address', 'location'], null), null))
     + evidenceRow('Source provider', pick(job, ['source', '_provider', 'provider', 'via'], null))
     + evidenceRow('Query used', pick(job, ['_query_used', 'place_query_used'], null))
     + evidenceRow('Source URL', pick(job, ['source_url', 'url'], null))
