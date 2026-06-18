@@ -2,16 +2,22 @@
    centered header, viewport-locked (no horizontal slide, no pinch-zoom).
    Layout = gas: fills the device exactly, never overflows sideways. */
 
-html, body { width: 100%; max-width: 100%; overflow-x: clip; overscroll-behavior: none; }
-body { touch-action: manipulation; }
+/* Phase 1.1 omnidirectional drift suppression — vertical gesture vectors only */
+html, body { width: 100%; max-width: 100%; height: 100%; overflow-x: clip; overscroll-behavior: none; }
+body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparent; }
 
+/* Phase 1.1 fluid-gas containment — pinned to hardware coords, internal scroll */
 .app-shell {
-  min-height: 100%;
+  position: fixed;
+  inset: 0;
+  width: 100dvw;
+  height: 100dvh;
+  contain: layout size;
   display: grid;
   grid-template-columns: 84px 1fr;        /* left nav rail + content */
   grid-template-rows: auto 1fr;
   padding-top: var(--safe-t);
-  overflow-x: clip;
+  overflow: hidden;
 }
 
 /* ── header (3 zones: spacer · centered title · tools) ────────────────── */
@@ -48,8 +54,8 @@ body { touch-action: manipulation; }
 /* ── left vertical nav rail (all widths) ──────────────────────────────── */
 .app-nav {
   grid-column: 1; grid-row: 2;
-  position: sticky; top: 64px; align-self: start;
-  height: calc(100vh - 64px - var(--safe-t));
+  height: 100%; min-height: 0;            /* fills the fixed shell row, scrolls itself */
+  user-select: none; -webkit-user-select: none;
   display: flex; flex-direction: column; gap: 2px;
   padding: var(--s-2) 4px calc(var(--s-2) + var(--safe-b)) calc(4px + var(--safe-l));
   overflow-y: auto; overflow-x: hidden;
@@ -77,11 +83,13 @@ body { touch-action: manipulation; }
 /* ── main ─────────────────────────────────────────────────────────────── */
 .app-main {
   grid-column: 2; grid-row: 2;
-  min-width: 0;                            /* lets children shrink, no overflow */
-  padding: var(--s-4) calc(var(--s-4) + var(--safe-r)) calc(var(--s-6) + var(--safe-b)) var(--s-4);
-  max-width: 1100px; width: 100%; margin: 0 auto;
+  min-width: 0; min-height: 0;              /* lets children shrink, no overflow */
+  overflow-y: auto;                        /* internal scroller (native app frame) */
   overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--s-4) calc(var(--s-4) + var(--safe-r)) calc(var(--s-6) + var(--safe-b)) var(--s-4);
 }
+.app-main > * { max-width: 1100px; width: 100%; margin-inline: auto; }
 #view-mount { outline: none; min-width: 0; }
 
 /* ── Bento grid + deterministic layout-toggle column counts ───────────── */

@@ -47,7 +47,7 @@
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
 
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -69,6 +69,19 @@ h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
 h2 { font-size: 1.3rem; }
 h3 { font-size: 1.05rem; }
 code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85em; }
+
+/* Phase 1.1 HUD numerals: monospaced number boxes so live counts don't jitter */
+.stat-card__value, .metric-num, .tile__value, .bar__val, .gauge__num,
+.fuel__meta, td, .badge { font-variant-numeric: tabular-nums; }
+
+/* Phase 1.1: keep nav/header/buttons app-native (no text-select, no tap flash) */
+.app-header, .nav-btn, .btn, .icon-btn, .seg__btn, .pill {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+}
+
+/* Phase 1.1: offload morph interpolation to the GPU on spring components */
+.bento, .sheet, .view-enter, .btn-glow { will-change: transform, opacity; }
 
 a { color: var(--c-cyan); text-decoration: none; }
 a:hover { text-decoration: underline; }
