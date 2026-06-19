@@ -6,6 +6,10 @@
   --c-void: #000000;
   --c-glass: rgba(15, 15, 15, 0.60);
   --c-glass-2: rgba(28, 28, 32, 0.66);
+  /* theme-adaptive acrylic (Phase 1.2.3) — resolves dark on this OLED build,
+     light if a light theme sets color-scheme. Used by .app-header/.app-nav. */
+  --glass-regular: rgba(15, 15, 15, 0.60);
+  --glass-heavy:   rgba(12, 14, 22, 0.74);
   --c-border: rgba(255, 255, 255, 0.10);
   --c-border-strong: rgba(255, 255, 255, 0.18);
 
@@ -48,6 +52,24 @@
   --safe-r: env(safe-area-inset-right, 0px);
 
   --font: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+}
+
+@supports (color: light-dark(#fff, #000)) {
+  :root {
+    --glass-regular: light-dark(rgba(255,255,255,0.70), rgba(16,18,26,0.60));
+    --glass-heavy:   light-dark(rgba(255,255,255,0.85), rgba(12,14,22,0.74));
+  }
+}
+
+/* opaque fallback when the engine can't frost (keeps text legible) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-header, .app-nav, .bento, .sheet { background: var(--c-void); }
+}
+/* honor the OS "reduce transparency" switch — drop blur, go solid */
+@media (prefers-reduced-transparency: reduce) {
+  .app-header, .app-nav, .bento, .sheet {
+    -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--c-glass-2);
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

@@ -66,9 +66,9 @@ function routeFromHash() {
 window.addEventListener('hashchange', function () { navigate(routeFromHash()); });
 
 document.addEventListener('DOMContentLoaded', function () {
-  // title routes home
+  // title routes to the landing splash (the brand entry), not the dashboard home
   const titleBtn = document.getElementById('app-title');
-  if (titleBtn) titleBtn.addEventListener('click', function () { navigate('home'); });
+  if (titleBtn) titleBtn.addEventListener('click', function () { navigate('landing'); });
 
   // language selector
   const langSel = document.getElementById('lang-select');

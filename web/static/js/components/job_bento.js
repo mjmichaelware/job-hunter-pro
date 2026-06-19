@@ -26,13 +26,27 @@ function _matchBadge(job) {
 function _researchLinks(company) {
   if (!company || company === 'Company not listed') return '';
   const q = encodeURIComponent(company);
-  return '<details class="research-links"><summary class="research-links__toggle">▸ Research</summary>'
+  // data-stop on the wrapper so opening/closing research never triggers the
+  // card's evidence drawer. The ✕ button collapses the panel explicitly.
+  return '<details class="research-links" data-stop><summary class="research-links__toggle">▸ Research ' + esc(company) + '</summary>'
+    + '<div class="research-links__panel">'
+    + '<button type="button" class="research-links__close" aria-label="Close research" data-research-close>✕</button>'
     + '<div class="research-links__row">'
     + '<a class="btn-link" href="https://www.glassdoor.com/Search/results.htm?keyword=' + q + '" target="_blank" rel="noopener noreferrer">Glassdoor</a>'
     + '<a class="btn-link" href="https://www.bbb.org/search?find_text=' + q + '" target="_blank" rel="noopener noreferrer">BBB</a>'
     + '<a class="btn-link" href="https://www.google.com/search?q=' + q + '+reviews+jobs" target="_blank" rel="noopener noreferrer">Google</a>'
     + '<a class="btn-link" href="https://news.google.com/search?q=' + q + '" target="_blank" rel="noopener noreferrer">News</a>'
-    + '</div></details>';
+    + '<a class="btn-link" href="https://www.indeed.com/cmp/' + q + '" target="_blank" rel="noopener noreferrer">Indeed</a>'
+    + '</div></div></details>';
+}
+
+// Real match_score → confidence bucket (drives typography weight + glow).
+function _confidenceBucket(job) {
+  const v = pick(job, ['match', 'match_score'], null);
+  if (v == null) return { bucket: 'na', conf: 0 };
+  const n = Number(v);
+  const conf = Math.max(0, Math.min(1, n / 100));
+  return { bucket: n >= 80 ? 'high' : n >= 50 ? 'mid' : 'low', conf: conf };
 }
 
 function bentoJobCard(job, isUnresolved) {
@@ -49,6 +63,7 @@ function bentoJobCard(job, isUnresolved) {
   const gauge = (typeof reviewGauge === 'function') ? reviewGauge(pick(job, ['review_score'], null), pick(job, ['google_rating'], null)) : '';
   const matchBadge = _matchBadge(job);
   const flags = Array.isArray(job.resolution_flags) ? job.resolution_flags : [];
+  const conf = _confidenceBucket(job);
   const cls = 'bento bento--' + density + (isUnresolved ? ' bento--unresolved' : '');
   const uid = 'job-' + Math.random().toString(36).slice(2, 9);
 
@@ -81,7 +96,8 @@ function bentoJobCard(job, isUnresolved) {
   }
   // micro: head + match badge only (already in body)
 
-  return '<article class="' + cls + '" data-job="' + uid + '" tabindex="0" role="button" aria-label="' + title + ' — view evidence">' + body + '</article>';
+  return '<article class="' + cls + '" data-job="' + uid + '" data-confidence="' + conf.bucket + '" style="--conf:' + conf.conf.toFixed(2) + '"'
+    + ' tabindex="0" role="button" aria-label="' + title + ' — view evidence">' + body + '</article>';
 }
 
 function wireBentoCards(container, jobs) {
@@ -89,5 +105,13 @@ function wireBentoCards(container, jobs) {
     function open(e) { if (e.target.closest('[data-stop]')) return; openEvidence(jobs[i]); }
     card.addEventListener('click', open);
     card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
+  });
+  // research panel ✕ collapses its own <details> without bubbling to the card
+  container.querySelectorAll('[data-research-close]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const d = btn.closest('details.research-links');
+      if (d) d.removeAttribute('open');
+    });
   });
 }

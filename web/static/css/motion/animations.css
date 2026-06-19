@@ -85,6 +85,16 @@
 .section-header__kicker { background-size: 200% 100%; animation: kicker-pan 6s linear infinite; }
 @keyframes kicker-pan { to { background-position: 200% 0; } }
 
+/* buffering wheel for views that take a beat to fetch (debug, budget) */
+.state-loading--spin { display: flex; align-items: center; gap: 10px; color: var(--c-muted); padding: var(--s-2) 0; }
+.state-loading--spin::before {
+  content: ""; width: 16px; height: 16px; flex: 0 0 auto;
+  border: 2px solid var(--c-border); border-top-color: var(--c-accent);
+  border-radius: 50%; animation: jhp-spin 0.7s linear infinite;
+}
+@keyframes jhp-spin { to { transform: rotate(360deg); } }
+
 @media (prefers-reduced-motion: reduce) {
   .bar__fill, .gauge__arc, .stagger-in > *, .geo-pin, .section-header__kicker { animation: none !important; }
+  .state-loading--spin::before { animation: none; border-top-color: var(--c-border); }
 }

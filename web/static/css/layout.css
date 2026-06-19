@@ -35,9 +35,11 @@ body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparen
   align-items: center;
   gap: var(--s-3);
   padding: var(--s-3) calc(var(--s-4) + var(--safe-r)) var(--s-3) calc(var(--s-4) + var(--safe-l));
-  background: var(--c-glass);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
+  background: var(--glass-regular);
+  /* iOS: prefixed FIRST, literal values (a var() inside the filter fails
+     silently on Safari). saturate() reproduces the vibrancy material. */
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+          backdrop-filter: blur(16px) saturate(1.4);
   border-bottom: 1px solid var(--c-border);
 }
 .app-header__left { justify-self: start; }
@@ -63,9 +65,9 @@ body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparen
   display: flex; flex-direction: column; gap: 2px;
   padding: var(--s-2) 4px calc(var(--s-2) + var(--safe-b)) calc(4px + var(--safe-l));
   overflow-y: auto; overflow-x: hidden;
-  background: var(--c-glass);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
+  background: var(--glass-regular);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+          backdrop-filter: blur(16px) saturate(1.4);
   border-right: 1px solid var(--c-border);
   scrollbar-width: none;
 }

@@ -3,7 +3,9 @@
 
 async function loadDebugView() {
   const el = mount(); if (!el) return;
-  el.innerHTML = '<p class="state-loading">Loading diagnostics…</p>';
+  el.innerHTML = (typeof skeletonCards === 'function')
+    ? '<div class="state-loading state-loading--spin">Reading pipeline diagnostics…</div>' + skeletonCards(3, 'stat') + skeletonCards(2, 'row')
+    : '<p class="state-loading">Loading diagnostics…</p>';
 
   const [debugData, provData] = await Promise.all([
     safeFetch('/api/debug/jobs'),
@@ -63,9 +65,10 @@ async function loadDebugView() {
   const providers = provData ? (provData.providers || []) : [];
   const pList = Array.isArray(providers) ? providers : Object.values(providers);
   if (pList.length) {
-    const live = pList.filter(function (p) { return p.available; });
-    const needsKey = pList.filter(function (p) { return !p.available && !p.disabled_reason; });
-    const defaultOff = pList.filter(function (p) { return !p.available && p.disabled_reason; });
+    // Real /api/providers contract — see provLive/provDormant/provPolicy in render_budget.js.
+    const live = pList.filter(provLive);
+    const needsKey = pList.filter(provDormant);
+    const defaultOff = pList.filter(provPolicy);
 
     html += '<h2 class="section-heading">API Readiness</h2><div class="readiness-grid">';
     if (live.length) {
@@ -80,20 +83,20 @@ async function loadDebugView() {
       html += '<div class="readiness-col"><h3 class="readiness-col__title">⛔ Default-off</h3>'
         + defaultOff.map(function (p) {
             return '<div class="readiness-item readiness-item--off">'
-              + esc(p.label || p.key || '') + '<span class="readiness-hint">' + esc((p.disabled_reason || '').slice(0, 60)) + '</span></div>';
+              + esc(p.label || p.key || '') + '<span class="readiness-hint">' + esc(provReason(p).slice(0, 60)) + '</span></div>';
           }).join('') + '</div>';
     }
     html += '</div>';
 
-    // To-do list from disabled_reason strings
-    const todos = defaultOff.filter(function (p) { return p.disabled_reason; });
+    // To-do list from policy reasons
+    const todos = defaultOff.filter(function (p) { return provReason(p); });
     if (todos.length || needsKey.length) {
       html += '<h2 class="section-heading">System To-Do</h2><ul class="todo-list">';
       needsKey.forEach(function (p) {
         html += '<li class="todo-item">🔑 Add <code>' + esc((p.key || '').toUpperCase() + '_API_KEY') + '</code> to Secret Manager to activate <strong>' + esc(p.label || p.key) + '</strong></li>';
       });
       todos.forEach(function (p) {
-        html += '<li class="todo-item">⚙️ ' + esc(p.disabled_reason) + ' (<strong>' + esc(p.label || p.key) + '</strong>)</li>';
+        html += '<li class="todo-item">⚙️ ' + esc(provReason(p)) + ' (<strong>' + esc(p.label || p.key) + '</strong>)</li>';
       });
       html += '</ul>';
     }

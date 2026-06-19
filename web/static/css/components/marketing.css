@@ -26,8 +26,21 @@
   background: linear-gradient(135deg, var(--c-accent), var(--c-violet) 80%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
-.hero__sub { color: var(--c-muted); font-size: 1rem; margin: 10px auto 0; max-width: 52ch; }
+.hero__title { text-wrap: balance; }
+.hero__sub { color: var(--c-muted); font-size: var(--fs-3); margin: 10px auto 0; max-width: 52ch; text-wrap: pretty; }
+.hero__live { display: flex; gap: 18px; justify-content: center; margin-top: 14px; color: var(--c-muted); font-size: var(--fs-2); }
+.hero__stat b { color: var(--c-text); font-size: var(--fs-4); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .hero__badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+.hero__more { max-width: 60ch; margin: 18px auto 0; text-align: left; }
+.hero__more-toggle { cursor: pointer; color: var(--c-accent); font-weight: 600; font-size: var(--fs-2);
+  text-align: center; list-style: none; -webkit-user-select: none; user-select: none; }
+.hero__more-toggle::-webkit-details-marker { display: none; }
+.hero__more[open] .hero__more-body { animation: stagger-in 0.35s var(--ease) both; }
+.hero__more-body { margin-top: 12px; padding: 16px; background: var(--c-glass); border: 1px solid var(--c-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+.hero__more-body p { color: var(--c-muted); font-size: var(--fs-2); margin-bottom: 8px; line-height: 1.55; }
+.hero__more-body strong { color: var(--c-text); }
+.hero__more-note { color: var(--c-faint) !important; font-style: italic; margin-top: 4px; }
 
 /* ── Illustrated empty / needs-action state ── */
 .empty-art {

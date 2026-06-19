@@ -1,20 +1,57 @@
-/* variables.css — Phase 1.1 OKLCH color-space engine (HUD tokens).
-   Loaded BEFORE base.css. Perceptually-uniform lightness: a cyan and a red at the
-   same L look equally bright, preventing retinal burn and meeting WCAG-AA by math.
-   Additive — does not override base.css --c-* tokens. */
+/* variables.css — Phase 1.2 OKLCH single-hue engine + type/elevation scale.
+   Loaded FIRST (before base.css). Everything accent-colored derives from ONE
+   hue knob, --accent-h, so industry re-theming is a single-variable change and
+   states stay perceptually uniform (WCAG-AA by construction). Additive: does
+   not fight base.css --c-* tokens; themes-industry.css binds --c-accent here. */
 
 :root {
-  /* OLED void + glass substrate base */
+  /* OLED void + glass substrate */
   --void: #000000;
   --void-surface: oklch(20% 0.02 240);
 
-  /* HUD accents (perceptually uniform) */
-  --primary-cyan: oklch(85% 0.15 180);
+  /* ── single hue knob — override per [data-industry] in themes-industry.css ── */
+  --accent-h: 180;            /* default cyan */
+  --conf: 0;                  /* 0..1 real match_score confidence, set per-card from JS */
+
+  /* derived ramp — literal fallback for engines without relative-color */
+  --accent:        oklch(72% 0.15 var(--accent-h));
+  --accent-strong: oklch(80% 0.19 var(--accent-h));
+  --accent-subtle: oklch(72% 0.15 var(--accent-h) / 0.16);
+  --glow: 0 0 calc(var(--conf, 0) * 40px) var(--accent);   /* glow intensity = real confidence */
+
+  /* back-compat aliases (old names keep working) */
+  --primary-cyan: var(--accent);
   --hyper-violet: oklch(62% 0.20 300);
-  --alert-red: oklch(60% 0.25 25);
+  --alert-red:    oklch(60% 0.25 25);
   --signal-amber: oklch(80% 0.16 80);
   --signal-green: oklch(78% 0.18 150);
+  --primary2:  var(--accent-strong);
+  --cyan-glow: var(--glow);
 
-  /* native spring + GPU hints */
+  /* fluid type scale */
+  --fs-1: clamp(0.75rem, 1.4vw, 0.80rem);
+  --fs-2: clamp(0.85rem, 1.8vw, 0.90rem);
+  --fs-3: clamp(0.95rem, 2.0vw, 1.00rem);
+  --fs-4: clamp(1.10rem, 2.5vw, 1.25rem);
+  --fs-5: clamp(1.40rem, 3.0vw, 1.65rem);
+  --fs-6: clamp(1.85rem, 4.2vw, 2.40rem);
+
+  /* elevation */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 28px rgba(0,0,0,0.6);
+  --shadow-xl: 0 16px 48px rgba(0,0,0,0.7);
+
+  /* native control tint + spring */
+  accent-color: var(--accent);
   --spring-hud: cubic-bezier(0.28, 0.84, 0.42, 1);
+}
+
+/* prefer relative-color where the engine supports it (Safari 18+/Chrome) so the
+   ramp derives from a single resolved accent rather than re-stating lightness. */
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --accent-strong: oklch(from var(--accent) calc(l + 0.08) calc(c + 0.04) h);
+    --accent-subtle: oklch(from var(--accent) l c h / 0.16);
+  }
 }

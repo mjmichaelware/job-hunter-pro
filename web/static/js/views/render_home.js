@@ -33,9 +33,23 @@ async function loadHomeView() {
     + '<h1 class="hero__title">Job Hunter Pro</h1>'
     + '<p class="hero__sub">Your local opportunity cockpit — discover jobs across 20+ free sources, '
     + 'resolve real addresses and commute, score the match, and track every application in one place.</p>'
+    + '<div class="hero__live"><span class="hero__stat flash"><b>' + batches.length + '</b> batches saved</span>'
+    + '<span class="hero__stat flash"><b>' + recentJobs.length + '</b> recent jobs</span></div>'
     + '<div class="hero__badges">' + statusBadge
     + (ver ? ' <span class="badge badge-cached">v' + esc(ver) + '</span>' : '')
     + ' <span class="badge badge-safe">free to use</span></div>'
+    + '<details class="hero__more"><summary class="hero__more-toggle">Read more about how this works</summary>'
+    + '<div class="hero__more-body">'
+    + '<p><strong>1 · Discover.</strong> One run fans out across every configured free source — '
+    + 'SerpAPI Jobs, Adzuna, USAJobs, Jooble, Careerjet, The Muse and more — giving each a fair turn so no single provider hogs the results.</p>'
+    + '<p><strong>2 · Resolve.</strong> Each listing is matched to a real business and address; Google Maps adds commute and radius from your origin. '
+    + 'When an address can\'t be pinned the job is kept and flagged — never silently dropped.</p>'
+    + '<p><strong>3 · Score &amp; classify.</strong> A match score, a capped review score, and an industry tag are computed deterministically; '
+    + 'AI providers (OpenAI, Gemini, Claude, Groq, xAI) only enrich and explain — they never invent listings.</p>'
+    + '<p><strong>4 · Remember.</strong> Every run is stored as a timestamped batch you can browse offline, with the full accepted / flagged breakdown and the evidence behind each decision.</p>'
+    + '<p><strong>5 · Apply &amp; track.</strong> Vet any employer in one tap (Glassdoor, BBB, Google, News, Indeed, Maps) and track every application from one place.</p>'
+    + '<p class="hero__more-note">Opening this dashboard spends nothing. Live discovery runs only when you ask for it.</p>'
+    + '</div></details>'
     + '</div>';
 
   // Job carousel from most recent batch
@@ -86,6 +100,11 @@ async function loadHomeView() {
 
   el.innerHTML = html;
   if (typeof applyIndustry === 'function') applyIndustry(null);  // neutral accent on home
+  // Living background: intensity from REAL state (system ok + how much history exists).
+  if (typeof updateVolumetric === 'function') {
+    const intensity = (ok ? 0.4 : 0.15) + Math.min(0.5, batches.length / 20);
+    updateVolumetric({ intensity: intensity });
+  }
   el.querySelectorAll('[data-go]').forEach(function (c) {
     c.addEventListener('click', function () { navigate(c.dataset.go); });
   });

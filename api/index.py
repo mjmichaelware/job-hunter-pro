@@ -39,8 +39,12 @@ class Config:
     ORIGIN_ADDRESS = os.environ.get("ORIGIN_ADDRESS", "28 E Bryan Ave, Salt Lake City, UT 84115").strip()
     JOB_LOCATION = os.environ.get("JOB_LOCATION", "84115").strip()
 
-    MAX_TRANSIT_SECONDS = int(os.environ.get("MAX_TRANSIT_SECONDS", "2100"))
-    MAX_RADIUS_MILES = float(os.environ.get("MAX_RADIUS_MILES", "2.5"))
+    # Transit is a DISPLAY/UI filter, not a hard rejection gate. The default is
+    # set high (120 min) so the legacy -10 match_score penalty effectively never
+    # fires — a real provider job is never killed for a long commute; the user
+    # filters by commute in the UI instead.
+    MAX_TRANSIT_SECONDS = int(os.environ.get("MAX_TRANSIT_SECONDS", "7200"))
+    MAX_RADIUS_MILES = float(os.environ.get("MAX_RADIUS_MILES", "5.0"))
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "12"))
 
     MAX_SERP_QUERIES = int(os.environ.get("MAX_SERP_QUERIES", "4"))
@@ -51,7 +55,7 @@ class Config:
     MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "1200"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
-    SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "1").strip() == "1"
+    SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "0").strip() == "1"
     # Per-run query count. The full ~1400-keyword bank rotates across runs (see
     # raw_job_queries offset), so coverage accumulates over saved batches rather
     # than in one impossible request. 24 is the count that reliably completes.

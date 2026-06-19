@@ -41,7 +41,23 @@
 .research-links { margin-top: 10px; }
 .research-links__toggle { cursor: pointer; font-size: 0.78rem; color: var(--c-muted);
   -webkit-user-select: none; user-select: none; }
-.research-links__row { display: flex; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
+.research-links__panel {
+  position: relative; margin-top: 8px; padding: 10px 12px;
+  background: var(--c-glass-2); border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+}
+.research-links[open] .research-links__panel { animation: stagger-in 0.28s var(--ease) both; }
+@supports (animation: x) and (selector(:has(*))) {
+  /* @starting-style entry where supported (progressive enhancement) */
+}
+.research-links__close {
+  position: absolute; top: 6px; right: 6px;
+  width: 26px; height: 26px; line-height: 1; border-radius: 50%;
+  border: 1px solid var(--c-border); background: var(--c-void);
+  color: var(--c-muted); cursor: pointer; font-size: 0.8rem;
+}
+.research-links__close:hover { color: var(--c-text); border-color: var(--c-accent); }
+.research-links__row { display: flex; gap: 8px; padding: 4px 0 2px; flex-wrap: wrap; }
 
 /* ── Discovery view ── */
 .disc-hero { padding: 20px 0 12px; }
@@ -73,6 +89,9 @@
 .opp-card__info { flex: 1; min-width: 0; }
 .opp-card__name { font-weight: 600; font-size: 0.92rem; }
 .opp-card__meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.opp-card__roles { color: var(--c-muted); font-size: 0.76rem; margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opp-card__actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; align-items: flex-end; }
 
 /* ── Debug readiness ── */
 .readiness-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 16px; margin-bottom: 16px; }

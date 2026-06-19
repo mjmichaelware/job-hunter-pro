@@ -1,23 +1,34 @@
 /* views/render_budget.js — Discovery engine health: providers, storage, API stats.
    SerpAPI quota removed. Shows what's live and what to unlock next. */
 
+/* /api/providers contract (api/providers.py): is_available, status
+   ('ready'|'dormant'|'disabled_by_policy'), reason, disabled_by_policy,
+   requires_api_key. Read those exact fields — older code read available/
+   disabled_reason which are absent, so every keyed provider wrongly showed
+   "needs key". */
+function provLive(p)    { return p.is_available === true || p.status === 'ready'; }
+function provPolicy(p)  { return p.disabled_by_policy === true || p.status === 'disabled_by_policy'; }
+function provDormant(p) { return !provLive(p) && !provPolicy(p); }   // dormant = key required, none set
+function provReason(p)  { return p.reason || p.disabled_reason || ''; }
+
 function _providerHealthCard(p) {
-  const key = p.key || p.id || '';
-  const label = p.label || key;
-  const avail = p.available || p.status === 'available';
-  const dormant = !avail && !p.disabled_reason;
-  const cls = avail ? 'badge-safe' : dormant ? 'badge-warn' : 'badge-disabled';
-  const statusText = avail ? 'live' : dormant ? 'needs key' : 'off';
+  const label = p.label || p.key || p.id || '';
+  const live = provLive(p), policy = provPolicy(p);
+  const cls = live ? 'badge-safe' : policy ? 'badge-disabled' : 'badge-warn';
+  const statusText = live ? 'live' : policy ? 'off by policy' : 'needs key';
+  const reason = provReason(p);
   return '<div class="stat-card stat-card--provider">'
     + '<div class="stat-card__label">' + esc(label) + '</div>'
     + '<div class="stat-card__value"><span class="badge ' + cls + '">' + statusText + '</span></div>'
-    + (p.disabled_reason ? '<div class="stat-card__sub" style="font-size:0.7rem;color:var(--c-muted)">' + esc(p.disabled_reason.slice(0, 60)) + '</div>' : '')
+    + (reason ? '<div class="stat-card__sub" style="font-size:0.7rem;color:var(--c-muted)">' + esc(reason.slice(0, 70)) + '</div>' : '')
     + '</div>';
 }
 
 async function loadBudgetView() {
   const el = mount(); if (!el) return;
-  el.innerHTML = '<p class="state-loading">Loading engine status…</p>';
+  el.innerHTML = (typeof skeletonCards === 'function')
+    ? '<div class="state-loading state-loading--spin">Loading engine status…</div>' + skeletonCards(4, 'provider')
+    : '<p class="state-loading">Loading engine status…</p>';
 
   const [provData, usageData, healthData] = await Promise.all([
     safeFetch('/api/providers'),
@@ -27,9 +38,9 @@ async function loadBudgetView() {
 
   const providers = provData ? (provData.providers || []) : [];
   const pList = Array.isArray(providers) ? providers : Object.values(providers);
-  const liveProviders = pList.filter(function (p) { return p.available || p.status === 'available'; });
-  const dormantProviders = pList.filter(function (p) { return !p.available && !p.disabled_reason; });
-  const offProviders = pList.filter(function (p) { return !p.available && p.disabled_reason; });
+  const liveProviders = pList.filter(provLive);
+  const dormantProviders = pList.filter(provDormant);
+  const offProviders = pList.filter(provPolicy);
 
   const storage = (usageData && usageData.storage) || {};
   const ok = healthData && (healthData.status === 'ok' || healthData.status === 'healthy');

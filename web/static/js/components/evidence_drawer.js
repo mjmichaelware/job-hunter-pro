@@ -2,6 +2,19 @@
    in the spring bottom sheet. Every field is null-guarded; review_intelligence.*
    that FAST_JOBS gated off renders "unavailable", never a fabricated value. */
 
+// Best-effort relative time; returns null on unparseable input (renders unavailable).
+function _relTime(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  const secs = Math.round((Date.now() - d.getTime()) / 1000);
+  if (!('Intl' in window) || !Intl.RelativeTimeFormat) return d.toLocaleString();
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  const units = [['day', 86400], ['hour', 3600], ['minute', 60]];
+  for (const u of units) { if (Math.abs(secs) >= u[1]) return rtf.format(-Math.round(secs / u[1]), u[0]); }
+  return rtf.format(-secs, 'second');
+}
+
 function buildEvidenceHtml(job) {
   const raw = pick(job, ['raw_title', 'title'], '');
   const company = pick(job, ['company', 'company_name', 'restaurant_name'], '');
@@ -28,6 +41,12 @@ function buildEvidenceHtml(job) {
     + evidenceRow('Tags', Array.isArray(job.tags) ? job.tags.join(', ') : null)
     + evidenceRow('Resolution flags', Array.isArray(job.resolution_flags) ? job.resolution_flags.join(', ') : null)
     + evidenceRow('Needs resolution', job.needs_resolution != null ? String(job.needs_resolution) : null)
+    + evidenceRow('Rejection reasons', Array.isArray(job.rejection_reasons) ? job.rejection_reasons.join(', ') : pick(job, ['rejection_reason'], null))
+    + evidenceRow('Industry', pick(job, ['industry'], null))
+    + evidenceRow('Classification score', pick(job, ['industry_score', 'classification_confidence'], null))
+    + evidenceRow('Discovery mode', pick(job, ['discovery_mode', 'mode', 'trigger'], null))
+    + evidenceRow('Canonical key', pick(job, ['dedupe_key', 'canonical_key'], null))
+    + evidenceRow('Discovered', _relTime(pick(job, ['timestamp', 'created_at', 'discovered_at'], null)))
     + '</table>'
     + '<button type="button" class="btn btn-track" data-job-id="' + esc(trackId) + '">' + esc(t('common.track')) + '</button>';
 }
