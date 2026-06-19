@@ -19,7 +19,20 @@ function _matchBadge(job) {
   const v = pick(job, ['match', 'match_score'], null);
   if (v == null) return '';
   const cls = Number(v) >= 80 ? 'badge-safe' : Number(v) >= 50 ? 'badge-warn' : 'badge-error';
-  return '<span class="badge ' + cls + '">match ' + esc(String(v)) + '</span>';
+  const flash = Number(v) >= 80 ? ' flash' : '';
+  return '<span class="badge ' + cls + flash + '">match ' + esc(String(v)) + '</span>';
+}
+
+function _researchLinks(company) {
+  if (!company || company === 'Company not listed') return '';
+  const q = encodeURIComponent(company);
+  return '<details class="research-links"><summary class="research-links__toggle">▸ Research</summary>'
+    + '<div class="research-links__row">'
+    + '<a class="btn-link" href="https://www.glassdoor.com/Search/results.htm?keyword=' + q + '" target="_blank" rel="noopener noreferrer">Glassdoor</a>'
+    + '<a class="btn-link" href="https://www.bbb.org/search?find_text=' + q + '" target="_blank" rel="noopener noreferrer">BBB</a>'
+    + '<a class="btn-link" href="https://www.google.com/search?q=' + q + '+reviews+jobs" target="_blank" rel="noopener noreferrer">Google</a>'
+    + '<a class="btn-link" href="https://news.google.com/search?q=' + q + '" target="_blank" rel="noopener noreferrer">News</a>'
+    + '</div></details>';
 }
 
 function bentoJobCard(job, isUnresolved) {
@@ -52,13 +65,15 @@ function bentoJobCard(job, isUnresolved) {
   }
 
   if (density === 'full') {
+    const companyRaw = cleanText(pick(job, ['company', 'company_name', 'restaurant_name', 'employer', 'place_name'], null), '');
     body += '<div class="bento__tiles">'
       + '<div class="tile"><div class="tile__label">Core</div>' + gauge + '</div>'
       + '<div class="tile"><div class="tile__label">Commute</div><div class="tile__value' + (job.commute_seconds == null ? ' na' : '') + '">' + esc(formatMins(job.commute_seconds)) + '</div></div>'
       + '<div class="tile"><div class="tile__label">Radius</div><div class="tile__value' + (job.radius_miles == null ? ' na' : '') + '">' + esc(formatMiles(job.radius_miles)) + '</div></div>'
       + '</div>'
       + (flags.length ? '<div class="bento__flags">' + tagList(flags) + '</div>' : '')
-      + (url ? '<div class="bento__actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="btn-link" data-stop>' + esc(t('common.apply')) + '</a></div>' : '');
+      + (url ? '<div class="bento__actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="btn-link" data-stop>' + esc(t('common.apply')) + '</a></div>' : '')
+      + _researchLinks(companyRaw);
   } else if (density === 'key') {
     body += '<div class="bento__minirow">' + gauge + '</div>';
   } else if (density === 'tight') {

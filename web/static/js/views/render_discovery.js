@@ -1,17 +1,37 @@
-/* views/render_discovery.js — the ONLY place that can spend provider budget.
-   Two glassy actions: reload saved (free) and run fresh discovery (explicit
-   confirm). Forward-wired: sends whatever is in AppState.filters (origin,
-   posted_within, sort, …) so new params activate automatically once backend honors them. */
+/* views/render_discovery.js — Discovery launcher. The only place that triggers
+   live provider calls. Two clean actions: browse saved (free) + fresh run. */
 
-function loadDiscoveryView() {
+async function loadDiscoveryView() {
   const el = mount(); if (!el) return;
+
+  // Load provider count safely before rendering
+  const provData = await safeFetch('/api/providers');
+  const providers = provData ? (provData.providers || provData.available || []) : [];
+  const liveCount = Array.isArray(providers)
+    ? providers.filter(function (p) { return p.available || p.status === 'available'; }).length
+    : (typeof providers === 'object' ? Object.values(providers).filter(function (p) { return p.available; }).length : 0);
+
+  const countLabel = liveCount ? (liveCount + ' provider' + (liveCount === 1 ? '' : 's') + ' active') : 'Providers loading…';
+
   el.innerHTML = '<section class="discovery">'
-    + '<div class="info-box"><strong>' + esc(t('disc.safe_title')) + '</strong> ' + esc(t('disc.safe')) + '</div>'
+    + '<div class="disc-hero">'
+    + '<h2 class="disc-hero__title">Discovery Engine</h2>'
+    + '<p class="disc-hero__sub">Fan-out across ' + esc(countLabel) + '. Results are deduplicated and scored automatically.</p>'
+    + '<span class="badge badge-safe">safe by default</span>'
+    + '</div>'
     + '<div class="discovery__actions">'
-    + '<button type="button" id="disc-reload" class="btn btn-glow"><span class="btn__label">' + esc(t('jobs.reload')) + '</span><span class="spinner" hidden></span></button>'
-    + '<button type="button" id="disc-run" class="btn btn-glow btn-warn"><span class="btn__label">' + esc(t('jobs.run')) + '</span><span class="spinner" hidden></span></button>'
+    + '<button type="button" id="disc-reload" class="btn btn-glow">'
+    + '<span class="btn__label">' + esc(t('jobs.reload')) + '</span>'
+    + '<span class="spinner" hidden></span></button>'
+    + '<button type="button" id="disc-run" class="btn btn-glow btn-warn">'
+    + '<span class="btn__label">' + esc(t('jobs.run')) + '</span>'
+    + '<span class="spinner" hidden></span></button>'
     + '</div>'
     + '<p class="status-line" id="disc-status">' + esc(t('disc.idle')) + '</p>'
+    + '<div class="disc-tips">'
+    + '<div class="disc-tip"><span class="disc-tip__icon">💾</span><strong>Browse saved</strong> — instant, free. Shows jobs from the last stored batch.</div>'
+    + '<div class="disc-tip"><span class="disc-tip__icon">⚡</span><strong>Fresh discovery</strong> — queries all active providers simultaneously. Results are stored for offline access.</div>'
+    + '</div>'
     + '</section>';
 
   const status = el.querySelector('#disc-status');
@@ -23,7 +43,7 @@ function loadDiscoveryView() {
     const list = await safeFetch('/api/batches');
     const n = arr(list, ['batches']).length;
     busy(reload, false);
-    status.textContent = n ? (n + ' saved batches available — opening Jobs…') : 'No saved batches yet.';
+    status.textContent = n ? (n + ' batch' + (n === 1 ? '' : 'es') + ' available — opening Jobs…') : 'No saved batches yet. Run fresh discovery first.';
     if (typeof announce === 'function') announce(status.textContent);
     if (n) { AppState.liveResult = null; navigate('jobs'); }
   });
@@ -31,16 +51,16 @@ function loadDiscoveryView() {
   run.addEventListener('click', async function () {
     if (!confirm(t('jobs.confirm'))) return;
     busy(run, true);
-    status.textContent = 'Running fresh discovery across all providers — may take a minute…';
+    status.textContent = 'Scanning across ' + countLabel + '…';
     if (typeof announce === 'function') announce('Live discovery started');
-    const data = await fetchJobsLive(AppState.filters);   // forward-wired query params
+    const data = await fetchJobsLive(AppState.filters);
     busy(run, false);
-    if (!data) { status.textContent = 'Discovery failed or timed out. Try again.'; return; }
+    if (!data) { status.textContent = 'Discovery failed or timed out. Check Debug tab for details.'; return; }
     const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
     const rejected = arr(data, ['rejected']);
     const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
-    const stored = data.stored ? 'saved' : 'NOT saved (storage error)';
-    const msg = jobs.length + ' accepted · ' + raw + ' raw · ' + rejected.length + ' need resolution · ' + stored;
+    const stored = data.stored ? 'saved' : 'not saved (storage error)';
+    const msg = jobs.length + ' accepted · ' + raw + ' raw · ' + rejected.length + ' flagged · ' + stored;
     AppState.liveResult = { jobs: jobs, rejected: rejected, msg: msg };
     status.textContent = msg + ' — opening Jobs…';
     if (typeof announce === 'function') announce(msg);

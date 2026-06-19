@@ -1,39 +1,82 @@
-/* views/render_opportunities.js — Places radar. Honest about the disabled state:
-   if the backend has it off for cost control, show the enable notice — NOT a fake list. */
+/* views/render_opportunities.js — Company radar built from real batch data.
+   Google Places is disabled; this view aggregates hiring companies from
+   discovered batches instead. No fake data. */
 
 async function loadOpportunitiesView() {
-  const data = await safeFetch('/api/opportunities');
   const el = mount(); if (!el) return;
-  if (!data) { renderState(el, 'state-error', 'Could not load opportunities.'); return; }
-  JHP_SYNC.remember('opportunities', data);
+  el.innerHTML = '<p class="state-loading">Building company radar…</p>';
 
-  if (data.enabled === false || data.status === 'disabled') {
-    el.innerHTML = '<div class="info-box info-box--warn"><strong>Opportunities disabled:</strong> '
-      + esc(data.reason || data.message || 'This feature is not enabled in the current configuration.') + '</div>';
-    return;
+  const [batchList, provData] = await Promise.all([
+    safeFetch('/api/batches'),
+    safeFetch('/api/providers'),
+  ]);
+
+  const batches = arr(batchList, ['batches']).slice(0, 3);  // 3 most recent
+  const companyMap = {};
+
+  // Aggregate jobs from recent batches by company
+  for (const b of batches) {
+    const bId = b.id || b;
+    try {
+      const snap = await safeFetch('/api/batches/' + encodeURIComponent(bId));
+      const jobs = arr(snap, ['data', 'jobs', 'accepted', 'results']);
+      for (const j of jobs) {
+        const co = (cleanText(j.company || j.company_name || j.restaurant_name, '')).trim();
+        if (!co) continue;
+        if (!companyMap[co]) {
+          companyMap[co] = { name: co, count: 0, sources: new Set(), lastSeen: b.created_at || b };
+        }
+        companyMap[co].count++;
+        const src = j.source || j._provider || j.via || '';
+        if (src) companyMap[co].sources.add(src);
+      }
+    } catch (e) {}
   }
 
-  const opps = arr(data, ['data', 'opportunities']);
-  let html = '';
-  if (data.count != null) html += '<p class="status-line">' + esc(String(data.count)) + ' opportunities returned.</p>';
-  if (!opps.length) {
-    html += '<p class="state-empty">No opportunities returned. The feature may need a location origin or configuration.</p>';
-    el.innerHTML = html; return;
+  const companies = Object.values(companyMap).sort(function (a, b) { return b.count - a.count; });
+
+  let html = '<div class="opp-header">'
+    + '<h2 class="section-heading">Company Radar</h2>'
+    + '<p class="status-line">Hiring companies found in recent discovery batches.</p>'
+    + '</div>';
+
+  if (!companies.length) {
+    html += '<div class="info-box">No batch data yet. Run discovery to populate the company radar.</div>';
+  } else {
+    html += '<div class="opp-list">'
+      + companies.slice(0, 40).map(function (c) {
+          const srcs = Array.from(c.sources).join(', ');
+          const initials = c.name.split(' ').slice(0, 2).map(function (w) { return w[0] || ''; }).join('').toUpperCase();
+          return '<div class="opp-card">'
+            + '<div class="opp-card__avatar" aria-hidden="true">' + esc(initials) + '</div>'
+            + '<div class="opp-card__info">'
+            + '<div class="opp-card__name">' + esc(c.name) + '</div>'
+            + '<div class="opp-card__meta">'
+            + '<span class="badge badge-cached">' + c.count + ' role' + (c.count === 1 ? '' : 's') + '</span>'
+            + (srcs ? ' <span class="tag">' + esc(srcs) + '</span>' : '')
+            + '</div></div>'
+            + '<a class="btn-link" href="https://www.google.com/search?q=' + encodeURIComponent(c.name + ' jobs hiring') + '" target="_blank" rel="noopener noreferrer">Research ↗</a>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+    if (companies.length > 40) html += '<p class="status-line">Showing top 40 of ' + companies.length + ' companies.</p>';
   }
 
-  html += '<div class="opp-list">' + opps.map(function (o) {
-    const rating = pick(o, ['google_rating', 'rating'], null);
-    const radius = pick(o, ['radius_miles'], null);
-    const maps = href(pick(o, ['google_maps_url', 'url'], ''));
-    return '<div class="opp-card"><div class="opp-card__name">' + esc(pick(o, ['name', 'place_name'], 'Unnamed')) + '</div>'
-      + '<div class="opp-card__addr">' + esc(pick(o, ['resolved_address', 'address', 'vicinity'], 'Address unavailable')) + '</div>'
-      + '<div class="opp-card__meta">'
-      + (rating != null ? '<span class="badge badge-safe">rating ' + esc(String(rating)) + '</span> ' : '<span class="na">rating unavailable</span> ')
-      + (radius != null ? '<span class="tag">' + esc(formatMiles(radius)) + '</span> ' : '')
-      + (maps ? '<a class="btn-link" href="' + esc(maps) + '" target="_blank" rel="noopener">Map</a>' : '')
-      + '</div></div>';
-  }).join('') + '</div>';
+  // Active provider list at bottom
+  const providers = provData ? (provData.providers || []) : [];
+  const avail = Array.isArray(providers) ? providers.filter(function (p) { return p.available; }) : [];
+  if (avail.length) {
+    html += '<h2 class="section-heading">Active discovery sources</h2>'
+      + '<div class="card-row">'
+      + avail.slice(0, 8).map(function (p) {
+          return '<div class="stat-card"><div class="stat-card__label">' + esc(p.label || p.key || '') + '</div>'
+            + '<div class="stat-card__value"><span class="badge badge-safe">live</span></div></div>';
+        }).join('')
+      + '</div>';
+  }
+
   el.innerHTML = html;
+  JHP_SYNC.remember('opportunities', { companies: companies });
 }
 
 registerView('opportunities', 'Opportunities', loadOpportunitiesView);

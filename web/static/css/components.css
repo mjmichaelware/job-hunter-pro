@@ -1,28 +1,90 @@
-/* components.css — Phase 1.1 shared HUD component styles.
-   Additive only: does NOT replace anything in css/components/*. New utility
-   classes available to HUD tiles; existing .bento/.glass keep working. */
+/* components.css — Phase 1.1 shared HUD + view-level component styles.
+   Additive only: does NOT replace anything in css/components/*. */
 
 /* iOS UIBlurEffectStyleDark acrylic substrate for Bento tiles */
 .bento-glass-substrate {
   background: color-mix(in oklch, var(--void-surface, rgba(15,15,15,1)) 65%, transparent);
   backdrop-filter: blur(24px) saturate(180%) contrast(1.1);
   -webkit-backdrop-filter: blur(24px) saturate(180%) contrast(1.1);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.08),
-    0 8px 32px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.08), 0 8px 32px rgba(0,0,0,.6);
   border-radius: var(--radius-lg, 22px);
 }
 
-/* iOS App Store horizontal paging rail. Isolated: the page never tracks sideways. */
-.bento-rail {
-  display: flex;
-  gap: var(--s-3, 12px);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(to right, #000 85%, transparent 100%);
-  mask-image: linear-gradient(to right, #000 85%, transparent 100%);
-  touch-action: pan-x;
-}
+/* iOS App Store horizontal paging rail */
+.bento-rail { display: flex; gap: var(--s-3,12px); overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: none; -webkit-mask-image: linear-gradient(to right,#000 85%,transparent 100%);
+  mask-image: linear-gradient(to right,#000 85%,transparent 100%); touch-action: pan-x; }
 .bento-rail::-webkit-scrollbar { display: none; }
 .bento-rail > * { scroll-snap-align: center; scroll-snap-stop: always; flex: 0 0 auto; }
+
+/* ── Home view ── */
+.home { padding: 0 0 24px; }
+.home__hero { text-align: center; padding: 28px 16px 20px; }
+.home__logo { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 700;
+  background: linear-gradient(135deg, var(--c-cyan), var(--c-violet));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.home__cycle { margin: 8px 0 12px; color: var(--c-muted); font-size: 0.95rem; }
+.home__badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.home__section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--c-muted); margin: 20px 0 8px; }
+.home__rail { min-width: 0; padding-bottom: 4px; }
+.home__slide { min-width: 200px; max-width: 270px; padding: 14px;
+  background: var(--c-glass); border: 1px solid var(--c-border); border-radius: var(--radius-md); }
+.home__slide-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home__slide-co { font-size: 0.8rem; color: var(--c-muted); margin-bottom: 6px; }
+.home__feat { flex-direction: column; align-items: flex-start; gap: 4px; }
+.home__feat-icon { font-size: 1.4rem; }
+.home__feat-sub { font-size: 0.75rem; color: var(--c-muted); }
+.card-row--4 { grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); }
+
+/* ── Research links (job cards) ── */
+.research-links { margin-top: 10px; }
+.research-links__toggle { cursor: pointer; font-size: 0.78rem; color: var(--c-muted);
+  -webkit-user-select: none; user-select: none; }
+.research-links__row { display: flex; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
+
+/* ── Discovery view ── */
+.disc-hero { padding: 20px 0 12px; }
+.disc-hero__title { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+.disc-hero__sub { color: var(--c-muted); font-size: 0.9rem; margin-bottom: 10px; }
+.disc-tips { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.disc-tip { padding: 14px; background: var(--c-glass); border: 1px solid var(--c-border);
+  border-radius: var(--radius-md); font-size: 0.85rem; }
+.disc-tip__icon { font-size: 1.2rem; display: block; margin-bottom: 6px; }
+@media (max-width: 500px) { .disc-tips { grid-template-columns: 1fr; } }
+
+/* ── Applications view ── */
+.apps-header, .opp-header, .budget-hero { padding: 12px 0 4px; }
+.apps-list { display: flex; flex-direction: column; gap: 12px; }
+.app-card { display: flex; gap: 12px; align-items: flex-start;
+  background: var(--c-glass); border: 1px solid var(--c-border); border-radius: var(--radius-md); padding: 14px; }
+.app-card__avatar, .opp-card__avatar { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--c-cyan), var(--c-violet));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; color: #000; }
+.app-card__body { flex: 1; min-width: 0; }
+.app-card__title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+.app-card__co { font-size: 0.8rem; color: var(--c-muted); margin-bottom: 6px; }
+.app-card__meta, .app-card__actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+
+/* ── Opportunities (company radar) ── */
+.opp-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: var(--c-glass); border: 1px solid var(--c-border); border-radius: var(--radius-md); margin-bottom: 8px; }
+.opp-card__info { flex: 1; min-width: 0; }
+.opp-card__name { font-weight: 600; font-size: 0.92rem; }
+.opp-card__meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+/* ── Debug readiness ── */
+.readiness-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 16px; margin-bottom: 16px; }
+.readiness-col__title { font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
+.readiness-item { font-size: 0.82rem; padding: 4px 0; border-bottom: 1px solid var(--c-border); }
+.readiness-item--warn { color: var(--c-warn); }
+.readiness-item--off { color: var(--c-disabled,#6b7280); }
+.readiness-hint { display: block; font-size: 0.7rem; color: var(--c-faint); }
+.todo-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.todo-item { padding: 10px 14px; background: var(--c-glass); border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm); font-size: 0.85rem; }
+
+/* ── Budget ── */
+.stat-card--provider { min-width: 120px; }
+.card-row--wrap { flex-wrap: wrap; gap: 8px; }

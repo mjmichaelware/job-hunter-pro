@@ -35,7 +35,9 @@ async function navigate(viewId) {
   if (!view) return;
   AppState.activeView = viewId;
   updateNavActive(viewId);
-  setViewTitle((typeof t === 'function' ? t('nav.' + viewId) : null) || view.label);
+  // Hidden views (landing) own their full-screen layout — suppress the page heading.
+  if (view.hidden) { setViewTitle(''); }
+  else { setViewTitle((typeof t === 'function' ? t('nav.' + viewId) : null) || view.label); }
   if (window.location.hash !== '#' + viewId) window.location.hash = '#' + viewId;
 
   const node = mount();
