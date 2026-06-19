@@ -11,6 +11,7 @@
   <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="/static/css/variables.css">
   <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/themes.css">
   <link rel="stylesheet" href="/static/css/a11y.css">
   <link rel="stylesheet" href="/static/css/layout.css">
   <link rel="stylesheet" href="/static/css/shaders.css">
@@ -42,10 +43,13 @@
 <div class="app-shell">
 
   <header class="app-header">
-    <div class="app-header__left"></div>
+    <div class="app-header__left">
+      <button type="button" id="nav-toggle" class="icon-btn" aria-label="Toggle navigation" aria-expanded="true" title="Menu">☰</button>
+    </div>
     <button type="button" id="app-title" class="app-header__title" data-i18n="app.title" aria-label="Job Hunter Pro — go home">Job Hunter Pro</button>
     <div class="app-header__tools">
       <button type="button" id="btn-command" class="icon-btn" aria-label="Open command palette" title="Search (⌘K)">⌘K</button>
+      <select id="theme-select" class="lang-select" aria-label="Color theme" title="Theme"></select>
       <select id="lang-select" class="lang-select" aria-label="Language">
         <option value="en">EN</option>
         <option value="es">ES</option>
@@ -123,6 +127,8 @@ if ('serviceWorker' in navigator) {
 <script src="/static/js/components/geo_radar.js"></script>
 <script src="/static/js/components/pipeline_reactor.js"></script>
 <script src="/static/js/components/boot_sequence.js"></script>
+<script src="/static/js/components/theme_switch.js"></script>
+<script src="/static/js/components/nav_toggle.js"></script>
 
 <!-- visuals (feature-detected, degrade gracefully) -->
 <script src="/static/js/visuals/volumetric.js"></script>

@@ -79,8 +79,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  if (typeof initTheme === 'function') initTheme();
   applyI18n(document);
   buildNav();
+  if (typeof initNav === 'function') initNav();
   if (typeof initVolumetric === 'function') initVolumetric();
 
   // One-per-session animated launch, then route. Boot spends nothing.

@@ -14,11 +14,15 @@ body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparen
   height: 100dvh;
   contain: layout size;
   display: grid;
-  grid-template-columns: 84px 1fr;        /* left nav rail + content */
+  grid-template-columns: 0 1fr;           /* nav width is data-nav driven */
   grid-template-rows: auto 1fr;
   padding-top: var(--safe-t);
   overflow: hidden;
+  transition: grid-template-columns 0.25s var(--spring-hud, ease);
 }
+.app-shell[data-nav="open"] { grid-template-columns: 184px 1fr; }
+.app-shell[data-nav="collapsed"] { grid-template-columns: 0 1fr; }
+.app-shell[data-nav="collapsed"] .app-nav { opacity: 0; pointer-events: none; }
 
 /* ── header (3 zones: spacer · centered title · tools) ────────────────── */
 .app-header {
@@ -70,11 +74,12 @@ body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparen
   flex: 0 0 auto;
   width: 100%;
   min-height: var(--tap);
-  padding: 6px 6px;
+  padding: 8px 12px;
   border: 0; border-radius: var(--radius-sm);
   background: transparent; color: var(--c-muted);
-  font-size: 0.66rem; font-weight: 600; line-height: 1.15;
-  text-align: center; cursor: pointer; word-break: break-word;
+  font-size: 0.9rem; font-weight: 600; line-height: 1.2;
+  text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: color 0.2s var(--ease), background 0.2s var(--ease);
 }
 .nav-btn:hover { color: var(--c-text); }
@@ -101,8 +106,7 @@ body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparen
 .card-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
 
 @media (min-width: 720px) {
-  .app-shell { grid-template-columns: 200px 1fr; }
-  .nav-btn { text-align: left; font-size: 0.82rem; padding: 6px 12px; }
+  .app-shell[data-nav="open"] { grid-template-columns: 200px 1fr; }
   .app-nav { padding-left: calc(var(--s-2) + var(--safe-l)); }
   .card-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

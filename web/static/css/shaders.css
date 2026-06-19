@@ -9,11 +9,11 @@
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  /* CSS fallback: two drifting radial halos in cyber-cyan + hyper-violet */
+  /* CSS fallback: two drifting radial halos, tinted by the active theme */
   background:
-    radial-gradient(60vmax 60vmax at 18% 12%, rgba(0, 255, 204, 0.16), transparent 60%),
-    radial-gradient(55vmax 55vmax at 85% 88%, rgba(157, 0, 255, 0.16), transparent 60%),
-    #000000;
+    radial-gradient(60vmax 60vmax at 18% 12%, rgba(var(--halo-a, 0, 255, 204), 0.16), transparent 60%),
+    radial-gradient(55vmax 55vmax at 85% 88%, rgba(var(--halo-b, 157, 0, 255), 0.16), transparent 60%),
+    var(--c-void, #000000);
   animation: halo-drift 24s var(--ease) infinite alternate;
 }
 

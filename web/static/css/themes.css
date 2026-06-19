@@ -1,0 +1,42 @@
+/* themes.css — selectable color themes on the OLED base. Set on <html data-theme>.
+   Each theme re-points the accent tokens the whole UI derives from; the #000000
+   void stays (OLED). theme_switch.js persists the choice. */
+
+/* default / cyan (matches base.css) */
+:root, html[data-theme="cyan"] {
+  --c-cyan: #00ffcc; --c-accent: #00ffcc; --c-violet: #9d00ff;
+  --halo-a: 0, 255, 204; --halo-b: 157, 0, 255;
+}
+html[data-theme="blue"] {
+  --c-cyan: #3b82f6; --c-accent: #3b82f6; --c-violet: #6366f1;
+  --halo-a: 59, 130, 246; --halo-b: 99, 102, 241;
+}
+html[data-theme="red"] {
+  --c-cyan: #ff5d6c; --c-accent: #ff5d6c; --c-violet: #ff8a3d;
+  --halo-a: 255, 93, 108; --halo-b: 255, 138, 61;
+}
+html[data-theme="green"] {
+  --c-cyan: #34e3a0; --c-accent: #34e3a0; --c-violet: #00b3a4;
+  --halo-a: 52, 227, 160; --halo-b: 0, 179, 164;
+}
+html[data-theme="violet"] {
+  --c-cyan: #b388ff; --c-accent: #b388ff; --c-violet: #9d00ff;
+  --halo-a: 179, 136, 255; --halo-b: 157, 0, 255;
+}
+html[data-theme="amber"] {
+  --c-cyan: #ffc24b; --c-accent: #ffc24b; --c-violet: #ff7a59;
+  --halo-a: 255, 194, 75; --halo-b: 255, 122, 89;
+}
+html[data-theme="mono"] {
+  --c-cyan: #e6e9ef; --c-accent: #e6e9ef; --c-violet: #9aa3b2;
+  --halo-a: 230, 233, 239; --halo-b: 154, 163, 178;
+}
+
+/* light mode keeps the accent but flips the surface (optional theme) */
+html[data-theme="light"] {
+  --c-void: #f7f8fa; --c-bg: #f7f8fa;
+  --c-glass: rgba(255, 255, 255, 0.72); --c-glass-2: rgba(240, 242, 246, 0.9);
+  --c-text: #0d1220; --c-muted: #51607a; --c-faint: #8a96ab;
+  --c-border: rgba(0, 0, 0, 0.12); --c-border-strong: rgba(0, 0, 0, 0.2);
+  --c-cyan: #0aa; --c-accent: #0a84ff;
+}
