@@ -32,6 +32,7 @@ self.addEventListener('fetch', function (e) {
     e.respondWith(fetch(req).catch(function () { return caches.match('/offline.html'); }));
     return;
   }
-  // Everything else (CSS/JS/API/assets): pure network — no cache read, no stale.
-  e.respondWith(fetch(req));
+  // Subresources (CSS/JS/API/assets): force no-store so neither the SW cache NOR
+  // the browser HTTP cache can ever serve a stale asset. Always fresh online.
+  e.respondWith(fetch(req, { cache: 'no-store' }).catch(function () { return fetch(req); }));
 });

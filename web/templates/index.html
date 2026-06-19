@@ -81,10 +81,19 @@
 <div id="aria-live" class="visually-hidden" role="status" aria-live="polite"></div>
 
 <script>
-// Register the offline-dignity service worker (root scope via /sw.js header).
+// Register the no-stale service worker. When a NEW worker takes control
+// (replacing a previously-installed one), force one reload so the page is
+// served fresh by the new network-only worker — never a cached app build.
 if ('serviceWorker' in navigator) {
+  var hadController = !!navigator.serviceWorker.controller;
+  var reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (hadController && !reloaded) { reloaded = true; window.location.reload(); }
+  });
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
+      if (reg && reg.update) { try { reg.update(); } catch (e) {} }
+    }).catch(function () {});
   });
 }
 </script>
