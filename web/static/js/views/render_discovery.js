@@ -14,11 +14,11 @@ async function loadDiscoveryView() {
   const countLabel = liveCount ? (liveCount + ' provider' + (liveCount === 1 ? '' : 's') + ' active') : 'Providers loading…';
 
   el.innerHTML = '<section class="discovery">'
-    + '<div class="disc-hero">'
-    + '<h2 class="disc-hero__title">Discovery Engine</h2>'
-    + '<p class="disc-hero__sub">Fan-out across ' + esc(countLabel) + '. Results are deduplicated and scored automatically.</p>'
-    + '<span class="badge badge-safe">safe by default</span>'
-    + '</div>'
+    + sectionHeader({
+        icon: 'discovery', kicker: 'Discovery engine',
+        title: 'Run a search',
+        blurb: 'Fan-out across ' + countLabel + ' simultaneously. Results are deduplicated, place-resolved, scored, and stored for free offline browsing. Opening this page spends nothing.',
+      })
     + '<div class="discovery__actions">'
     + '<button type="button" id="disc-reload" class="btn btn-glow">'
     + '<span class="btn__label">' + esc(t('jobs.reload')) + '</span>'

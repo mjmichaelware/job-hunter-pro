@@ -7,7 +7,11 @@ async function loadHistoryView() {
   JHP_SYNC.remember('history', data);
   const batches = arr(data, ['batches']);
 
-  let html = '';
+  let html = sectionHeader({
+    icon: 'history', kicker: 'System memory',
+    title: 'Discovery history',
+    blurb: 'Every discovery run is stored as a timestamped batch. Browse the timeline, compare accepted vs. rejected counts, and reopen any past result set — all free, no re-spend.',
+  });
   if (data.batch_count != null || data.job_count != null) {
     html += '<div class="card-row">'
       + (data.batch_count != null ? '<div class="stat-card"><div class="stat-card__label">Total batches</div><div class="stat-card__value">' + esc(String(data.batch_count)) + '</div></div>' : '')
@@ -16,8 +20,10 @@ async function loadHistoryView() {
   }
 
   if (!batches.length) {
-    html += '<p class="state-empty">No batch history exists yet. Run a discovery to create the first batch.</p>';
-    el.innerHTML = html; return;
+    html += emptyArt({ icon: 'history', title: 'No batch history yet',
+      body: 'Run a discovery and its results will be archived here as a timestamped batch you can revisit anytime.',
+      action: { label: 'Open Discovery', go: 'discovery' } });
+    el.innerHTML = html; wireGo(el); return;
   }
 
   // accepted-per-batch chart from real counts

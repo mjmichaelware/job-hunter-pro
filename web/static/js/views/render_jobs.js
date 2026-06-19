@@ -39,7 +39,12 @@ function renderJobsView() {
   const accepted = sortJobs(applyLocalFilters(_jobsState.jobs, f), AppState.sort);
   const unresolved = sortJobs(applyLocalFilters(_jobsState.rejected, f), AppState.sort);
 
-  let html = '<div class="toolbar"><p class="status-line">' + esc(_jobsState.msg) + '</p>'
+  let html = sectionHeader({
+    icon: 'jobs', kicker: 'Live results',
+    title: 'Jobs near you',
+    blurb: 'Every listing is deduplicated, place-resolved, and scored. Tap a card for full evidence, or open the research links to vet the employer on Glassdoor, BBB, and Google.',
+  });
+  html += '<div class="toolbar"><p class="status-line">' + esc(_jobsState.msg) + '</p>'
     + '<div class="toolbar-actions">'
     + '<button type="button" id="btn-filters" class="btn btn-filter" aria-label="Open filters">⚲ Filters' + filterCountBadge(f) + '</button>'
     + renderLayoutToggle() + renderGroupControl() + renderSortControl()
@@ -57,14 +62,22 @@ function renderJobsView() {
   }
 
   if (!_jobsState.jobs.length && !_jobsState.rejected.length) {
-    html += '<p class="state-empty">No saved jobs yet. Open <b>Discovery</b> to run the first search.</p>';
+    html += emptyArt({
+      icon: 'rocket', title: 'No saved jobs yet',
+      body: 'Run your first discovery to fan out across every active provider. Results are stored so you can browse them here for free, even offline.',
+      action: { label: 'Open Discovery', go: 'discovery' },
+    });
   } else {
     html += section('Accepted', accepted, false) + section('Needs resolution', unresolved, true);
-    if (!accepted.length && !unresolved.length) html += '<p class="state-empty">No jobs match the current filters.</p>';
+    if (!accepted.length && !unresolved.length) {
+      html += emptyArt({ icon: 'filter', title: 'No jobs match these filters', body: 'Loosen the radius, match score, or keyword filters to see more results.' });
+    }
   }
   el.innerHTML = html;
+  applyIndustryFromJobs(_jobsState.jobs);
   wireBentoCards(el, accepted.concat(unresolved));
   wireJobsToolbar(el);
+  wireGo(el);
 }
 
 function wireJobsToolbar(el) {

@@ -35,10 +35,11 @@ async function loadBudgetView() {
   const ok = healthData && (healthData.status === 'ok' || healthData.status === 'healthy');
   const ver = healthData && healthData.version ? healthData.version : null;
 
-  let html = '<div class="budget-hero">'
-    + '<h2 class="section-heading">Discovery Engine</h2>'
-    + '<p class="status-line">Powered by ' + pList.length + '+ free providers. No quota limits.</p>'
-    + '</div>';
+  let html = sectionHeader({
+    icon: 'budget', kicker: 'Engine status',
+    title: 'Discovery economy',
+    blurb: 'Powered by ' + pList.length + '+ free-tier providers with no quota limits. See what is live, what unlocks with a key, and how storage and system health look right now.',
+  });
 
   // Live count stats
   html += '<div class="card-row">'

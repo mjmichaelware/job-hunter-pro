@@ -45,17 +45,20 @@ async function loadApplicationsView() {
   JHP_SYNC.remember('applications', data);
   const apps = arr(data, ['applications']);
 
-  let html = '<div class="apps-header">'
-    + '<h2 class="section-heading">Your Application Pipeline</h2>'
-    + '<p class="status-line">Track every opportunity — stay organized and follow up with confidence.</p>'
-    + '</div>';
+  let html = sectionHeader({
+    icon: 'applications', kicker: 'Your pipeline',
+    title: 'Applications',
+    blurb: 'Track every opportunity from discovered to offered. Each card links back to the live posting and resolves the company so you always know what you applied to.',
+  });
 
   if (!apps.length) {
-    html += '<div class="info-box">No tracked applications yet. Open any job card and press <strong>"Track this job"</strong> to start tracking.</div>';
-    el.innerHTML = html; return;
+    html += emptyArt({ icon: 'applications', title: 'No applications tracked yet',
+      body: 'Open any job card and press "Track this job" — it lands here so you can manage status, notes, and follow-ups in one place.',
+      action: { label: 'Browse jobs', go: 'jobs' } });
+    el.innerHTML = html; wireGo(el); return;
   }
 
-  html += '<div class="apps-list">'
+  html += '<div class="apps-list stagger-in">'
     + apps.map(function (a) {
         const jid = a.job_id || '';
         const job = jobIndex[jid] || {};

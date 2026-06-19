@@ -28,13 +28,15 @@ async function loadHomeView() {
 
   // Hero
   let html = '<section class="home">'
-    + '<div class="home__hero">'
-    + '<div class="home__hero-inner">'
-    + '<h1 class="home__logo">Job Hunter Pro</h1>'
-    + '<p class="home__cycle"><span class="home__cycle-text">Discover. Resolve. Track. Get hired.</span></p>'
-    + '<div class="home__badges">' + statusBadge
-    + (ver ? ' <span class="badge badge-cached">v' + esc(ver) + '</span>' : '') + '</div>'
-    + '</div></div>';
+    + '<div class="hero">'
+    + '<div class="hero__art">' + icon('rocket', { size: 52 }) + '</div>'
+    + '<h1 class="hero__title">Job Hunter Pro</h1>'
+    + '<p class="hero__sub">Your local opportunity cockpit — discover jobs across 20+ free sources, '
+    + 'resolve real addresses and commute, score the match, and track every application in one place.</p>'
+    + '<div class="hero__badges">' + statusBadge
+    + (ver ? ' <span class="badge badge-cached">v' + esc(ver) + '</span>' : '')
+    + ' <span class="badge badge-safe">free to use</span></div>'
+    + '</div>';
 
   // Job carousel from most recent batch
   html += '<div class="home__section-label">Recently discovered jobs</div>';
@@ -56,18 +58,18 @@ async function loadHomeView() {
 
   // Feature marketing grid
   const features = [
-    { icon: '🔍', label: 'Multi-source discovery', sub: '20+ free job APIs, auto-fanout', go: 'discovery' },
-    { icon: '📍', label: 'Address resolution', sub: 'Commute, radius, maps links', go: 'jobs' },
-    { icon: '🧠', label: 'AI enrichment', sub: 'Scoring, classification, gap-fill', go: 'providers' },
-    { icon: '📋', label: 'Apply tracker', sub: 'Track every application', go: 'applications' },
+    { ic: 'discovery', label: 'Multi-source discovery', sub: '20+ free job APIs, fair fan-out', go: 'discovery' },
+    { ic: 'pin', label: 'Address resolution', sub: 'Commute, radius & map links', go: 'jobs' },
+    { ic: 'spark', label: 'AI enrichment', sub: 'Scoring, classification, gap-fill', go: 'providers' },
+    { ic: 'applications', label: 'Apply tracker', sub: 'Track every application', go: 'applications' },
   ];
   html += '<div class="home__section-label">What this does</div>'
-    + '<div class="card-row card-row--4">'
+    + '<div class="card-row card-row--4 stagger-in">'
     + features.map(function (f) {
-        return '<button type="button" class="stat-card stat-card--link home__feat" data-go="' + esc(f.go) + '">'
-          + '<div class="home__feat-icon">' + f.icon + '</div>'
-          + '<div class="stat-card__label">' + esc(f.label) + '</div>'
-          + '<div class="home__feat-sub">' + esc(f.sub) + '</div>'
+        return '<button type="button" class="stat-card stat-card--link feature-card" data-go="' + esc(f.go) + '">'
+          + '<span class="feature-card__icon">' + icon(f.ic, { size: 22 }) + '</span>'
+          + '<div class="feature-card__title">' + esc(f.label) + '</div>'
+          + '<div class="feature-card__sub">' + esc(f.sub) + '</div>'
           + '</button>';
       }).join('')
     + '</div>';
@@ -83,6 +85,7 @@ async function loadHomeView() {
     + '</section>';
 
   el.innerHTML = html;
+  if (typeof applyIndustry === 'function') applyIndustry(null);  // neutral accent on home
   el.querySelectorAll('[data-go]').forEach(function (c) {
     c.addEventListener('click', function () { navigate(c.dataset.go); });
   });

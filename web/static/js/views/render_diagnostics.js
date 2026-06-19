@@ -12,7 +12,12 @@ async function loadDiagnosticsView() {
   if (!h) { renderState(el, 'state-error', 'Backend unreachable — /api/health did not respond.'); return; }
 
   const ok = (h.status === 'ok' || h.status === 'healthy');
-  let html = '<section class="diagnostics">'
+  let html = sectionHeader({
+    icon: 'system', kicker: 'Diagnostics',
+    title: 'System health',
+    blurb: 'Live backend status, version, provider flags, and the origin/limits the engine is running with. Read-only — this view never spends quota.',
+  })
+    + '<section class="diagnostics">'
     + '<div class="card-row">'
     + '<div class="stat-card"><div class="stat-card__label">Status</div><div class="stat-card__value">'
     + '<span class="badge ' + (ok ? 'badge-safe' : 'badge-error') + '">' + esc(h.status || 'unknown') + '</span></div></div>'
@@ -34,9 +39,7 @@ async function loadDiagnosticsView() {
   html += '<h2 class="section-heading">Origin & limits</h2><table class="data-table"><tbody>'
     + '<tr><th>Origin</th><td>' + esc(h.origin || 'unavailable') + '</td></tr>'
     + '<tr><th>Max radius</th><td>' + (h.max_radius_miles != null ? esc(String(h.max_radius_miles)) + ' mi' : 'unavailable') + '</td></tr>'
-    + '<tr><th>Max transit</th><td>' + (h.max_transit_minutes != null ? esc(String(h.max_transit_minutes)) + ' min' : 'unavailable') + '</td></tr>'
-    + '<tr><th>Budget mode</th><td>' + (h.serpapi_budget_mode ? 'on' : 'off') + '</td></tr>'
-    + '<tr><th>Min searches guard</th><td>' + esc(String(h.serpapi_min_searches_left != null ? h.serpapi_min_searches_left : 'unavailable')) + '</td></tr>'
+    + '<tr><th>Max transit</th><td>' + (h.max_transit_minutes != null ? esc(String(h.max_transit_minutes)) + ' min (filter only)' : 'no cap') + '</td></tr>'
     + '<tr><th>Batch bucket</th><td>' + esc(h.batch_bucket || 'unavailable') + '</td></tr>'
     + '</tbody></table>';
 

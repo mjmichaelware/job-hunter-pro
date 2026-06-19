@@ -35,15 +35,18 @@ async function loadOpportunitiesView() {
 
   const companies = Object.values(companyMap).sort(function (a, b) { return b.count - a.count; });
 
-  let html = '<div class="opp-header">'
-    + '<h2 class="section-heading">Company Radar</h2>'
-    + '<p class="status-line">Hiring companies found in recent discovery batches.</p>'
-    + '</div>';
+  let html = sectionHeader({
+    icon: 'opportunities', kicker: 'Local radar',
+    title: 'Company radar',
+    blurb: 'Employers actively hiring across your recent discovery batches, ranked by open roles found. Tap Research to vet any company before you apply.',
+  });
 
   if (!companies.length) {
-    html += '<div class="info-box">No batch data yet. Run discovery to populate the company radar.</div>';
+    html += emptyArt({ icon: 'opportunities', title: 'Radar is empty',
+      body: 'Run a discovery and the companies hiring near you will surface here, ranked by how many roles they posted.',
+      action: { label: 'Open Discovery', go: 'discovery' } });
   } else {
-    html += '<div class="opp-list">'
+    html += '<div class="opp-list stagger-in">'
       + companies.slice(0, 40).map(function (c) {
           const srcs = Array.from(c.sources).join(', ');
           const initials = c.name.split(' ').slice(0, 2).map(function (w) { return w[0] || ''; }).join('').toUpperCase();
@@ -76,6 +79,7 @@ async function loadOpportunitiesView() {
   }
 
   el.innerHTML = html;
+  wireGo(el);
   JHP_SYNC.remember('opportunities', { companies: companies });
 }
 

@@ -12,7 +12,9 @@ function buildNav() {
     btn.type = 'button';
     btn.className = 'nav-btn';
     btn.dataset.view = id;
-    btn.textContent = (typeof t === 'function' ? t('nav.' + id) : null) || Views[id].label;
+    const label = (typeof t === 'function' ? t('nav.' + id) : null) || Views[id].label;
+    const glyph = (typeof icon === 'function') ? icon(id, { size: 18 }) : '';
+    btn.innerHTML = glyph + '<span class="nav-btn__label">' + label + '</span>';
     btn.addEventListener('click', function () { navigate(id); });
     nav.appendChild(btn);
   }

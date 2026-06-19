@@ -7,7 +7,12 @@ async function loadWhyThreeView() {
   if (!data) { renderState(el, 'state-error', 'Could not load why-three data.'); return; }
   JHP_SYNC.remember('why-three', data);
 
-  let html = '';
+  const headerHtml = sectionHeader({
+    icon: 'why-three', kicker: 'Decision layer',
+    title: 'Why these rank',
+    blurb: 'When the engine has enough high-confidence matches, it surfaces the top picks with the evidence behind each ranking — never a fabricated score.',
+  });
+  let html = headerHtml;
   const reason = data.main_reason || data.message || data.explanation || null;
   if (reason) html += '<div class="info-box">' + esc(reason) + '</div>';
 
@@ -36,8 +41,11 @@ async function loadWhyThreeView() {
     }).join('');
   }
 
-  if (!html) html = '<p class="state-empty">No explanation available yet. Run a discovery batch first.</p>';
+  if (html === headerHtml) html += emptyArt({ icon: 'why-three', title: 'No ranking computed yet',
+    body: 'Run a discovery batch — once there are enough scored candidates, the top picks and their evidence appear here.',
+    action: { label: 'Open Discovery', go: 'discovery' } });
   el.innerHTML = html;
+  wireGo(el);
 }
 
 registerView('why-three', 'Why Three', loadWhyThreeView);

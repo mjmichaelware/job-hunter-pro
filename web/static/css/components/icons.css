@@ -1,0 +1,26 @@
+/* components/icons.css — inline SVG icon sizing + accent behavior. */
+
+.icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: -0.18em;
+  color: currentColor;
+}
+
+/* nav rail: icon sits left of label, dims until active */
+.nav-btn .icon { margin-right: 10px; color: var(--c-muted); transition: color 0.18s var(--ease); }
+.nav-btn:hover .icon { color: var(--c-text); }
+/* active row fills with the accent; icon flips to the void color for contrast
+   (layout.css owns .nav-btn.nav-active .icon — keep them consistent here) */
+.nav-btn.nav-active .icon { color: var(--c-void); filter: none; }
+
+/* section-header + hero icons glow with the active accent */
+.section-header .icon,
+.hero .icon { color: var(--c-accent); }
+
+/* inline action icons in buttons/links */
+.btn .icon, .btn-link .icon, .icon-btn .icon { margin-right: 6px; }
+.btn-link .icon { margin-right: 4px; vertical-align: -0.14em; }
+
+/* empty-state art icon is large + faintly accented */
+.empty-art .icon { color: var(--c-accent); opacity: 0.85; filter: drop-shadow(0 0 16px var(--c-accent)); }

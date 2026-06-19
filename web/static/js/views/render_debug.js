@@ -15,7 +15,11 @@ async function loadDebugView() {
   const counts = { raw: data.raw_count, accepted: data.accepted_count, rejected: data.rejected_count, queries: data.query_count };
   const hasCounts = Object.keys(counts).some(function (k) { return counts[k] != null; });
 
-  let html = '';
+  let html = sectionHeader({
+    icon: 'debug', kicker: 'Transparency',
+    title: 'Pipeline & diagnostics',
+    blurb: 'See exactly what the engine fetched, accepted, and flagged — plus which APIs are live, which need a key, and the to-do list to unlock more sources.',
+  });
 
   // Pipeline funnel
   if (hasCounts) {

@@ -35,7 +35,13 @@ async function loadProvidersView() {
   const reasoning = providers.filter(function (p) { return p.type === 'reasoning' || p.type === 'llm'; });
   const other = providers.filter(function (p) { return discovery.indexOf(p) === -1 && reasoning.indexOf(p) === -1; });
 
-  el.innerHTML = _provTable(discovery, 'Discovery providers', 'These providers retrieve real job listings.')
+  const header = sectionHeader({
+    icon: 'providers', kicker: 'Source truth',
+    title: 'Providers',
+    blurb: 'Discovery providers retrieve real listings; reasoning models only classify, extract, and score — they never invent jobs. ' + discovery.length + ' discovery · ' + reasoning.length + ' reasoning registered.',
+  });
+  el.innerHTML = header
+    + _provTable(discovery, 'Discovery providers', 'These providers retrieve real job listings.')
     + _provTable(reasoning, 'Reasoning providers', 'Reasoning only — these LLMs classify, extract, and score. They are never used for job discovery.')
     + _provTable(other, 'Other providers', '');
 }

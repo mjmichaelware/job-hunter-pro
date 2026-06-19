@@ -79,11 +79,13 @@ body { touch-action: pan-y manipulation; -webkit-tap-highlight-color: transparen
   background: transparent; color: var(--c-muted);
   font-size: 0.9rem; font-weight: 600; line-height: 1.2;
   text-align: left; cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center;
   transition: color 0.2s var(--ease), background 0.2s var(--ease);
 }
+.nav-btn__label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-btn:hover { color: var(--c-text); }
-.nav-btn.nav-active { color: var(--c-void); background: var(--c-cyan); }
+.nav-btn.nav-active { color: var(--c-void); background: var(--c-accent); }
+.nav-btn.nav-active .icon { color: var(--c-void); filter: none; }
 
 /* ── main ─────────────────────────────────────────────────────────────── */
 .app-main {

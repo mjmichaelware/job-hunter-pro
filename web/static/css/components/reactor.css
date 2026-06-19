@@ -1,0 +1,38 @@
+/* components/reactor.css — pipeline reactor chain. Nodes ignite only on real
+   SSE events (see motion/animations.css ::ignite); idle state is plainly dim. */
+
+.reactor {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 16px; border-radius: var(--radius-lg);
+  background: var(--c-glass); border: 1px solid var(--c-border);
+}
+
+.reactor-node {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.72rem; letter-spacing: 0.02em; text-transform: uppercase; font-weight: 600;
+  color: var(--c-muted);
+  padding: 8px 12px; border-radius: 999px;
+  background: color-mix(in srgb, var(--c-void) 60%, transparent);
+  border: 1px solid var(--c-border);
+  position: relative;
+}
+/* connecting flow line between nodes */
+.reactor-node:not(:last-child)::after {
+  content: ""; width: 10px; height: 1px; margin-left: 4px;
+  background: linear-gradient(90deg, var(--c-border), transparent);
+}
+.reactor-node__n { color: var(--c-text); font-variant-numeric: tabular-nums; }
+
+/* a node lights up when its real count arrives over SSE */
+.reactor-node.is-active {
+  color: var(--c-accent);
+  border-color: color-mix(in srgb, var(--c-accent) 50%, transparent);
+  box-shadow: 0 0 14px -2px var(--c-accent);
+}
+.reactor-node.is-active .reactor-node__n { color: var(--c-accent); }
+
+.reactor-status { margin-top: 10px; font-size: 0.8rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reactor-node.is-active { animation: none !important; }
+}
