@@ -1,0 +1,16 @@
+.data-table th:first-child,
+.data-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 1;
+}
+
+@container bento (max-width: 340px) {
+  .data-table {
+    font-size: .82rem;
+  }
+  .col-secondary {
+    display: none;
+  }
+}

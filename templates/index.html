@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="app-shell">
+    <div id="view-mount" class="page-scroll-zone">
+        <div class="grid-system">
+            <!-- Jobs dynamically rendered here -->
+        </div>
+    </div>
+</div>
+
+<script>
+    const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    }[char]));
+
+    const minutes = seconds => Number.isFinite(Number(seconds)) ? `${Math.round(Number(seconds)/60)}m commute` : "Commute unknown";
+
+    async function load() {
+        try {
+            const res = await fetch('/api/demo');
+            const result = await res.json();
+            const jobs = result.data || [];
+            const grid = document.querySelector(".grid-system");
+            if (!grid) return;
+
+            grid.innerHTML = jobs.map((job, index) => {
+                const title = escapeHTML(job.title || "Untitled Role");
+                const company = escapeHTML(job.company || job.employer || "Company not listed");
+                const location = escapeHTML(job.location || "Location not listed");
+                const salary = escapeHTML(job.salary || job.pay || "Salary not listed");
+                const description = escapeHTML(job.description || job.summary || "No description available yet.");
+                const tags = Array.isArray(job.tags) ? job.tags.slice(0, 4) : [];
+                const match = Number.isFinite(Number(job.match)) ? `${Math.round(Number(job.match))}% match` : "New";
+                return `
+                    <article class="job-card reveal" style="animation-delay:${index * 45}ms">
+                        <span class="match">${escapeHTML(match)}</span>
+                        <h3>${title}</h3>
+                        <div class="company">${company}</div>
+                        <p class="meta">${location} • ${minutes(job.commute_seconds)}</p>
+                        <div class="salary">${salary}</div>
+                        <div class="tag-row">${tags.map(tag => `<span class="tag">${escapeHTML(tag)}</span>`).join("")}</div>
+                        <p class="description">${description}</p>
+                        <button class="action-btn" data-action="toggle-details">View Details</button>
+                    </article>`;
+            }).join("");
+
+            if (window.UI && typeof window.UI.observeReveals === "function") {
+                window.UI.observeReveals();
+            } else {
+                const items = document.querySelectorAll(".reveal:not(.visible)");
+                if (!("IntersectionObserver" in window)) {
+                    items.forEach(el => el.classList.add("visible"));
+                } else {
+                    const observer = new IntersectionObserver(entries => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add("visible");
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    }, { threshold: 0.12 });
+                    items.forEach(el => observer.observe(el));
+                }
+            }
+        } catch (err) {
+            console.error("Error loading demo jobs:", err);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", load);
+</script>
+{% endblock %}

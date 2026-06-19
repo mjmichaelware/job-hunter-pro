@@ -1,0 +1,54 @@
+:root{
+  --bg:#000000;--bg2:#0b1020;--void-surface:#000000;--panel:rgba(255,255,255,.06);--panel2:rgba(255,255,255,.1);
+  --text:#f5f7fb;--muted:#a8b0c3;--soft:#d7dbea;--line:rgba(255,255,255,.14);
+  --primary:#7c5cff;--primary2:oklch(85% 0.15 180);--good:#39ff88;--warn:oklch(80% 0.15 85);--danger:oklch(65% 0.2 25);
+  --radius:22px;--radius-sm:14px;--shadow:0 24px 80px rgba(0,0,0,.45);
+  --ease:cubic-bezier(.2,.8,.2,1);--fast:160ms;--med:320ms;--slow:700ms;
+  --container:1180px;--pad:clamp(1rem,3vw,2rem);
+}
+*{box-sizing:border-box}
+html{
+  scroll-behavior:smooth;
+  scrollbar-gutter:stable;
+  overscroll-behavior:none;
+  touch-action:pan-y manipulation;
+  overflow-x:clip;
+}
+body{
+  margin:0;background:
+  radial-gradient(circle at 10% 10%,rgba(124,92,255,.28),transparent 30%),
+  radial-gradient(circle at 90% 20%,rgba(0,229,255,.18),transparent 28%),
+  linear-gradient(135deg,var(--bg),var(--bg2));
+  color:var(--text);min-height:100svh;
+  overflow-x:clip;
+  overscroll-behavior:none;
+  touch-action:pan-y manipulation;
+  -webkit-overflow-scrolling:touch;
+}
+body:before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:linear-gradient(to bottom,black,transparent 80%);
+}
+::selection{background:var(--primary);color:white}
+:focus-visible{outline:2px solid var(--primary2);outline-offset:4px}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Glassmorphism substrate selector using oklch color-mix and backdrop filter */
+.bento-glass-substrate {
+  background: color-mix(in oklch, var(--void-surface) 65%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(180%) contrast(1.1);
+  backdrop-filter: blur(24px) saturate(180%) contrast(1.1);
+}
+
+/* Suppress Web Browser Default highlight behavior */
+a, button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Suppress text selection on interactive components */
+.panel, .badge, button, .logo, .bento-glass-substrate {
+  user-select: none;
+  -webkit-user-select: none;
+}
+

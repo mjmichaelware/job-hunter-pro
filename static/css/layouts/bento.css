@@ -1,0 +1,14 @@
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+.bento-card {
+  min-width: 0;
+  contain: content;
+  container-type: inline-size;
+  container-name: bento;
+}
+.scroll-zone {
+  min-width: 0;
+  overflow-x: auto;
+}
