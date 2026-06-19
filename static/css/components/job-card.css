@@ -3,6 +3,7 @@
   border:1px solid var(--line);border-radius:var(--radius);padding:1.35rem;
   position:relative;overflow:hidden;box-shadow:0 10px 35px rgba(0,0,0,.24);
   transform-style:preserve-3d;transition:transform var(--med) var(--ease),border-color var(--med),box-shadow var(--med),background var(--med);
+  content-visibility: auto; contain-intrinsic-size: auto 250px; contain: content;
 }
 .job-card:before{
   content:"";position:absolute;inset:-40%;background:radial-gradient(circle,rgba(0,229,255,.18),transparent 35%);
