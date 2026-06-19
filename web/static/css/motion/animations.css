@@ -28,3 +28,34 @@
 /* pipeline reactor node ignition (only fires on real SSE events) */
 .reactor-node.is-active { animation: ignite 0.5s var(--spring); }
 @keyframes ignite { 0% { transform: scale(0.9); filter: brightness(1); } 50% { transform: scale(1.06); filter: brightness(1.6); } 100% { transform: scale(1); } }
+
+/* ── HUD interaction motion (interaction-bound, never idle decoration) ── */
+/* bento tile lift + accent edge on hover/focus (pointer feedback) */
+.bento { transition: transform 0.18s var(--spring-hud, var(--spring)), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease); }
+@media (hover: hover) {
+  .bento:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px var(--c-cyan); }
+}
+.bento:active { transform: scale(0.99); }
+.bento:focus-visible { box-shadow: 0 0 0 2px var(--c-cyan); }
+
+/* active nav item breathes a faint accent glow (state-bound: only the active tab) */
+.nav-btn.nav-active { box-shadow: 0 0 14px -2px var(--c-cyan); }
+
+/* tactile press for segmented/pill/icon controls */
+.seg__btn:active, .pill:active, .icon-btn:active, .btn:active { transform: scale(0.94); }
+
+/* staggered reveal of cards when a real list renders (cap the stagger) */
+.view-enter .bento { animation: card-in 0.32s var(--ease) both; }
+.view-enter .bento:nth-child(2) { animation-delay: 0.04s; }
+.view-enter .bento:nth-child(3) { animation-delay: 0.08s; }
+.view-enter .bento:nth-child(4) { animation-delay: 0.12s; }
+.view-enter .bento:nth-child(n+5) { animation-delay: 0.16s; }
+@keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* count change pulse for live metric numbers (add .flash on real update) */
+.metric-num.flash, .stat-card__value.flash { animation: num-pop 0.5s var(--spring); }
+@keyframes num-pop { 0% { transform: scale(1); } 40% { transform: scale(1.12); color: var(--c-cyan); } 100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bento, .view-enter .bento { animation: none !important; transition: none !important; transform: none !important; }
+}
