@@ -109,6 +109,18 @@ def create_app():
             return send_from_directory(STATIC_DIR, "icon.svg", mimetype="image/svg+xml")
         return ("", 204)
 
+    @app.get("/sw.js")
+    def service_worker():
+        # Served from root so the worker controls the whole "/" scope (PWA offline).
+        resp = send_from_directory(STATIC_DIR, "sw.js", mimetype="application/javascript")
+        resp.headers["Service-Worker-Allowed"] = "/"
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+    @app.get("/offline.html")
+    def offline():
+        return render_template("offline.html")
+
     @app.get("/api/_surface")
     def surface():
         return jsonify({

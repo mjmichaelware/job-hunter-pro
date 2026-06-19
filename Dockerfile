@@ -7,7 +7,9 @@ ENV PORT=8080
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt \
+ && python -c "import flask, google.cloud.firestore, google.cloud.storage; print('build-deps-ok')"
 
 COPY . .
 

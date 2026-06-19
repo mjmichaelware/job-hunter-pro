@@ -1,12 +1,15 @@
+from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field
+from ._base import Model
 
-class Rejection(BaseModel):
+
+@dataclass
+class Rejection(Model):
     """
     Records why a raw search result was rejected from a batch.
     """
-    batch_id: str = Field(..., description="The batch in which this rejection occurred.")
-    raw_result_id: Optional[str] = Field(None, description="Foreign key to the raw result, if stored.")
-    job_id: Optional[str] = Field(None, description="Foreign key to a job, if it was resolved before rejection.")
-    reason: str = Field(..., description="The primary reason for rejection (from RejectionReason enum).")
-    details: Dict[str, Any] = Field(default_factory=dict, description="Additional details about the rejection.")
+    batch_id: str
+    reason: str
+    raw_result_id: Optional[str] = None
+    job_id: Optional[str] = None
+    details: Dict[str, Any] = field(default_factory=dict)

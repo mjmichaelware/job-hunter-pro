@@ -1,0 +1,63 @@
+/* components/marketing.css — branded section headers, hero, illustrated empty
+   states, feature cards. Accent-driven so theme + industry cascade through. */
+
+/* ── Section header (every tab) ── */
+.section-header { margin: 4px 0 18px; }
+.section-header__bar { display: flex; align-items: center; gap: 12px; }
+.section-header__icon {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+}
+.section-header__kicker {
+  font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700;
+  background: linear-gradient(90deg, var(--c-accent), var(--c-violet));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.section-header__title { font-size: 1.4rem; font-weight: 750; letter-spacing: -0.02em; }
+.section-header__blurb { color: var(--c-muted); font-size: 0.9rem; margin-top: 8px; max-width: 60ch; }
+
+/* ── Hero (landing/home) ── */
+.hero { text-align: center; padding: 32px 16px 22px; position: relative; }
+.hero__art { display: grid; place-items: center; margin-bottom: 14px; }
+.hero__title {
+  font-size: clamp(1.9rem, 6vw, 2.8rem); font-weight: 800; letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--c-accent), var(--c-violet) 80%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero__sub { color: var(--c-muted); font-size: 1rem; margin: 10px auto 0; max-width: 52ch; }
+.hero__badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+
+/* ── Illustrated empty / needs-action state ── */
+.empty-art {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 12px; padding: 40px 20px; border: 1px dashed var(--c-border);
+  border-radius: var(--radius-lg); background: var(--c-glass);
+}
+.empty-art__icon {
+  display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--c-accent) 18%, transparent), transparent 70%);
+}
+.empty-art__title { font-size: 1.1rem; font-weight: 700; }
+.empty-art__body { color: var(--c-muted); font-size: 0.9rem; max-width: 44ch; }
+.empty-art__cta { margin-top: 6px; }
+
+/* ── Feature cards (home "what this does") ── */
+.feature-card { flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; }
+.feature-card__icon {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent); color: var(--c-accent); margin-bottom: 2px;
+}
+.feature-card__title { font-weight: 650; font-size: 0.95rem; }
+.feature-card__sub { font-size: 0.78rem; color: var(--c-muted); }
+
+/* ── Info rail (helpful contextual strip under headers) ── */
+.info-rail {
+  display: flex; gap: 10px; flex-wrap: wrap; margin: -6px 0 18px;
+}
+.info-rail__chip {
+  font-size: 0.76rem; color: var(--c-muted); padding: 6px 12px; border-radius: 999px;
+  background: var(--c-glass); border: 1px solid var(--c-border); display: inline-flex; align-items: center; gap: 6px;
+}
+.info-rail__chip .icon { color: var(--c-accent); }

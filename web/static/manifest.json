@@ -1,18 +1,19 @@
 {
   "name": "Job Hunter Pro",
   "short_name": "JHP",
-  "description": "Safe cached job intelligence dashboard for Job Hunter Pro.",
+  "description": "Local opportunity intelligence cockpit — discover, resolve, and track jobs.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#120f1f",
-  "theme_color": "#120f1f",
+  "orientation": "portrait-primary",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
-      "src": "/static/icon.svg",
-      "sizes": "512x512",
+      "src": "/static/assets/icons/icon.svg",
+      "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

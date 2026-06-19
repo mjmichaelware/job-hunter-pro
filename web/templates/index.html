@@ -1,514 +1,159 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job Hunter Pro</title>
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="manifest" href="/static/manifest.json">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Job Hunter Pro</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/themes.css">
+  <link rel="stylesheet" href="/static/css/themes-industry.css">
+  <link rel="stylesheet" href="/static/css/a11y.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/shaders.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/components/buttons.css">
+  <link rel="stylesheet" href="/static/css/components/cards.css">
+  <link rel="stylesheet" href="/static/css/components/badges.css">
+  <link rel="stylesheet" href="/static/css/components/tables.css">
+  <link rel="stylesheet" href="/static/css/components/forms.css">
+  <link rel="stylesheet" href="/static/css/components/command.css">
+  <link rel="stylesheet" href="/static/css/components/icons.css">
+  <link rel="stylesheet" href="/static/css/components/marketing.css">
+  <link rel="stylesheet" href="/static/css/components/reactor.css">
+  <link rel="stylesheet" href="/static/css/components/radar.css">
+  <link rel="stylesheet" href="/static/css/motion/transitions.css">
+  <link rel="stylesheet" href="/static/css/motion/animations.css">
+  <link rel="stylesheet" href="/static/css/motion/boot.css">
 </head>
 <body>
-    <canvas id="webgpu-canvas" aria-hidden="true"></canvas>
-<div id="app-status" class="sr-only" aria-live="polite" aria-atomic="true">Opening this dashboard does not run live discovery. Offline cached history may be stale.</div>
-<aside id="sidebar">
-        <div id="logo-container">
-            <div id="logo-badge"></div>
-            <span>JOB HUNTER PRO</span>
-        </div>
-        <nav>
-            <button class="nav-tab active" data-tab="overview">Overview</button>
-            <button class="nav-tab" data-tab="live_jobs">Live Jobs</button>
-            <button class="nav-tab" data-tab="opportunities">Opportunities</button>
-            <button class="nav-tab" data-tab="history">History</button>
-            <button class="nav-tab" data-tab="debug_evidence">Debug Evidence</button>
-            <button class="nav-tab" data-tab="providers">Providers</button>
-            <button class="nav-tab" data-tab="budget">Budget</button>
-            <button class="nav-tab" data-tab="why_three">Why Three</button>
-        </nav>
-        <div id="sidebar-footer">
-            <div style="margin-bottom:var(--space-sm); display:flex; justify-content:center; gap:var(--space-xs);">
-                <button class="badge badge-cached lang-btn active" data-lang="en">EN</button>
-                <button class="badge badge-cached lang-btn" data-lang="es">ES</button>
-                <button class="badge badge-cached lang-btn" data-lang="ru">RU</button>
-            </div>
-            <div class="metric-label">System State</div>
-            <div id="system-status-badge" class="badge badge-safe">SAFE</div>
-            <div style="font-size:0.65rem; margin-top:4px; opacity:0.7;">Opening this dashboard does not run live discovery.</div>
-        </div>
-    </aside>
-    <main id="main-content">
-        <header id="header">
-            <div style="display:flex; align-items:center; gap:var(--space-sm);">
-                <button id="mobile-menu-toggle" class="badge" style="display:none; cursor:pointer; background:var(--surface2); padding:8px;" aria-label="Open menu">☰</button>
-                <h1 id="header-title">System Overview</h1>
-            </div>
-            <div style="display:flex;gap:var(--space-sm);align-items:center;">
-                <div id="filter-count-badge" class="badge" style="display:none;background:var(--accent);">0 filters</div>
-                <button id="toggle-filters" class="badge badge-cached" style="cursor:pointer;" aria-expanded="false" aria-controls="filter-drawer">Filters</button>
-                <div id="live-action-guard" style="display:flex; align-items:center; gap:var(--space-sm);">
-                    <span style="font-size:0.7rem; color:var(--accent); font-weight:bold;">May use discovery provider budget.</span>
-                    <button id="trigger-discovery-btn" class="badge badge-live" style="cursor:pointer;">Confirm Live Discovery</button>
-                    <button id="cancel-discovery-btn" class="badge" style="cursor:pointer; background:var(--surface2);">Cancel</button>
-                </div>
-                <button id="prepare-discovery-btn" class="badge badge-live" style="cursor:pointer;display:inline-flex;">Run Live Discovery</button>
-            </div>
-        </header>
+<a href="#view-mount" class="skip-link">Skip to content</a>
 
-        <div id="filter-bar" style="padding: 0 var(--space-md); margin-bottom: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center;">
-            <div id="active-filters-chips" style="display: flex; flex-wrap: wrap; gap: var(--space-xs);"></div>
-            <button id="reset-all-filters" class="badge" style="display:none; cursor:pointer; background:var(--border);">Reset All</button>
-        </div>
+<canvas id="halo-canvas" aria-hidden="true"></canvas>
 
-        <div id="always-visible-filters" style="padding: 0 var(--space-md); margin-bottom: var(--space-md); display: flex; flex-wrap: wrap; gap: var(--space-md); font-size: 0.85rem;">
-            <div class="filter-group">
-                <label for="filter-mode">Mode</label>
-                <select id="filter-mode" class="badge-cached">
-                    <option value="">All Modes</option>
-                    <option value="search">Search</option>
-                    <option value="radar">Radar</option>
-                    <option value="dry_run">Dry Run</option>
-                    <option value="live_run">Live Run</option>
-                    <option value="history">History</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filter-industry">Industry</label>
-                <select id="filter-industry" class="badge-cached">
-                    <option value="">All Industries</option>
-                    <option value="food_service">Food Service</option>
-                    <option value="hospitality">Hospitality</option>
-                    <option value="care_social">Care & Social</option>
-                    <option value="sales">Sales</option>
-                    <option value="customer_service">Customer Service</option>
-                    <option value="retail_ops">Retail Operations</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filter-provider">Provider</label>
-                <select id="filter-provider" class="badge-cached">
-                    <option value="">All Providers</option>
-                    <option value="serpapi">SerpAPI</option>
-                    <option value="adzuna">Adzuna</option>
-                    <option value="careerjet">Careerjet</option>
-                    <option value="jooble">Jooble</option>
-                    <option value="usajobs">USAJobs</option>
-                    <option value="themuse">The Muse</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filter-status">Status</label>
-                <select id="filter-status" class="badge-cached">
-                    <option value="">All Statuses</option>
-                    <option value="new">New</option>
-                    <option value="accepted">Accepted</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label for="filter-sort">Sort</label>
-                <select id="filter-sort" class="badge-cached">
-                    <option value="newest">Newest</option>
-                    <option value="score">Highest Score</option>
-                    <option value="distance">Nearest</option>
-                </select>
-            </div>
-            <div class="filter-group" style="min-width: 120px;">
-                <label for="filter-radius">Radius: <span id="radius-val">5</span>mi</label>
-                <input type="range" id="filter-radius" min="1" max="25" value="5">
-            </div>
-            <div class="filter-group" style="min-width: 120px;">
-                <label for="filter-match">Match: <span id="match-val">60</span>%</label>
-                <input type="range" id="filter-match" min="0" max="100" value="60">
-            </div>
-        </div>
+<!-- one-per-session animated launch sequence (boot_sequence.js controls it) -->
+<div id="boot-splash" hidden aria-hidden="true">
+  <svg id="boot-mark" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+    <circle class="boot-mark__halo" cx="60" cy="60" r="44"/>
+    <path class="boot-mark__stroke" d="M78 26 L78 78 a22 22 0 1 1 -22 -22" fill="none"/>
+  </svg>
+  <div class="boot-splash__name">JOB HUNTER PRO</div>
+</div>
 
+<div class="app-shell">
 
-        <!-- OVERVIEW TAB -->
-        <section id="tab-overview" class="tab-panel active">
-            <div class="grid-overview">
-                <div class="card" data-target="live_jobs" role="button" tabindex="0">
-                    <div class="metric-label">Accepted Live Jobs</div>
-                    <div class="metric-num" id="overview-accepted-count">-</div>
-                </div>
-                <div class="card" data-target="opportunities" role="button" tabindex="0">
-                    <div class="metric-label">Opportunities Radar</div>
-                    <div class="metric-num" id="overview-opp-count">-</div>
-                </div>
-                <div class="card" data-target="history" role="button" tabindex="0">
-                    <div class="metric-label">Discovered Batches</div>
-                    <div class="metric-num" id="overview-batch-count">-</div>
-                </div>
-                <div class="card" data-target="budget" role="button" tabindex="0">
-                    <div class="metric-label">Budget Efficiency</div>
-                    <div class="metric-num" id="overview-budget-burn">-</div>
-                </div>
-            </div>
-            <div class="grid-overview" style="margin-top:var(--space-md);">
-                <div class="card">
-                    <h3>Pipeline Funnel</h3>
-                    <div id="pipeline-funnel-chart" class="chart-wrapper"></div>
-                </div>
-                <div class="card">
-                    <h3>Industry Distribution</h3>
-                    <div id="industry-dist-chart" class="chart-wrapper"></div>
-                </div>
-            </div>
-            <div class="card" style="margin-top:var(--space-md);">
-                <h3>Pipeline Engine Stream</h3>
-                <div id="pipeline-stream" class="chart-wrapper">
-                    <div class="chart-fallback">Live stream inactive. Connect pipeline to watch ingestion flow.</div>
-                </div>
-            </div>
-        </section>
-
-
-        <!-- LIVE JOBS TAB -->
-        <section id="tab-live_jobs" class="tab-panel">
-            <div class="card">
-                <div id="jobs-container"></div>
-            </div>
-        </section>
-
-
-        <!-- OPPORTUNITIES TAB -->
-        <section id="tab-opportunities" class="tab-panel">
-            <div class="grid-overview" style="margin-bottom: var(--space-md);">
-                <div class="card">
-                    <h3>Geography Radar</h3>
-                    <div id="geo-radar-summary" style="font-size: 0.85rem; color: var(--muted);">
-                        Origin: <span id="geo-origin-addr" class="badge">Loading...</span>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>Markov Vacancy Prediction (Beta)</h3>
-                    <div id="markov-radar-container">
-                        <div class="chart-fallback">Radar offline. Requires active business category seed.</div>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <h3>Business Opportunities</h3>
-                <div id="opportunities-container"></div>
-            </div>
-        </section>
-
-
-        <!-- HISTORY TAB -->
-        <section id="tab-history" class="tab-panel">
-            <div class="grid-overview" style="margin-bottom:var(--space-md);">
-                <div class="card">
-                    <h3>Accepted Over Time</h3>
-                    <div id="history-over-time-chart" class="chart-wrapper"></div>
-                </div>
-                <div class="card">
-                    <h3>Rejection Distribution</h3>
-                    <div id="rejection-dist-chart" class="chart-wrapper"></div>
-                </div>
-            </div>
-            <div class="card">
-                <table id="history-table">
-                    <thead>
-                        <tr>
-                            <th>Batch ID</th>
-                            <th>Timestamp</th>
-                            <th>Trigger</th>
-                            <th>Accepted</th>
-                            <th>Rejected</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-rows"></tbody>
-                </table>
-            </div>
-        </section>
-
-
-        <!-- DEBUG EVIDENCE TAB -->
-        <section id="tab-debug_evidence" class="tab-panel">
-            <div class="card">
-                <div id="debug-container"></div>
-            </div>
-        </section>
-
-
-        <!-- PROVIDERS TAB -->
-        <section id="tab-providers" class="tab-panel">
-            <div class="grid-overview" id="providers-container"></div>
-        </section>
-
-
-        <!-- BUDGET TAB -->
-        <section id="tab-budget" class="tab-panel">
-            <div class="grid-overview">
-                <div class="card">
-                    <div class="metric-label">Available Quota</div>
-                    <div class="metric-num" id="budget-left">-</div>
-                </div>
-                <div class="card">
-                    <div class="metric-label">Safe Load Protection</div>
-                    <div id="budget-safe-indicator" class="badge badge-safe">ACTIVE</div>
-                </div>
-                <div class="card">
-                    <div class="metric-label">Monthly Usage</div>
-                    <div class="metric-num" id="budget-monthly-usage">-</div>
-                </div>
-                <div class="card">
-                    <div class="metric-label">Estimated Action Cost</div>
-                    <div class="metric-num" id="budget-est-cost">-</div>
-                </div>
-            </div>
-            
-            <div class="grid-overview" style="margin-top:var(--space-md);">
-                <div class="card">
-                    <h3>Budget Usage Over Time</h3>
-                    <div id="budget-usage-chart" class="chart-wrapper"></div>
-                </div>
-                <div class="card">
-                    <h3>Provider Mix</h3>
-                    <div id="provider-mix-chart" class="chart-wrapper"></div>
-                </div>
-            </div>
-
-            <div class="grid-overview" style="margin-top:var(--space-md);">
-                <div class="card">
-                    <h3>Provider Quota Health</h3>
-                    <div id="provider-budget-list">
-                        <!-- Injected via JS -->
-                    </div>
-                </div>
-                <div class="card">
-                    <h3>Budget Controls</h3>
-                    <div style="display:flex; flex-direction:column; gap:var(--space-md);">
-                        <button id="dry-run-plan-btn" class="badge badge-cached" style="cursor:pointer;padding:12px 24px;">Generate Dry-Run Execution Plan</button>
-                        <div id="dry-run-warning" style="font-size:0.75rem; opacity:0.8;">Safe: Does not spend provider budget.</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card" style="margin-top:var(--space-md);">
-                <h3>Execution Plan / Dry-Run Output</h3>
-                <pre id="dry-run-output" style="margin-top:16px;font-size:0.85rem;background:rgba(0,0,0,0.3);padding:12px;border-radius:4px;display:none;"></pre>
-            </div>
-        </section>
-
-
-        <!-- WHY THREE TAB -->
-        <section id="tab-why_three" class="tab-panel">
-            <div class="card">
-                <h3>Resonance Match Metrics</h3>
-                <div id="resonance-comparison-chart" class="chart-wrapper" style="margin-bottom:var(--space-md);"></div>
-                <div id="why-three-container"></div>
-            </div>
-        </section>
-    </main>
-
-
-    <aside id="filter-drawer" aria-labelledby="drawer-title" role="dialog" aria-modal="true">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-md);">
-            <h3 id="drawer-title">Advanced Filters</h3>
-            <button id="close-filters" class="badge" aria-label="Close filters" style="cursor:pointer; background:var(--surface2);">✕</button>
-        </div>
-        <hr style="border-color:var(--border);margin:12px 0;">
-        
-        <div class="filter-section">
-            <h4 style="margin-bottom:var(--space-sm); font-size:0.9rem; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Core Filters</h4>
-            
-            <label for="drawer-filter-mode">Mode</label>
-            <select id="drawer-filter-mode">
-                <option value="">All Modes</option>
-                <option value="search">Search</option>
-                <option value="radar">Radar</option>
-                <option value="dry_run">Dry Run</option>
-                <option value="live_run">Live Run</option>
-                <option value="history">History</option>
-            </select>
-
-            <label for="drawer-filter-industry">Industry</label>
-            <select id="drawer-filter-industry">
-                <option value="">All Industries</option>
-                <option value="food_service">Food Service</option>
-                <option value="hospitality">Hospitality</option>
-                <option value="care_social">Care & Social</option>
-                <option value="sales">Sales</option>
-                <option value="customer_service">Customer Service</option>
-                <option value="retail_ops">Retail Operations</option>
-            </select>
-
-            <label for="drawer-filter-provider">Provider</label>
-            <select id="drawer-filter-provider">
-                <option value="">All Providers</option>
-                <option value="serpapi">SerpAPI</option>
-                <option value="adzuna">Adzuna</option>
-                <option value="careerjet">Careerjet</option>
-                <option value="jooble">Jooble</option>
-                <option value="usajobs">USAJobs</option>
-                <option value="themuse">The Muse</option>
-            </select>
-
-            <label for="drawer-filter-status">Status</label>
-            <select id="drawer-filter-status">
-                <option value="">All Statuses</option>
-                <option value="new">New</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-            </select>
-
-            <label for="drawer-filter-sort">Sort</label>
-            <select id="drawer-filter-sort">
-                <option value="newest">Newest</option>
-                <option value="score">Highest Score</option>
-                <option value="distance">Nearest</option>
-            </select>
-
-            <label for="drawer-filter-radius">Radius: <span id="drawer-radius-val">5</span>mi</label>
-            <input type="range" id="drawer-filter-radius" min="1" max="25" value="5">
-
-            <label for="drawer-filter-match">Match: <span id="drawer-match-val">60</span>%</label>
-            <input type="range" id="drawer-filter-match" min="0" max="100" value="60">
-        </div>
-
-        <div class="filter-section">
-            <h4 style="margin-bottom:var(--space-sm); font-size:0.9rem; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Advanced Parameters</h4>
-            <label for="filter-walk">Max Walk (Min): <span id="walk-val">30</span></label>
-            <input type="range" id="filter-walk" min="5" max="60" step="5" value="30">
-            
-            <label for="filter-transit">Max Transit (Min): <span id="transit-val">60</span></label>
-            <input type="range" id="filter-transit" min="15" max="120" step="15" value="60">
-            
-            <label for="filter-rating">Min Rating: <span id="rating-val">0</span></label>
-            <input type="range" id="filter-rating" min="0" max="5" step="0.5" value="0">
-            
-            <label for="filter-review">Min Review Score: <span id="review-val">0</span></label>
-            <input type="range" id="filter-review" min="0" max="100" value="0">
-        </div>
-
-        <div class="filter-section">
-            <label for="filter-job-type">Job Type</label>
-            <select id="filter-job-type">
-                <option value="">All Types</option>
-                <option value="full_time">Full Time</option>
-                <option value="part_time">Part Time</option>
-                <option value="contract">Contract</option>
-            </select>
-
-            <label for="filter-pay">Pay Hint</label>
-            <select id="filter-pay">
-                <option value="">Any</option>
-                <option value="hourly">Hourly</option>
-                <option value="salary">Salary</option>
-                <option value="commission">Commission</option>
-            </select>
-
-            <label for="filter-remote">Remote / Onsite</label>
-            <select id="filter-remote">
-                <option value="">All</option>
-                <option value="onsite">Onsite</option>
-                <option value="remote">Remote</option>
-                <option value="hybrid">Hybrid</option>
-            </select>
-        </div>
-
-        <div class="filter-section">
-            <label for="filter-batch">Batch ID</label>
-            <input type="text" id="filter-batch" placeholder="e.g. b8f2..." style="width:100%; padding:var(--space-sm); background:var(--surface2); border:1px solid var(--border); color:var(--text); margin-bottom:var(--space-md);">
-
-            <label for="filter-time">Time Range</label>
-            <select id="filter-time">
-                <option value="all">All Time</option>
-                <option value="24h">Last 24 Hours</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-            </select>
-        </div>
-
-        <div class="filter-section">
-            <label for="filter-rejection">Rejection Reason</label>
-            <select id="filter-rejection">
-                <option value="">Any</option>
-                <option value="not_food_service">Industry Mismatch</option>
-                <option value="outside_radius">Outside Radius</option>
-                <option value="duplicate">Duplicate</option>
-                <option value="low_confidence">Low Confidence</option>
-            </select>
-
-            <label for="filter-confidence">Min Confidence: <span id="conf-val">0</span>%</label>
-            <input type="range" id="filter-confidence" min="0" max="100" value="0">
-        </div>
-
-        <div class="filter-section">
-            <label for="filter-place-status">Place Status</label>
-            <select id="filter-place-status">
-                <option value="">All</option>
-                <option value="resolved">Resolved</option>
-                <option value="ambiguous">Ambiguous</option>
-                <option value="failed">Failed</option>
-            </select>
-
-            <label for="filter-app-state">Application State</label>
-            <select id="filter-app-state">
-                <option value="">All</option>
-                <option value="not_applied">Not Applied</option>
-                <option value="applied">Applied</option>
-                <option value="interviewing">Interviewing</option>
-            </select>
-
-            <label for="filter-duplicate">Duplicate State</label>
-            <select id="filter-duplicate">
-                <option value="">All</option>
-                <option value="canonical">Canonical</option>
-                <option value="duplicate">Duplicate</option>
-            </select>
-        </div>
-    </aside>
-
-
-    <aside id="evidence-drawer" aria-labelledby="evidence-title" role="dialog" aria-modal="true">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-md);">
-            <h3 id="evidence-title">Evidence Detail</h3>
-            <button id="close-evidence" class="badge" aria-label="Close evidence" style="cursor:pointer; background:var(--surface2);">✕</button>
-        </div>
-        <hr style="border-color:var(--border);margin:12px 0;">
-        <div id="evidence-content" style="overflow-y:auto; flex-grow:1;">
-            <!-- Content injected via JS -->
-        </div>
-    </aside>
-
-
-    <div id="command-palette" class="modal" role="dialog" aria-labelledby="cmd-title" aria-modal="true" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); width:500px; max-width:90vw; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); z-index:1000; padding:var(--space-md);">
-        <h3 id="cmd-title" style="margin-bottom:var(--space-sm); font-size:1rem; color:var(--accent);">Command Palette</h3>
-        <input type="text" id="cmd-input" placeholder="Type a command (e.g. 'Go to History', 'Dark Mode')..." style="width:100%; padding:var(--space-sm); background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-md); color:var(--text); margin-bottom:var(--space-md);">
-        <div id="cmd-results" style="display:flex; flex-direction:column; gap:4px;">
-            <!-- Commands will be listed here -->
-        </div>
+  <header class="app-header">
+    <div class="app-header__left">
+      <button type="button" id="nav-toggle" class="icon-btn" aria-label="Toggle navigation" aria-expanded="true" title="Menu">☰</button>
     </div>
+    <button type="button" id="app-title" class="app-header__title" data-i18n="app.title" aria-label="Job Hunter Pro — go home">Job Hunter Pro</button>
+    <div class="app-header__tools">
+      <button type="button" id="btn-command" class="icon-btn" aria-label="Open command palette" title="Search (⌘K)">⌘K</button>
+      <select id="theme-select" class="lang-select" aria-label="Color theme" title="Theme"></select>
+      <select id="lang-select" class="lang-select" aria-label="Language">
+        <option value="en">EN</option>
+        <option value="es">ES</option>
+        <option value="ru">RU</option>
+      </select>
+    </div>
+  </header>
 
+  <nav class="app-nav" id="main-nav" aria-label="Primary">
+    <!-- nav buttons injected by core/router.js -->
+  </nav>
 
-    <script src="/static/js/api.js"></script>
-    <script src="/static/js/offline.js"></script>
-    <script src="/static/js/state.js"></script>
-    <script src="/static/js/tabs.js"></script>
-    <script src="/static/js/filters.js"></script>
-    <script src="/static/js/render_jobs.js"></script>
-    <script src="/static/js/render_opportunities.js"></script>
-    <script src="/static/js/render_history.js"></script>
-    <script src="/static/js/render_overview.js"></script>
-    <script src="/static/js/render_debug_evidence.js"></script>
-    <script src="/static/js/render_providers.js"></script>
-    <script src="/static/js/render_budget.js"></script>
-    <script src="/static/js/render_why_three.js"></script>
-    <script src="/static/js/charts.js"></script>
-    <script src="/static/js/ambient.js"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/static/sw.js')
-            .then(reg => console.log('SW Registered'))
-            .catch(err => console.error('SW Failed', err));
-        });
-      }
-    </script>
-    <div id="drawer-backdrop"></div>
-    <div class="sr-only" data-language-support="English primary; Spanish static labels where provided; Russian unavailable future option unavailable future option unavailable future option.">English primary. Spanish static labels where provided. Russian unavailable future option unavailable future option unavailable future option.</div>
-    <script src="/static/js/live_engine_bridge.js?v=1780935037"></script>
-    <script src="/static/js/live_truth_telemetry.js"></script>
+  <main class="app-main">
+    <h2 id="view-title" class="view-title"></h2>
+    <div id="view-mount" tabindex="-1">
+      <p class="state-loading" data-i18n="state.init">Initializing…</p>
+    </div>
+  </main>
+
+</div>
+
+<!-- generic spring bottom-sheet host (evidence drawer, filters mount here) -->
+<div id="sheet-host" class="sheet-host" hidden aria-hidden="true">
+  <div class="sheet-host__scrim" data-sheet-close></div>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <header class="sheet__grab"><span class="sheet__handle"></span></header>
+    <h3 id="sheet-title" class="sheet__title"></h3>
+    <div id="sheet-body" class="sheet__body"></div>
+  </section>
+</div>
+
+<!-- screen-reader live region for state changes + pipeline counts -->
+<div id="aria-live" class="visually-hidden" role="status" aria-live="polite"></div>
+
+<script>
+// Register the no-stale service worker. When a NEW worker takes control
+// (replacing a previously-installed one), force one reload so the page is
+// served fresh by the new network-only worker — never a cached app build.
+if ('serviceWorker' in navigator) {
+  var hadController = !!navigator.serviceWorker.controller;
+  var reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (hadController && !reloaded) { reloaded = true; window.location.reload(); }
+  });
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
+      if (reg && reg.update) { try { reg.update(); } catch (e) {} }
+    }).catch(function () {});
+  });
+}
+</script>
+
+<!-- core engine -->
+<script src="/static/js/core/api.js"></script>
+<script src="/static/js/core/state.js"></script>
+<script src="/static/js/core/i18n.js"></script>
+<script src="/static/js/core/a11y.js"></script>
+<script src="/static/js/core/pwa/db.js"></script>
+<script src="/static/js/core/pwa/sync.js"></script>
+<script src="/static/js/core/router.js"></script>
+
+<!-- reusable components -->
+<script src="/static/js/components/format.js"></script>
+<script src="/static/js/components/icons.js"></script>
+<script src="/static/js/components/section_header.js"></script>
+<script src="/static/js/components/industry_theme.js"></script>
+<script src="/static/js/components/aria_announcer.js"></script>
+<script src="/static/js/components/trust_geometry.js"></script>
+<script src="/static/js/components/sheet_drawer.js"></script>
+<script src="/static/js/components/evidence_drawer.js"></script>
+<script src="/static/js/components/layout_toggle.js"></script>
+<script src="/static/js/components/group_by.js"></script>
+<script src="/static/js/components/sort.js"></script>
+<script src="/static/js/components/job_bento.js"></script>
+<script src="/static/js/components/chart_builder.js"></script>
+<script src="/static/js/components/filters.js"></script>
+<script src="/static/js/components/command_palette.js"></script>
+<script src="/static/js/components/geo_radar.js"></script>
+<script src="/static/js/components/pipeline_reactor.js"></script>
+<script src="/static/js/components/boot_sequence.js"></script>
+<script src="/static/js/components/theme_switch.js"></script>
+<script src="/static/js/components/nav_toggle.js"></script>
+
+<!-- visuals (feature-detected, degrade gracefully) -->
+<script src="/static/js/visuals/volumetric.js"></script>
+<script src="/static/js/visuals/halos.js"></script>
+
+<!-- views (each registers itself) -->
+<script src="/static/js/views/render_landing.js"></script>
+<script src="/static/js/views/render_home.js"></script>
+<script src="/static/js/views/render_jobs.js"></script>
+<script src="/static/js/views/render_discovery.js"></script>
+<script src="/static/js/views/render_opportunities.js"></script>
+<script src="/static/js/views/render_history.js"></script>
+<script src="/static/js/views/render_applications.js"></script>
+<script src="/static/js/views/render_providers.js"></script>
+<script src="/static/js/views/render_budget.js"></script>
+<script src="/static/js/views/render_debug.js"></script>
+<script src="/static/js/views/render_why_three.js"></script>
+<script src="/static/js/views/render_diagnostics.js"></script>
 </body>
 </html>

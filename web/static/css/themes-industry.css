@@ -1,0 +1,45 @@
+/* themes-industry.css — per-industry OKLCH accent re-theming (Doc 5).
+   When <html data-industry="…"> is set, the whole cockpit accent shifts to
+   match the hunt. Falls back to the base theme accent when unset/mixed. */
+
+[data-industry="food_service"] {
+  --c-accent: oklch(68% 0.19 45);   /* ember / copper */
+  --c-violet: oklch(60% 0.16 30);
+  --halo-a: 255, 138, 61;
+  --halo-b: 220, 90, 40;
+}
+[data-industry="hospitality"] {
+  --c-accent: oklch(66% 0.14 80);   /* brass */
+  --c-violet: oklch(55% 0.17 280);  /* indigo */
+  --halo-a: 214, 168, 90;
+  --halo-b: 120, 110, 240;
+}
+[data-industry="care_social"] {
+  --c-accent: oklch(70% 0.15 190);  /* teal */
+  --c-violet: oklch(66% 0.13 160);  /* sage */
+  --halo-a: 60, 220, 210;
+  --halo-b: 110, 210, 170;
+}
+[data-industry="sales"] {
+  --c-accent: oklch(70% 0.18 75);   /* amber */
+  --c-violet: oklch(60% 0.20 320);  /* violet */
+  --halo-a: 255, 194, 75;
+  --halo-b: 190, 110, 255;
+}
+[data-industry="customer_service"] {
+  --c-accent: oklch(72% 0.14 220);  /* cyan */
+  --c-violet: oklch(58% 0.06 250);  /* slate */
+  --halo-a: 98, 184, 255;
+  --halo-b: 120, 140, 170;
+}
+[data-industry="retail_ops"] {
+  --c-accent: oklch(74% 0.18 120);  /* lime */
+  --c-violet: oklch(50% 0.03 250);  /* graphite */
+  --halo-a: 150, 220, 80;
+  --halo-b: 90, 100, 110;
+}
+
+/* smooth the accent crossfade when industry changes */
+.app-shell, .section-header__icon, .nav-btn .icon, .badge, .btn-glow {
+  transition: color 0.3s var(--ease), border-color 0.3s var(--ease), background-color 0.3s var(--ease);
+}

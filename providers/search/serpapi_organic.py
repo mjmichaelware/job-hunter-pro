@@ -1,10 +1,14 @@
 import logging
+import os
 from typing import List, Dict
 from models import SearchResult
 from ..base import Provider, ProviderMetadata, ProviderType, SearchProvider
 from core import Config, http_session
 
 logger = logging.getLogger(__name__)
+
+def _enabled() -> bool:
+    return str(os.environ.get("ENABLE_SERPAPI_ORGANIC", "")).strip() in {"1", "true", "True", "yes", "on"}
 
 class SerpApiOrganicProvider(SearchProvider):
     @property
@@ -13,18 +17,29 @@ class SerpApiOrganicProvider(SearchProvider):
             key="serpapi_organic",
             label="SerpAPI (Google Organic)",
             type=ProviderType.SEARCH,
-            description="Performs organic web searches via SerpAPI. Budget-gated.",
+            description="Organic web search via SerpAPI. OFF by default to protect quota; set ENABLE_SERPAPI_ORGANIC=1.",
+            budget_class="serpapi_quota",
         )
 
+    def disabled_reason(self) -> str:
+        # Organic search is not primary job discovery and burns scarce SerpAPI
+        # quota, so it is off unless explicitly enabled.
+        return "" if _enabled() else "off_by_default (ENABLE_SERPAPI_ORGANIC=1 to enable)"
+
     def is_available(self) -> bool:
-        return bool(Config.SERPAPI_KEY)
+        return _enabled() and bool(Config.SERPAPI_KEY)
 
     def search(self, query: str) -> List[SearchResult]:
         """
         Calls SerpAPI organic Google search.
         """
         if not self.is_available():
-            logger.warning(f"{self.metadata.label} key missing.")
+            logger.warning(f"{self.metadata.label} key missing or disabled.")
+            return list()
+
+        from ._serpapi_budget import allows_search
+        if not allows_search():
+            logger.warning("SerpAPI budget guard active; skipping SerpAPI organic search.")
             return list()
 
         results = []

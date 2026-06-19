@@ -1,0 +1,34 @@
+/* shaders.css — volumetric Probability Halo field behind all content.
+   WebGL paints into #halo-canvas; if unsupported, this CSS gradient is the
+   honest fallback. Either way it sits at z-index 0 beneath the glass. */
+
+#halo-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  /* CSS fallback: two drifting radial halos, tinted by the active theme */
+  background:
+    radial-gradient(60vmax 60vmax at 18% 12%, rgba(var(--halo-a, 0, 255, 204), 0.16), transparent 60%),
+    radial-gradient(55vmax 55vmax at 85% 88%, rgba(var(--halo-b, 157, 0, 255), 0.16), transparent 60%),
+    var(--c-void, #000000);
+  animation: halo-drift 24s var(--ease) infinite alternate;
+}
+
+@keyframes halo-drift {
+  0%   { filter: hue-rotate(0deg) saturate(1); transform: scale(1.0); }
+  100% { filter: hue-rotate(18deg) saturate(1.15); transform: scale(1.08); }
+}
+
+/* Everything in the shell floats above the halo field */
+.app-shell, .sheet-host { position: relative; z-index: 1; }
+
+/* glass depth helper reused by cards/sheets */
+.glass {
+  background: var(--c-glass);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--c-border);
+}

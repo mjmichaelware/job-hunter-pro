@@ -20,18 +20,7 @@ def reject_early(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 def reject_late(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     Checks if a job should be rejected after enrichment and scoring.
-    Returns rejection info if rejected, else None.
+    Unknown industry and low match scores are kept — they surface to the user
+    who can filter in the UI. Only true hard failures are rejected here.
     """
-    # Industry mismatch
-    if job.get("industry") == "unknown":
-        return {"reason": "not_mapped_to_industry", "details": "Job text did not match any registered industry taxonomy."}
-
-    # Match score too low
-    match_score = job.get("match_score", 0)
-    if match_score < 40: # Lowered threshold for multi-industry broadness
-        return {
-            "reason": "low_match_score", 
-            "details": f"Match score {match_score} is below the acceptance threshold of 40."
-        }
-
     return None

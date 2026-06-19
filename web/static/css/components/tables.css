@@ -1,0 +1,36 @@
+/* tables.css — glass data tables, evidence tables. Horizontal-scroll on mobile. */
+
+.data-table, .evidence-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin-bottom: var(--s-4);
+}
+.data-table { display: block; overflow-x: auto; white-space: nowrap; }
+.data-table thead th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-faint);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--c-border);
+}
+.data-table td {
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--c-border);
+  color: var(--c-text);
+}
+.data-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+
+.evidence-table th {
+  text-align: left;
+  color: var(--c-faint);
+  font-weight: 600;
+  padding: 6px var(--s-3) 6px 0;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.evidence-table td { padding: 6px 0; color: var(--c-text); word-break: break-word; }
+
+.batch-id { color: var(--c-cyan); }

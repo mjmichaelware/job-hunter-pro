@@ -1,83 +1,101 @@
-@import url("layout.css");
-@import url("components.css");
-@import url("charts.css");
+/* base.css — OLED Dark Volumetric Cockpit design tokens, reset, type scale.
+   Pure #000000 canvas. All surfaces are translucent glass above the halo field. */
 
 :root {
-  --bg: oklch(12% 0.015 240);
-  --surface: oklch(18% 0.02 240 / 0.7);
-  --surface2: oklch(24% 0.03 240 / 0.8);
-  --border: oklch(30% 0.03 240 / 0.4);
-  --text: oklch(92% 0.01 240);
-  --muted: oklch(65% 0.02 240);
-  --accent: oklch(72% 0.16 280);
-  --accent-glow: oklch(72% 0.16 280 / 0.3);
-  
-  --danger: oklch(58% 0.22 25);
-  --warning: oklch(78% 0.18 75);
-  --success: oklch(72% 0.18 140);
-  
-  /* Industry Theming (OKLCH) */
-  --accent-food: oklch(65% 0.2 40);
-  --accent-hosp: oklch(62% 0.16 85);
-  --accent-care: oklch(68% 0.15 195);
-  --accent-sales: oklch(65% 0.18 325);
-  --accent-cust: oklch(70% 0.12 215);
-  --accent-retail: oklch(72% 0.17 115);
+  /* Void / Obsidian canvas */
+  --c-void: #000000;
+  --c-glass: rgba(15, 15, 15, 0.60);
+  --c-glass-2: rgba(28, 28, 32, 0.66);
+  --c-border: rgba(255, 255, 255, 0.10);
+  --c-border-strong: rgba(255, 255, 255, 0.18);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 20px;
-  
-  --shadow: 0 12px 40px -12px rgba(0,0,0,0.7);
-  --glow: 0 0 20px var(--accent-glow);
-  
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
+  /* Text */
+  --c-text: #f2f4f8;
+  --c-muted: #9aa3b2;
+  --c-faint: #5b6473;
 
-  --spring-easing: linear(0, 0.45 10%, 0.72 20%, 0.88 30%, 0.95 40%, 0.98 50%, 1);
-  --view-transition-duration: 400ms;
+  /* Halo accents */
+  --c-cyan: #00ffcc;
+  --c-violet: #9d00ff;
+  --c-accent: var(--c-cyan);
+
+  /* Semantic state */
+  --c-safe: #34e3a0;
+  --c-warn: #ffc24b;
+  --c-err: #ff5d6c;
+  --c-live: #ff5d6c;
+  --c-cached: #62b8ff;
+  --c-disabled: #6b7280;
+
+  /* Geometry */
+  --blur: 16px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --tap: 44px;
+
+  /* Spring physics curve (Elastic/Rebound) */
+  --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease: cubic-bezier(0.4, 0.0, 0.2, 1);
+
+  /* Spacing */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
+
+  /* Safe areas (iOS notch / home indicator) */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --view-transition-duration: 0ms;
-    --spring-easing: ease;
-  }
-  
-  *, ::before, ::after {
-    animation-delay: -1ms !important;
-    animation-duration: 1ms !important;
-    animation-iteration-count: 1 !important;
-    background-attachment: initial !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0s !important;
-    transition-delay: 0s !important;
-  }
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
-  color-scheme: dark;
-  line-height: 1.6;
+html, body {
+  height: 100%;
+  background: var(--c-void);
+  color: var(--c-text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  }
+  text-rendering: optimizeLegibility;
+}
 
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 8px;
+body { overflow-x: hidden; }
+
+h1, h2, h3, h4 { font-weight: 650; letter-spacing: -0.01em; line-height: 1.25; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.05rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85em; }
+
+/* Phase 1.1 HUD numerals: monospaced number boxes so live counts don't jitter */
+.stat-card__value, .metric-num, .tile__value, .bar__val, .gauge__num,
+.fuel__meta, td, .badge { font-variant-numeric: tabular-nums; }
+
+/* Phase 1.1: keep nav/header/buttons app-native (no text-select, no tap flash) */
+.app-header, .nav-btn, .btn, .icon-btn, .seg__btn, .pill {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
 }
-::-webkit-scrollbar-track {
-  background: var(--bg);
+
+/* Phase 1.1: offload morph interpolation to the GPU on spring components */
+.bento, .sheet, .view-enter, .btn-glow { will-change: transform, opacity; }
+
+a { color: var(--c-cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.view-title { margin-bottom: var(--s-4); font-size: 1.35rem; }
+
+/* honest-state copy blocks */
+.state-loading, .state-empty, .state-error, .na {
+  color: var(--c-muted);
+  padding: var(--s-4) 0;
 }
-::-webkit-scrollbar-thumb {
-  background: var(--surface2);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--border);
-}*{box-sizing:border-box;margin:0;padding:0}
+.state-error { color: var(--c-err); }
+.na { color: var(--c-faint); font-style: italic; }
+
+.section-heading { margin: var(--s-5) 0 var(--s-3); font-size: 1.05rem; color: var(--c-text); }
+.section-note { color: var(--c-muted); font-size: 0.9rem; margin-bottom: var(--s-3); }
+.status-line { color: var(--c-muted); font-size: 0.9rem; }
