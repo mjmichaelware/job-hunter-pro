@@ -85,19 +85,21 @@
 <div id="aria-live" class="visually-hidden" role="status" aria-live="polite"></div>
 
 <script>
-// Register the no-stale service worker. When a NEW worker takes control
-// (replacing a previously-installed one), force one reload so the page is
-// served fresh by the new network-only worker — never a cached app build.
+// Force unregister all Service Workers and clear all cache storages to prevent caching issues
 if ('serviceWorker' in navigator) {
-  var hadController = !!navigator.serviceWorker.controller;
-  var reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (hadController && !reloaded) { reloaded = true; window.location.reload(); }
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().then((success) => {
+        if (success) console.log('Successfully unregistered Service Worker');
+      });
+    }
   });
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function (reg) {
-      if (reg && reg.update) { try { reg.update(); } catch (e) {} }
-    }).catch(function () {});
+}
+if ('caches' in window) {
+  caches.keys().then((keys) => {
+    keys.forEach((key) => {
+      caches.delete(key).then(() => console.log('Deleted Cache Storage:', key));
+    });
   });
 }
 </script>

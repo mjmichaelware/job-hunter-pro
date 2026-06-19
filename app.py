@@ -102,6 +102,13 @@ def create_app():
     def index():
         return render_template("index.html")
 
+    @app.after_request
+    def add_header(response):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+
     @app.get("/favicon.ico")
     def favicon():
         icon_svg = STATIC_DIR / "icon.svg"
@@ -111,11 +118,7 @@ def create_app():
 
     @app.get("/sw.js")
     def service_worker():
-        # Served from root so the worker controls the whole "/" scope (PWA offline).
-        resp = send_from_directory(STATIC_DIR, "sw.js", mimetype="application/javascript")
-        resp.headers["Service-Worker-Allowed"] = "/"
-        resp.headers["Cache-Control"] = "no-cache"
-        return resp
+        return ("", 404)
 
     @app.get("/offline.html")
     def offline():

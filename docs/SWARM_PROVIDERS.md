@@ -35,6 +35,23 @@ live in Secret Manager only, and a broken source can never take down the rest.
    `--set-secrets` list in `scripts/deploy.sh`. A keyless API needs none of this and is
    live day one (set `requires_api_key=False`, `is_available()` returns True).
 
+## Entering keys for the keyed batch (one command)
+After pulling, run in Termux — it prompts for each free-tier key, lets you skip the
+ones you don't have yet, stores them in Secret Manager (hidden input), and prints the
+`--set-secrets` snippet to mount on deploy. Re-run anytime as you sign up:
+```bash
+bash scripts/add_swarm_keys.sh
+```
+Keys it asks for: `CAREERONESTOP_USERID`, `CAREERONESTOP_TOKEN`, `YELP_API_KEY`,
+`FOURSQUARE_API_KEY`, `CENSUS_API_KEY`, `BLS_API_KEY` (Census/BLS are **enrichment**,
+staged for a later module — not discovery), and optional Socrata app tokens.
+Providers stay dormant until their key exists; keyless ones already work.
+
+Lead/opportunity sources (Utah Open Data, Data.SLC.gov, USAspending, OSM Overpass, Yelp,
+Foursquare) are **default-off** behind `ENABLE_<NAME>=1` so they never dilute live job
+results until you opt in; ATS sweeps (Greenhouse/Lever/Ashby) need an employer-slug list
+(`GREENHOUSE_BOARDS=...`). All are non-secret env, e.g. in `env/cloudrun.env.yaml`.
+
 ## Safety rules (CLAUDE.md)
 - Never hardcode/print/commit a secret value. `add_key.sh` reads it from a hidden prompt.
 - LLMs (`providers/reasoning/*`) are enrichment/classification only — never discovery.
