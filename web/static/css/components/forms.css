@@ -62,3 +62,13 @@ input[type="range"] {
 .filter-block { display: flex; flex-direction: column; gap: 6px; }
 .filter-block__label { font-size: 0.8rem; color: var(--c-muted); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-group { border: 1px solid var(--c-border); border-radius: var(--radius-md); overflow: hidden; }
+.filter-group__hd { padding: 10px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; list-style: none;
+  background: var(--c-glass); color: var(--c-text); display: flex; justify-content: space-between; }
+.filter-group__hd::-webkit-details-marker { display: none; }
+.filter-group[open] .filter-group__hd::after { content: '▲'; font-size: 0.6rem; color: var(--c-muted); }
+.filter-group:not([open]) .filter-group__hd::after { content: '▼'; font-size: 0.6rem; color: var(--c-muted); }
+.filter-group__body { display: flex; flex-direction: column; gap: var(--s-3); padding: 12px 14px;
+  border-top: 1px solid var(--c-border); }
+.filter-group__body label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--c-muted); }
+.filter-group__body label.check { flex-direction: row; align-items: center; gap: var(--s-2); }

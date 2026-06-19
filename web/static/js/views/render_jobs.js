@@ -90,9 +90,7 @@ function wireJobsToolbar(el) {
   if (gsel) gsel.addEventListener('change', function (e) { AppState.groupBy = e.target.value; renderJobsView(); });
   const ssel = el.querySelector('#sort-select');
   if (ssel) ssel.addEventListener('change', function (e) { AppState.sort = e.target.value; AppState.filters.sort = e.target.value; renderJobsView(); });
-  el.querySelectorAll('.chip__x').forEach(function (x) {
-    x.addEventListener('click', function () { delete AppState.filters[x.dataset.chip]; renderJobsView(); });
-  });
+  wireChipRemove(el, renderJobsView);
 }
 
 async function loadJobsView() {
