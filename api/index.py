@@ -1229,6 +1229,25 @@ def add_headers(response):
     response.headers["Cache-Control"] = "no-store"
     return response
 
+@app.route("/.well-known/assetlinks.json")
+def assetlinks():
+    """Digital Asset Links for TWA / Bubblewrap APK — chrome-free fullscreen install.
+    Set TWA_PACKAGE_NAME and TWA_SHA256_FINGERPRINT in Cloud Run env after running
+    `bubblewrap init` so the fingerprint matches the generated keystore."""
+    import json as _json
+    pkg = os.environ.get("TWA_PACKAGE_NAME", "com.mjmichaelware.jobhunterpro")
+    fp  = os.environ.get("TWA_SHA256_FINGERPRINT", "")
+    if not fp:
+        return _json.dumps([]), 200, {"Content-Type": "application/json"}
+    payload = [{"relation": ["delegate_permission/common.handle_all_urls"],
+                "target": {"namespace": "android_app", "package_name": pkg,
+                           "sha256_cert_fingerprints": [fp]}}]
+    resp = app.make_response(_json.dumps(payload, indent=2))
+    resp.headers["Content-Type"] = "application/json"
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
 @app.route("/")
 def index():
     return render_template_string("""
