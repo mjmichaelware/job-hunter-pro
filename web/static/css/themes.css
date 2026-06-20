@@ -34,8 +34,11 @@ html[data-theme="mono"] {
 
 /* light mode keeps the accent but flips the surface (optional theme) */
 html[data-theme="light"] {
+  color-scheme: light;            /* opt this theme into the light-dark() light branch */
   --c-void: #f7f8fa; --c-bg: #f7f8fa;
   --c-glass: rgba(255, 255, 255, 0.72); --c-glass-2: rgba(240, 242, 246, 0.9);
+  /* keep the nav/header glass (light-dark tokens) in sync with the light surface */
+  --glass-regular: rgba(255, 255, 255, 0.78); --glass-heavy: rgba(255, 255, 255, 0.9);
   --c-text: #0d1220; --c-muted: #51607a; --c-faint: #8a96ab;
   --c-border: rgba(0, 0, 0, 0.12); --c-border-strong: rgba(0, 0, 0, 0.2);
   --c-cyan: #0aa; --c-accent: #0a84ff;

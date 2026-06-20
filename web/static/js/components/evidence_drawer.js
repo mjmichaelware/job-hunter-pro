@@ -15,6 +15,29 @@ function _relTime(v) {
   return rtf.format(-secs, 'second');
 }
 
+// Per-LLM research block — shows every provider's note side by side, honest about
+// dormant (no key) / error / skipped states. Never fabricates a note.
+function _researchHtml(job) {
+  const r = job && job.research;
+  if (!r || !Array.isArray(r.providers) || !r.providers.length) return '';
+  const LABEL = { openai: 'OpenAI', gemini: 'Gemini', claude: 'Claude', groq: 'Groq', xai: 'Grok (xAI)' };
+  const rows = r.providers.map(function (p) {
+    const name = esc(LABEL[p.provider] || p.provider || 'LLM');
+    if (p.status === 'ok' && p.note) {
+      return '<div class="research-card"><div class="research-card__hd">' + name
+        + '<span class="badge badge-safe">ok</span></div><p>' + esc(p.note) + '</p></div>';
+    }
+    const why = esc(p.reason || p.status || 'unavailable');
+    const cls = p.status === 'dormant' ? 'badge-cached' : p.status === 'skipped' ? 'badge-warn' : 'badge-error';
+    return '<div class="research-card research-card--off"><div class="research-card__hd">' + name
+      + '<span class="badge ' + cls + '">' + esc(p.status || 'n/a') + '</span></div>'
+      + '<p class="na">' + why + '</p></div>';
+  }).join('');
+  const head = '<h4 class="research-sec__title">AI research · ' + (r.available ? r.available.length : 0)
+    + '/5 responded</h4>';
+  return '<div class="research-sec">' + head + '<div class="research-grid">' + rows + '</div></div>';
+}
+
 function buildEvidenceHtml(job) {
   const raw = pick(job, ['raw_title', 'title'], '');
   const company = pick(job, ['company', 'company_name', 'restaurant_name'], '');
@@ -48,6 +71,9 @@ function buildEvidenceHtml(job) {
     + evidenceRow('Canonical key', pick(job, ['dedupe_key', 'canonical_key'], null))
     + evidenceRow('Discovered', _relTime(pick(job, ['timestamp', 'created_at', 'discovered_at'], null)))
     + '</table>'
+    + (typeof resumeFitHtml === 'function' ? resumeFitHtml(job) : '')
+    + (typeof competitorAuditHtml === 'function' ? competitorAuditHtml(job) : '')
+    + _researchHtml(job)
     + '<button type="button" class="btn btn-track" data-job-id="' + esc(trackId) + '">' + esc(t('common.track')) + '</button>';
 }
 

@@ -278,3 +278,42 @@ web.dev web-app-manifest; web.dev installation-prompt; Search Engine Land 7-day 
 Assets: nucleoapp SVG systems; Cloud Four SVG stress test; CSS-Tricks SVG sprites; allsvgicons inline-vs-sprite;
 MDN `drop-shadow`; CSS-Tricks SVG glow; Evil Martians favicon 2026; faviconbuilder sizes; iconmaker best-practices;
 web.dev responsive-images; CSS-Tricks `image-set()`; savvy image-set fallbacks; w3tweaks filter perf; debugbear responsive images.
+
+================================================================================
+INCREMENT 2 — 2026-06-19 (this pass): patterns shipped + forward list
+================================================================================
+This increment records what the nav-fix / enrichment / résumé pass actually
+implemented against the HIG/HUD/modern-CSS catalog above, plus the next tier.
+Knowledge-based (model cutoff 2026-01); each item keeps a feature-detection guard.
+
+SHIPPED THIS PASS (✅)
+- color-scheme pinning: `:root { color-scheme: dark }` so `light-dark()` follows
+  the APP theme, not the OS. Light theme opts in via `html[data-theme=light]
+  { color-scheme: light }`. Fixes the white-glass-over-text nav regression.
+  Guard: light-dark() already @supports-gated; color-scheme is universally safe.
+- Confidence-bound AI research surface: per-LLM notes render only when a real
+  note returns; dormant/error/skipped states are explicit. HUD law "spectacle
+  earned by truth" — no note, no card content.
+- Maskable + apple-touch PNG icon set (180/192/512 + maskable 192/512 + favicon)
+  generated from the brand SVG; manifest `purpose:maskable` safe-zone padding so
+  Android/iOS masks never clip the mark. Guard: SVG icon kept as `purpose:any`.
+- Reduced-motion-gated entry animations (`card-in`) on research/résumé/audit
+  sections; all disabled under `prefers-reduced-motion: reduce`.
+
+FORWARD LIST (📋 next, each guarded)
+- View-Transitions shared-element morph from a job card → evidence drawer
+  (`document.startViewTransition`); fall back to the current spring sheet.
+  Guard: `if (document.startViewTransition)`.
+- Scroll-driven large-title collapse on the home hero via
+  `animation-timeline: scroll(root)`; iOS Safari 26+ only. Guard:
+  `@supports (animation-timeline: scroll())`.
+- `:has()`-driven density: dim a bento grid that contains only unresolved cards
+  (`.bento-grid:has(.bento--unresolved):not(:has(.bento:not(.bento--unresolved)))`).
+  Guard: `@supports selector(:has(*))`.
+- Anchor-positioned popovers for the research panel (drop the JS placement) once
+  iOS Safari ships anchor positioning. Guard: `@supports (anchor-name: --x)` — SKIP
+  on iOS ≤25 (documented above).
+- `content-visibility: auto` on long job lists for cheaper scrolling on ARM.
+  Guard: `@supports (content-visibility: auto)`.
+- Résumé-fit gauge (SVG `stroke-dashoffset`) once the uploaded résumé provides
+  weighted skills; keep the honest "no overlap" text fallback.

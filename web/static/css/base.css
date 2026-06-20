@@ -2,6 +2,12 @@
    Pure #000000 canvas. All surfaces are translucent glass above the halo field. */
 
 :root {
+  /* Pin the rendering to dark so light-dark() below resolves to its dark branch
+     regardless of the OS theme. The explicit light theme opts back into light via
+     color-scheme in themes.css. Without this, a light-mode device turned the nav
+     glass white over light text (unreadable). */
+  color-scheme: dark;
+
   /* Void / Obsidian canvas */
   --c-void: #000000;
   --c-glass: rgba(15, 15, 15, 0.60);

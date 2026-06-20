@@ -27,6 +27,40 @@ app = Flask(
 
 session = requests.Session()
 
+# ── Google Maps throttle + retry ─────────────────────────────────────────────
+# A single shared gate that spaces outbound Maps calls and retries on rate-limit
+# (HTTP 429) / transient 5xx with exponential backoff. This is what lets EVERY
+# accepted job get place/commute data instead of the first handful succeeding and
+# the rest failing silently once Google's per-second quota trips.
+import threading as _threading
+
+_maps_lock = _threading.Lock()
+_maps_last_call = [0.0]
+
+def maps_get(url: str, params: Dict[str, Any], timeout: Optional[float] = None) -> Optional[requests.Response]:
+    timeout = timeout if timeout is not None else Config.REQUEST_TIMEOUT
+    attempts = max(1, Config.MAPS_MAX_RETRIES)
+    for attempt in range(attempts):
+        with _maps_lock:
+            wait = Config.MAPS_MIN_INTERVAL - (time.monotonic() - _maps_last_call[0])
+            if wait > 0:
+                time.sleep(wait)
+            _maps_last_call[0] = time.monotonic()
+        try:
+            res = session.get(url, params=params, timeout=timeout)
+        except Exception as exc:
+            if attempt == attempts - 1:
+                logger.warning("maps_get network error (%s): %s", url.rsplit("/", 1)[-1], exc)
+                return None
+            time.sleep(2 ** attempt)
+            continue
+        # Retry on explicit rate-limit / transient server errors.
+        if res.status_code in (429, 500, 502, 503, 504) and attempt < attempts - 1:
+            time.sleep(2 ** attempt)
+            continue
+        return res
+    return None
+
 class Config:
     GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
     SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "").strip()
@@ -67,6 +101,29 @@ class Config:
     # OPTIONAL feature and core job discovery does not depend on it. Off by
     # default for cost control; the endpoint reports this honestly when disabled.
     ENABLE_PLACES_OPPORTUNITIES = os.environ.get("ENABLE_PLACES_OPPORTUNITIES", "0").strip() == "1"
+
+    # Per-run enrichment caps. Heavy paid work (Google Maps place/commute + the
+    # 5-LLM research layer) runs AFTER accept/reject partitioning, on the accepted
+    # set only, so the run completes inside Cloud Run's request timeout. Jobs past
+    # the cap keep their honest needs_resolution flag instead of fake data. Both
+    # are env-tunable upward once quota allows.
+    MAX_ENRICH_JOBS = int(os.environ.get("MAX_ENRICH_JOBS", "40"))
+    # LLM research: every accepted, enriched job is sent to all five reasoning
+    # providers (enrichment/classification only — never discovery). Guarded by a
+    # per-run call budget. A provider with no key is skipped (dormant), never faked.
+    ENABLE_LLM_RESEARCH = os.environ.get("ENABLE_LLM_RESEARCH", "1").strip() == "1"
+    MAX_LLM_CALLS = int(os.environ.get("MAX_LLM_CALLS", "250"))
+    LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "18"))
+    LLM_MODEL_OPENAI = os.environ.get("LLM_MODEL_OPENAI", "gpt-4o-mini").strip()
+    LLM_MODEL_GROQ = os.environ.get("LLM_MODEL_GROQ", "llama-3.3-70b-versatile").strip()
+    LLM_MODEL_XAI = os.environ.get("LLM_MODEL_XAI", "grok-2-latest").strip()
+    LLM_MODEL_ANTHROPIC = os.environ.get("LLM_MODEL_ANTHROPIC", "claude-3-5-haiku-latest").strip()
+    LLM_MODEL_GEMINI = os.environ.get("LLM_MODEL_GEMINI", "gemini-1.5-flash").strip()
+    # Maps throttle: minimum seconds between outbound Maps calls + retry budget on
+    # HTTP 429/5xx. Without this, a burst of calls trips Google's QPS limit and the
+    # rest fail silently — the root cause of "only a few jobs get commute/place".
+    MAPS_MIN_INTERVAL = float(os.environ.get("MAPS_MIN_INTERVAL", "0.06"))
+    MAPS_MAX_RETRIES = int(os.environ.get("MAPS_MAX_RETRIES", "3"))
 
     BATCH_BUCKET = os.environ.get("BATCH_BUCKET", "").strip()
 
@@ -172,11 +229,12 @@ def geocode(address: str) -> Optional[Tuple[float, float]]:
     if not address or not Config.GOOGLE_MAPS_API_KEY:
         return None
     try:
-        res = session.get(
+        res = maps_get(
             "https://maps.googleapis.com/maps/api/geocode/json",
-            params={"address": address, "key": Config.GOOGLE_MAPS_API_KEY},
-            timeout=Config.REQUEST_TIMEOUT,
+            {"address": address, "key": Config.GOOGLE_MAPS_API_KEY},
         )
+        if res is None:
+            return None
         res.raise_for_status()
         data = res.json()
         if data.get("status") != "OK" or not data.get("results"):
@@ -196,15 +254,16 @@ def place_details(place_id: str) -> Dict[str, Any]:
     if not place_id or not Config.GOOGLE_MAPS_API_KEY:
         return {}
     try:
-        res = session.get(
+        res = maps_get(
             "https://maps.googleapis.com/maps/api/place/details/json",
-            params={
+            {
                 "place_id": place_id,
                 "fields": "name,rating,user_ratings_total,reviews,formatted_address,website,url,business_status,formatted_phone_number,price_level,types",
                 "key": Config.GOOGLE_MAPS_API_KEY,
             },
-            timeout=Config.REQUEST_TIMEOUT,
         )
+        if res is None:
+            return {}
         res.raise_for_status()
         data = res.json()
         if data.get("status") != "OK":
@@ -221,16 +280,17 @@ def places_text_search(query: str) -> Optional[Dict[str, Any]]:
     if not query or not origin or not Config.GOOGLE_MAPS_API_KEY:
         return None
     try:
-        res = session.get(
+        res = maps_get(
             "https://maps.googleapis.com/maps/api/place/textsearch/json",
-            params={
+            {
                 "query": query,
                 "location": f"{origin[0]},{origin[1]}",
                 "radius": int(max(Config.MAX_RADIUS_MILES, 5) * 1609.344),
                 "key": Config.GOOGLE_MAPS_API_KEY,
             },
-            timeout=Config.REQUEST_TIMEOUT,
         )
+        if res is None:
+            return None
         res.raise_for_status()
         data = res.json()
         results = data.get("results") or []
@@ -337,17 +397,18 @@ def transit_to(destination: str) -> Dict[str, Any]:
     if not destination or not Config.GOOGLE_MAPS_API_KEY:
         return empty
     try:
-        res = session.get(
+        res = maps_get(
             "https://maps.googleapis.com/maps/api/distancematrix/json",
-            params={
+            {
                 "origins": Config.ORIGIN_ADDRESS,
                 "destinations": destination,
                 "mode": "transit",
                 "departure_time": "now",
                 "key": Config.GOOGLE_MAPS_API_KEY,
             },
-            timeout=Config.REQUEST_TIMEOUT,
         )
+        if res is None:
+            return empty
         res.raise_for_status()
         data = res.json()
         element = data.get("rows", [{}])[0].get("elements", [{}])[0]
@@ -576,67 +637,225 @@ def match_score(job: Dict[str, Any]) -> int:
     return max(1, min(score, 99))
 
 def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Cheap pass — NO Google Maps / LLM calls. Runs on every raw job so the bulk
+    classification/dedupe finishes fast. Place, commute, radius and review fields
+    start empty and are filled later by enrich_job() on the accepted set only.
+    The originating raw is stashed under ``_raw`` for that later step and popped
+    before the job is returned to the client / persisted."""
     title = clean(raw.get("title"), "Untitled role")
     company = clean_company(raw.get("company_name") or raw.get("company")) or "Company not listed"
     listing_location = clean(raw.get("location"), Config.JOB_LOCATION)
     description = clean(raw.get("description"), "No description available.")
-    if os.environ.get("FAST_JOBS", "0") == "1":
-        place = {}
-        resolved_address = ""
-        resolved_name = ""
-        transit = {"commute_seconds": None, "commute_label": "Not checked",
-                   "transit_distance_miles": None, "transit_distance_label": "Not checked"}
-        radius_miles = None
-    else:
-        place = resolve_place(raw)
-        resolved_address = clean(place.get("formatted_address"))
-        resolved_name = clean(place.get("name"))
-        destination = resolved_address or listing_location
-        transit = transit_to(destination)
-        origin = origin_latlng()
-        radius_miles = None
-        if origin and place.get("latlng"):
-            radius_miles = round(miles_between(origin, place["latlng"]), 2)
-    text = " ".join([title, company, description, resolved_name])
+    text = " ".join([title, company, description])
     tags = tags_for_text(text)
     job = {
         "title": title,
         "company": company,
-        "restaurant_name": resolved_name or company,
-        "resolved_place_name": resolved_name,
-        "resolved_address": resolved_address,
-        "location": resolved_address or listing_location,
+        "restaurant_name": company,
+        "resolved_place_name": "",
+        "resolved_address": "",
+        "location": listing_location,
         "listing_location": listing_location,
         "salary": salary_from_raw(raw),
         "description": description,
-        "commute_seconds": transit["commute_seconds"],
-        "commute_label": transit["commute_label"],
-        "radius_miles": radius_miles,
-        "radius_label": f"{radius_miles} mi radius" if radius_miles is not None else "Radius unavailable",
-        "distance_miles": radius_miles,
-        "distance_label": f"{radius_miles} mi radius" if radius_miles is not None else "Radius unavailable",
-        "transit_distance_miles": transit["transit_distance_miles"],
-        "transit_distance_label": transit["transit_distance_label"],
+        "commute_seconds": None,
+        "commute_label": "Resolution pending",
+        "radius_miles": None,
+        "radius_label": "Resolution pending",
+        "distance_miles": None,
+        "distance_label": "Resolution pending",
+        "transit_distance_miles": None,
+        "transit_distance_label": "Resolution pending",
         "source_url": apply_link(raw),
         "job_id": clean(raw.get("job_id")),
         "via": clean(raw.get("via")),
         "ai_provider": "deterministic_budget_safe",
         "chef_names": [],
-        "place_query_used": place.get("query_used"),
-        "place_id": place.get("place_id"),
-        "place_rating": place.get("rating"),
+        "place_query_used": "",
+        "place_id": "",
+        "place_rating": None,
         "tags": tags,
         "role_family": role_family_for_text(" ".join(tags + [title, description])),
+        "_provider": clean(raw.get("_provider") or raw.get("via")),
+        "_query_used": clean(raw.get("_query_used")),
+        "enriched": False,
+        "_raw": raw,
     }
     job["match"] = match_score(job)
-    ri = {} if os.environ.get("FAST_JOBS", "0") == "1" else review_intelligence(job)
+    job["review_intelligence"] = {}
+    job["google_rating"] = None
+    job["google_review_count"] = None
+    job["review_score"] = None
+    job["consistency_score"] = None
+    job["risk_level"] = None
+    return job
+
+
+def enrich_job(job: Dict[str, Any]) -> Dict[str, Any]:
+    """Heavy pass — resolves place, commute, radius, Google review intelligence and
+    the 5-LLM research layer for ONE accepted job. Throttled + retried Maps calls
+    (see maps_get) mean this succeeds for every job, not just the first few. All
+    failures degrade to honest 'unavailable', never fabricated values."""
+    raw = job.get("_raw") or {}
+    place = resolve_place(raw)
+    resolved_address = clean(place.get("formatted_address"))
+    resolved_name = clean(place.get("name"))
+    destination = resolved_address or job.get("listing_location") or Config.JOB_LOCATION
+    transit = transit_to(destination)
+    origin = origin_latlng()
+    radius_miles = None
+    if origin and place.get("latlng"):
+        radius_miles = round(miles_between(origin, place["latlng"]), 2)
+
+    job["resolved_place_name"] = resolved_name
+    job["restaurant_name"] = resolved_name or job.get("company")
+    job["resolved_address"] = resolved_address
+    job["location"] = resolved_address or job.get("listing_location")
+    job["commute_seconds"] = transit["commute_seconds"]
+    job["commute_label"] = transit["commute_label"]
+    job["radius_miles"] = radius_miles
+    job["radius_label"] = f"{radius_miles} mi radius" if radius_miles is not None else "Radius unavailable"
+    job["distance_miles"] = radius_miles
+    job["distance_label"] = job["radius_label"]
+    job["transit_distance_miles"] = transit["transit_distance_miles"]
+    job["transit_distance_label"] = transit["transit_distance_label"]
+    job["place_query_used"] = place.get("query_used")
+    job["place_id"] = place.get("place_id")
+    job["place_rating"] = place.get("rating")
+    job["match"] = match_score(job)
+
+    ri = review_intelligence(job)
     job["review_intelligence"] = ri
     job["google_rating"] = ri.get("google_rating") or job.get("place_rating")
     job["google_review_count"] = ri.get("google_review_count")
     job["review_score"] = ri.get("review_score")
     job["consistency_score"] = ri.get("consistency_score")
     job["risk_level"] = ri.get("risk_level")
+
+    if Config.ENABLE_LLM_RESEARCH:
+        job["research"] = llm_research(job)
+    job["enriched"] = True
     return job
+
+
+# ── 5-LLM research layer (enrichment/classification only, never discovery) ────
+_llm_lock = _threading.Lock()
+_llm_calls_left = [0]
+
+def _llm_take() -> bool:
+    """Per-run call budget gate so a big batch can't blow the LLM quota."""
+    with _llm_lock:
+        if _llm_calls_left[0] <= 0:
+            return False
+        _llm_calls_left[0] -= 1
+        return True
+
+def _llm_prompt(job: Dict[str, Any]) -> str:
+    place = clean(job.get("resolved_place_name") or job.get("company"))
+    addr = clean(job.get("resolved_address"))
+    rating = job.get("google_rating")
+    desc = clean(job.get("description"))[:600]
+    return (
+        "You are vetting one local job for a Salt Lake City applicant. In <=55 words, "
+        "plainly assess: role type, front/back-of-house or management, likely schedule/pay, "
+        "and any employer reputation note or warning. Only state what the text supports; say "
+        "'unknown' otherwise. Do not invent facts.\n\n"
+        f"Title: {clean(job.get('title'))}\nCompany: {clean(job.get('company'))}\n"
+        f"Resolved place: {place} {addr} (Google rating: {rating})\n"
+        f"Description: {desc}"
+    )
+
+def _chat_openai_compatible(base_url: str, key: str, model: str, prompt: str) -> str:
+    res = session.post(
+        base_url,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={"model": model, "messages": [{"role": "user", "content": prompt}],
+              "max_tokens": 160, "temperature": 0.2},
+        timeout=Config.LLM_TIMEOUT,
+    )
+    res.raise_for_status()
+    return clean(res.json()["choices"][0]["message"]["content"])
+
+def _research_openai(prompt: str) -> str:
+    return _chat_openai_compatible("https://api.openai.com/v1/chat/completions",
+                                   Config.OPENAI_API_KEY, Config.LLM_MODEL_OPENAI, prompt)
+
+def _research_groq(prompt: str) -> str:
+    return _chat_openai_compatible("https://api.groq.com/openai/v1/chat/completions",
+                                   Config.GROQ_API_KEY, Config.LLM_MODEL_GROQ, prompt)
+
+def _research_xai(prompt: str) -> str:
+    return _chat_openai_compatible("https://api.x.ai/v1/chat/completions",
+                                   Config.XAI_API_KEY, Config.LLM_MODEL_XAI, prompt)
+
+def _research_anthropic(prompt: str) -> str:
+    res = session.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={"x-api-key": Config.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01",
+                 "Content-Type": "application/json"},
+        json={"model": Config.LLM_MODEL_ANTHROPIC, "max_tokens": 160,
+              "messages": [{"role": "user", "content": prompt}]},
+        timeout=Config.LLM_TIMEOUT,
+    )
+    res.raise_for_status()
+    return clean(res.json()["content"][0]["text"])
+
+def _research_gemini(prompt: str) -> str:
+    res = session.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{Config.LLM_MODEL_GEMINI}:generateContent",
+        params={"key": Config.GEMINI_API_KEY},
+        headers={"Content-Type": "application/json"},
+        json={"contents": [{"parts": [{"text": prompt}]}],
+              "generationConfig": {"maxOutputTokens": 200, "temperature": 0.2}},
+        timeout=Config.LLM_TIMEOUT,
+    )
+    res.raise_for_status()
+    return clean(res.json()["candidates"][0]["content"]["parts"][0]["text"])
+
+# (display name, key, runner). A provider with no key is skipped (dormant).
+_LLM_PROVIDERS = [
+    ("openai", lambda: Config.OPENAI_API_KEY, _research_openai),
+    ("gemini", lambda: Config.GEMINI_API_KEY, _research_gemini),
+    ("claude", lambda: Config.ANTHROPIC_API_KEY, _research_anthropic),
+    ("groq", lambda: Config.GROQ_API_KEY, _research_groq),
+    ("xai", lambda: Config.XAI_API_KEY, _research_xai),
+]
+
+def _run_one_llm(name: str, has_key, runner, prompt: str) -> Dict[str, Any]:
+    if not has_key():
+        return {"provider": name, "note": None, "status": "dormant", "reason": "no_api_key"}
+    if not _llm_take():
+        return {"provider": name, "note": None, "status": "skipped", "reason": "run_budget_reached"}
+    try:
+        return {"provider": name, "note": runner(prompt), "status": "ok"}
+    except Exception as exc:
+        return {"provider": name, "note": None, "status": "error",
+                "reason": f"{type(exc).__name__}: {str(exc)[:140]}"}
+
+def llm_research(job: Dict[str, Any]) -> Dict[str, Any]:
+    """Fan a compact, evidence-bound prompt to all five reasoning providers
+    concurrently. Returns each provider's note plus a consensus summary. Honest:
+    no key -> dormant, error -> error, over budget -> skipped. Never fabricated."""
+    from concurrent.futures import ThreadPoolExecutor
+    prompt = _llm_prompt(job)
+    results: List[Dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = [pool.submit(_run_one_llm, n, k, r, prompt) for (n, k, r) in _LLM_PROVIDERS]
+        for f in futures:
+            try:
+                results.append(f.result())
+            except Exception as exc:
+                results.append({"provider": "unknown", "note": None, "status": "error",
+                                "reason": str(exc)[:140]})
+    notes = [r["note"] for r in results if r.get("status") == "ok" and r.get("note")]
+    summary = notes[0] if notes else None
+    return {
+        "providers": results,
+        "summary": summary,
+        "consensus_count": len(notes),
+        "available": [r["provider"] for r in results if r.get("status") == "ok"],
+        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    }
 
 # NOTE: Accept/reject partitioning now lives in services.job_aggregator. Broad
 # mode keeps every usable job and records missing address/radius/transit as
@@ -752,6 +971,35 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
             seen.add(key)
             accepted.append(job)
 
+    # Enrich the most promising accepted jobs (Google place/commute + 5-LLM
+    # research). This is the only paid-per-job work and runs AFTER partition on a
+    # capped slice, so the run completes within the request timeout. Jobs past the
+    # cap keep their honest "Resolution pending" state — never fabricated data.
+    fast = os.environ.get("FAST_JOBS", "0") == "1"
+    if not fast:
+        accepted.sort(key=lambda j: -j.get("match", 0))  # enrich best candidates first
+        _llm_calls_left[0] = Config.MAX_LLM_CALLS
+        enriched_count = 0
+        for job in accepted[:Config.MAX_ENRICH_JOBS]:
+            try:
+                enrich_job(job)
+                enriched_count += 1
+            except Exception:
+                logger.warning("enrich_job failed; keeping job unresolved", exc_info=True)
+        # Recompute resolution flags now that place/commute may be filled in.
+        try:
+            from services.job_aggregator import resolution_flags as _rflags
+            for job in accepted:
+                flags = _rflags(job)
+                job["resolution_flags"] = flags
+                job["needs_resolution"] = bool(flags)
+        except Exception:
+            pass
+
+    # Drop the internal raw payload so it never bloats the response / stored batch.
+    for job in accepted:
+        job.pop("_raw", None)
+
     accepted.sort(key=lambda j: (
         j.get("radius_miles") if j.get("radius_miles") is not None else 999,
         j.get("commute_seconds") if j.get("commute_seconds") is not None else 999999,
@@ -771,6 +1019,8 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
         "accepted": accepted,
         "rejected": rejected[:100],
         "rejected_total": len(rejected),
+        "enriched_count": sum(1 for j in accepted if j.get("enriched")),
+        "enrich_cap": Config.MAX_ENRICH_JOBS,
         "resolution_flag_summary": flag_summary,
         "provider_breakdown": provider_breakdown,
         "quarantined_providers": quarantined_providers,
@@ -1150,6 +1400,8 @@ def jobs():
         "visible_count": len(filtered),
         "accepted_count": len(result["accepted"]),
         "unfiltered_count": len(result["accepted"]),
+        "enriched_count": result.get("enriched_count", 0),
+        "enrich_cap": result.get("enrich_cap", Config.MAX_ENRICH_JOBS),
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
         "rejected_count": result.get("rejected_total", len(result.get("rejected", []))),
@@ -1165,7 +1417,7 @@ def jobs():
             "food_only": mode == "food_service" or domain == "food_service",
             "missing_resolution": "kept_as_resolution_flags_not_rejected",
             "discovery": "federated_search_providers",
-            "reasoning_providers": "not_used_as_discovery",
+            "reasoning_providers": "enrichment_only_5_llm_research_per_accepted_job" if Config.ENABLE_LLM_RESEARCH else "not_used_as_discovery",
             "places_opportunities": "optional_separate_endpoint_/api/opportunities",
         },
         "data": filtered,
@@ -1200,6 +1452,7 @@ def jobs():
                 "rejected": result.get("rejected_total", len(result.get("rejected", []))),
                 "raw": result["raw_count"],
                 "queries": result["query_count"],
+                "enriched": result.get("enriched_count", 0),
             },
             "accepted": result["accepted"],
             "rejected": result.get("rejected", []),

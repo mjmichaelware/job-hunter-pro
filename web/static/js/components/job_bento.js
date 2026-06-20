@@ -40,6 +40,18 @@ function _researchLinks(company) {
     + '</div></div></details>';
 }
 
+// AI research summary line — only when real notes came back. Honest counts.
+function _researchSummary(job) {
+  const r = job && job.research;
+  if (!r) return '';
+  const ok = Array.isArray(r.available) ? r.available.length : 0;
+  if (!ok && !r.summary) return '';
+  const badge = '<span class="badge badge-cached">AI ' + ok + '/5</span>';
+  const line = r.summary ? '<p class="bento__research">' + esc(r.summary) + '</p>' : '';
+  return '<div class="bento__research-wrap">' + badge + line
+    + '<span class="bento__research-more na">Open for all ' + ok + ' AI notes →</span></div>';
+}
+
 // Real match_score → confidence bucket (drives typography weight + glow).
 function _confidenceBucket(job) {
   const v = pick(job, ['match', 'match_score'], null);
@@ -87,6 +99,7 @@ function bentoJobCard(job, isUnresolved) {
       + '<div class="tile"><div class="tile__label">Radius</div><div class="tile__value' + (job.radius_miles == null ? ' na' : '') + '">' + esc(formatMiles(job.radius_miles)) + '</div></div>'
       + '</div>'
       + (flags.length ? '<div class="bento__flags">' + tagList(flags) + '</div>' : '')
+      + _researchSummary(job)
       + (url ? '<div class="bento__actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="btn-link" data-stop>' + esc(t('common.apply')) + '</a></div>' : '')
       + _researchLinks(companyRaw);
   } else if (density === 'key') {

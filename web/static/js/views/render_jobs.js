@@ -75,6 +75,7 @@ function renderJobsView() {
   }
   el.innerHTML = html;
   applyIndustryFromJobs(_jobsState.jobs);
+  if (typeof setCohort === 'function') setCohort(_jobsState.jobs.concat(_jobsState.rejected));
   wireBentoCards(el, accepted.concat(unresolved));
   wireJobsToolbar(el);
   wireGo(el);

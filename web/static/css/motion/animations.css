@@ -94,7 +94,16 @@
 }
 @keyframes jhp-spin { to { transform: rotate(360deg); } }
 
+/* evidence-drawer research / résumé / audit sections enter as they're built */
+.research-sec, .resume-sec, .audit-sec { animation: card-in 0.3s var(--ease) both; }
+.research-grid > * { animation: card-in 0.3s var(--ease) both; }
+.research-grid > *:nth-child(2) { animation-delay: 0.05s; }
+.research-grid > *:nth-child(3) { animation-delay: 0.10s; }
+.research-grid > *:nth-child(4) { animation-delay: 0.15s; }
+.research-grid > *:nth-child(n+5) { animation-delay: 0.2s; }
+
 @media (prefers-reduced-motion: reduce) {
   .bar__fill, .gauge__arc, .stagger-in > *, .geo-pin, .section-header__kicker { animation: none !important; }
   .state-loading--spin::before { animation: none; border-top-color: var(--c-border); }
+  .research-sec, .resume-sec, .audit-sec, .research-grid > * { animation: none !important; }
 }
