@@ -234,12 +234,21 @@ def fetch_provider_raw_jobs(
     max_raw_jobs: int,
     location: str = "Salt Lake City, UT",
     per_provider_cap: int | None = None,
+    dedup: bool = True,
 ) -> Dict[str, Any]:
     """
     Fair SEARCH-provider fanout.
 
     Required invariant:
     every available SEARCH provider gets attempted before any one provider can dominate the run.
+
+    ``per_provider_cap`` defaults to the global ``max_raw_jobs`` (i.e. effectively
+    uncapped per provider — only the global cap bounds the run). Because the fanout
+    is concurrent, removing the per-provider cap keeps fairness while letting every
+    provider contribute every listing it has.
+
+    ``dedup`` (default True) drops cross-provider duplicate listings. Set False to
+    keep duplicates visible (the Discovery "show duplicates" toggle).
 
     Reasoning providers are not called here. They enrich/classify after discovery.
     """
@@ -263,9 +272,10 @@ def fetch_provider_raw_jobs(
     # that provider's worker thread, so it needs no lock.
     lock = threading.Lock()
 
-    active_count = max(1, len(available_providers))
-    fair_default_cap = max(1, (max_raw_jobs + active_count - 1) // active_count)
-    provider_cap = int(per_provider_cap or fair_default_cap)
+    # Per-provider cap defaults to the global cap (uncapped per provider). With
+    # concurrent fanout this stays fair: every provider runs at once and appends
+    # until the GLOBAL cap, so no single provider can starve the others.
+    provider_cap = int(per_provider_cap or max_raw_jobs)
 
     # First pass (single thread): seed a breakdown entry for EVERY provider and
     # collect the ones that should actually run. Keeps dormant/disabled providers
@@ -347,7 +357,7 @@ def fetch_provider_raw_jobs(
                     f"{raw.get('title')}|{raw.get('company_name')}|{raw.get('source_url')}"
                 )
                 with lock:
-                    if cross_key in seen:
+                    if dedup and cross_key in seen:
                         continue
                     if len(raw_jobs) >= max_raw_jobs:
                         return

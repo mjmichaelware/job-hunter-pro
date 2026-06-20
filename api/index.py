@@ -33,6 +33,7 @@ session = requests.Session()
 # accepted job get place/commute data instead of the first handful succeeding and
 # the rest failing silently once Google's per-second quota trips.
 import threading as _threading
+from concurrent.futures import ThreadPoolExecutor as _ThreadPool
 
 _maps_lock = _threading.Lock()
 _maps_last_call = [0.0]
@@ -112,7 +113,7 @@ class Config:
     # Per-run query count. The full ~1400-keyword bank rotates across runs (see
     # raw_job_queries offset), so coverage accumulates over saved batches rather
     # than in one impossible request.
-    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "40"))
+    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "80"))
 
     ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "0").strip() == "1"
     ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "0").strip() == "1"
@@ -128,14 +129,14 @@ class Config:
     # are env-tunable upward once quota allows.
     # Raised from 40 → 200: Maps calls are throttled+retried by maps_get so this
     # is safe to raise high; the bottleneck is LLM calls, not Maps QPS.
-    MAX_ENRICH_JOBS = int(os.environ.get("MAX_ENRICH_JOBS", "200"))
+    MAX_ENRICH_JOBS = int(os.environ.get("MAX_ENRICH_JOBS", "500"))
     # LLM research: every accepted, enriched job is sent to all five reasoning
     # providers (enrichment/classification only — never discovery). Guarded by a
     # per-run call budget. A provider with no key is skipped (dormant), never faked.
     # PRIMARY TIMEOUT RISK: if runs time out, set ENABLE_LLM_RESEARCH=0 or lower
     # MAX_LLM_CALLS. These are the two knobs that control the wall-clock bottleneck.
     ENABLE_LLM_RESEARCH = os.environ.get("ENABLE_LLM_RESEARCH", "1").strip() == "1"
-    MAX_LLM_CALLS = int(os.environ.get("MAX_LLM_CALLS", "400"))
+    MAX_LLM_CALLS = int(os.environ.get("MAX_LLM_CALLS", "1200"))
     LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "18"))
     LLM_MODEL_OPENAI = os.environ.get("LLM_MODEL_OPENAI", "gpt-4o-mini").strip()
     LLM_MODEL_GROQ = os.environ.get("LLM_MODEL_GROQ", "llama-3.3-70b-versatile").strip()
@@ -960,7 +961,8 @@ def raw_job_queries(mode: str = "broad", domain: str = "", extra_terms: Optional
             unique.append(query)
     return unique
 
-def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None) -> Dict[str, Any]:
+def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None,
+                    dedup: bool = True) -> Dict[str, Any]:
     raw_jobs = []
     provider_breakdown = {}
     quarantined_providers: Dict[str, Any] = {}
@@ -973,6 +975,7 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
             queries,
             max_raw_jobs=Config.MAX_RAW_JOBS,
             location="Salt Lake City, UT",
+            dedup=dedup,
         )
         raw_jobs = fanout.get("raw_jobs", [])
         provider_breakdown = fanout.get("provider_breakdown", {})
@@ -1036,13 +1039,24 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
     if not fast:
         accepted.sort(key=lambda j: -j.get("match", 0))  # enrich best candidates first
         _llm_calls_left[0] = Config.MAX_LLM_CALLS
-        enriched_count = 0
-        for job in accepted[:Config.MAX_ENRICH_JOBS]:
+        to_enrich = accepted[:Config.MAX_ENRICH_JOBS]
+        # Enrich jobs CONCURRENTLY so far more get place/commute/review + LLM
+        # research inside the request timeout. maps_get keeps its own global throttle
+        # (so Google QPS stays safe); the LLM calls parallelize across jobs. This is
+        # what lets enrichment cover the whole accepted set, not just the first few.
+        workers = max(1, int(os.environ.get("ENRICH_WORKERS", "8")))
+
+        def _safe_enrich(job):
             try:
                 enrich_job(job)
-                enriched_count += 1
+                return True
             except Exception:
                 logger.warning("enrich_job failed; keeping job unresolved", exc_info=True)
+                return False
+
+        if to_enrich:
+            with _ThreadPool(max_workers=min(workers, len(to_enrich))) as _ex:
+                list(_ex.map(_safe_enrich, to_enrich))
         # Recompute resolution flags now that place/commute may be filled in.
         try:
             from services.job_aggregator import resolution_flags as _rflags
@@ -1476,8 +1490,11 @@ def jobs():
     domain = clean(request.args.get("domain", "")).lower()
     extra = clean(request.args.get("q", ""))
     extra_terms = [extra] if extra else None
+    # Deduplication toggle (Discovery page): dedup=0 keeps cross-provider
+    # duplicates visible; default on.
+    dedup = request.args.get("dedup", "1").strip().lower() not in ("0", "false", "no")
 
-    result = fetch_jobs_live(mode=mode, domain=domain, extra_terms=extra_terms)
+    result = fetch_jobs_live(mode=mode, domain=domain, extra_terms=extra_terms, dedup=dedup)
     filtered = apply_filters(result["accepted"])
 
     rejection_summary = {}
