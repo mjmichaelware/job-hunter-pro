@@ -11,15 +11,17 @@
   pointer-events: none;
   /* CSS fallback: two drifting radial halos, tinted by the active theme */
   background:
-    radial-gradient(60vmax 60vmax at 18% 12%, rgba(var(--halo-a, 0, 255, 204), 0.16), transparent 60%),
-    radial-gradient(55vmax 55vmax at 85% 88%, rgba(var(--halo-b, 157, 0, 255), 0.16), transparent 60%),
+    radial-gradient(65vmax 65vmax at 18% 12%, rgba(var(--halo-a, 0, 255, 204), 0.22), transparent 60%),
+    radial-gradient(60vmax 60vmax at 85% 88%, rgba(var(--halo-b, 157, 0, 255), 0.22), transparent 60%),
+    radial-gradient(45vmax 45vmax at 55% 50%, rgba(0, 170, 255, 0.12), transparent 60%),
     var(--c-void, #000000);
-  animation: halo-drift 24s var(--ease) infinite alternate;
+  animation: halo-drift 14s ease-in-out infinite alternate;
 }
 
 @keyframes halo-drift {
-  0%   { filter: hue-rotate(0deg) saturate(1); transform: scale(1.0); }
-  100% { filter: hue-rotate(18deg) saturate(1.15); transform: scale(1.08); }
+  0%   { filter: hue-rotate(0deg) saturate(1.1) brightness(1.0); transform: scale(1.00); }
+  50%  { filter: hue-rotate(12deg) saturate(1.3) brightness(1.1); transform: scale(1.06); }
+  100% { filter: hue-rotate(24deg) saturate(1.2) brightness(1.05); transform: scale(1.10); }
 }
 
 /* Everything in the shell floats above the halo field */

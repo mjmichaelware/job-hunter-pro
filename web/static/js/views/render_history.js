@@ -1,8 +1,9 @@
 /* views/render_history.js — batch timeline + per-batch counts + accepted/rejected bars. */
 
 async function loadHistoryView() {
-  const data = await safeFetch('/api/history?hours=168');
   const el = mount(); if (!el) return;
+  el.innerHTML = '<p class="state-loading state-loading--spin">Loading history…</p>';
+  const data = await safeFetch('/api/history?hours=168');
   if (!data) { renderState(el, 'state-error', 'Could not load history.'); return; }
   JHP_SYNC.remember('history', data);
   const batches = arr(data, ['batches']);

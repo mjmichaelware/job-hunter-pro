@@ -55,7 +55,8 @@ async function loadHomeView() {
   // Job carousel from most recent batch
   html += '<div class="home__section-label">Recently discovered jobs</div>';
   if (recentJobs.length) {
-    html += '<div class="bento-rail home__rail">'
+    html += '<div class="home__carousel">'
+      + '<div class="bento-rail home__rail" id="home-rail">'
       + recentJobs.map(function (j) {
           const co = esc(cleanText(j.company || j.company_name, ''));
           const src = esc(j.source || j._provider || j.via || '');
@@ -65,7 +66,12 @@ async function loadHomeView() {
             + (src ? '<span class="tag">' + src + '</span>' : '')
             + '</div>';
         }).join('')
-      + '</div>';
+      + '</div>'
+      + '<div class="home__carousel-nav">'
+      + '<button class="home__carousel-btn" id="carousel-prev" aria-label="Previous">&#8249;</button>'
+      + '<div class="home__carousel-dots" id="carousel-dots"></div>'
+      + '<button class="home__carousel-btn" id="carousel-next" aria-label="Next">&#8250;</button>'
+      + '</div></div>';
   } else {
     html += '<div class="info-box">No saved jobs yet — run discovery to populate this feed.</div>';
   }
@@ -108,33 +114,29 @@ async function loadHomeView() {
   el.querySelectorAll('[data-go]').forEach(function (c) {
     c.addEventListener('click', function () { navigate(c.dataset.go); });
   });
-  // Carousel: auto-advance the recent-jobs rail over time; pause while the user
-  // touches/hovers/swipes it, then resume. Native scroll keeps it sweepable.
-  const rail = el.querySelector('.home__rail');
-  if (rail && recentJobs.length > 1) autoScrollRail(rail);
+  if (recentJobs.length > 1) _carousel(el, recentJobs.length);
 }
 
-function autoScrollRail(rail) {
-  let paused = false;
-  const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const step = calm ? 0.3 : 0.6;            // px per tick
-  ['pointerdown', 'pointerenter', 'touchstart', 'wheel'].forEach(function (ev) {
-    rail.addEventListener(ev, function () { paused = true; }, { passive: true });
-  });
-  ['pointerup', 'pointerleave', 'touchend'].forEach(function (ev) {
-    rail.addEventListener(ev, function () { setTimeout(function () { paused = false; }, 1800); }, { passive: true });
-  });
-  function tick() {
-    if (!rail.isConnected) return;          // view changed; stop the loop
-    if (!paused) {
-      const max = rail.scrollWidth - rail.clientWidth;
-      if (max > 4) {
-        rail.scrollLeft = rail.scrollLeft >= max - 1 ? 0 : rail.scrollLeft + step;
-      }
-    }
-    window.requestAnimationFrame(tick);
+function _carousel(el, n) {
+  const rail = el.querySelector('#home-rail'), dots = el.querySelector('#carousel-dots');
+  if (!rail || !dots || n < 2) return;
+  const slides = Array.from(rail.children);
+  dots.innerHTML = slides.map(function (_, i) {
+    return '<button class="cdot' + (!i ? ' cdot--on' : '') + '" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"></button>';
+  }).join('');
+  function cur() { return Math.round(rail.scrollLeft / Math.max(1, (slides[0] ? slides[0].offsetWidth + 12 : 1))); }
+  function go(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[i].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+    dots.querySelectorAll('.cdot').forEach(function (d, j) { d.classList.toggle('cdot--on', j === i); });
   }
-  window.requestAnimationFrame(tick);
+  el.querySelector('#carousel-prev').onclick = function () { go(cur() - 1); };
+  el.querySelector('#carousel-next').onclick = function () { go(cur() + 1); };
+  dots.onclick = function (e) { var d = e.target.closest('[data-i]'); if (d) go(+d.dataset.i); };
+  rail.addEventListener('scroll', function () {
+    var c = cur();
+    dots.querySelectorAll('.cdot').forEach(function (d, j) { d.classList.toggle('cdot--on', j === c); });
+  }, { passive: true });
 }
 
 function _homeCard(target, label, value, sub) {
