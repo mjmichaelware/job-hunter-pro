@@ -108,6 +108,33 @@ async function loadHomeView() {
   el.querySelectorAll('[data-go]').forEach(function (c) {
     c.addEventListener('click', function () { navigate(c.dataset.go); });
   });
+  // Carousel: auto-advance the recent-jobs rail over time; pause while the user
+  // touches/hovers/swipes it, then resume. Native scroll keeps it sweepable.
+  const rail = el.querySelector('.home__rail');
+  if (rail && recentJobs.length > 1) autoScrollRail(rail);
+}
+
+function autoScrollRail(rail) {
+  let paused = false;
+  const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const step = calm ? 0.3 : 0.6;            // px per tick
+  ['pointerdown', 'pointerenter', 'touchstart', 'wheel'].forEach(function (ev) {
+    rail.addEventListener(ev, function () { paused = true; }, { passive: true });
+  });
+  ['pointerup', 'pointerleave', 'touchend'].forEach(function (ev) {
+    rail.addEventListener(ev, function () { setTimeout(function () { paused = false; }, 1800); }, { passive: true });
+  });
+  function tick() {
+    if (!rail.isConnected) return;          // view changed; stop the loop
+    if (!paused) {
+      const max = rail.scrollWidth - rail.clientWidth;
+      if (max > 4) {
+        rail.scrollLeft = rail.scrollLeft >= max - 1 ? 0 : rail.scrollLeft + step;
+      }
+    }
+    window.requestAnimationFrame(tick);
+  }
+  window.requestAnimationFrame(tick);
 }
 
 function _homeCard(target, label, value, sub) {

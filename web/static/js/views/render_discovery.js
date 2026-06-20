@@ -30,6 +30,8 @@ async function loadDiscoveryView() {
     + '<span class="btn__label">' + esc(t('jobs.run')) + '</span>'
     + '<span class="spinner" hidden></span></button>'
     + '</div>'
+    + '<label class="disc-toggle"><input type="checkbox" id="disc-dedup" checked> '
+    + 'Remove duplicate listings (same role from multiple sources)</label>'
     + '<p class="status-line" id="disc-status">' + esc(t('disc.idle')) + '</p>'
     + '<div class="disc-tips">'
     + '<div class="disc-tip"><span class="disc-tip__icon">💾</span><strong>Browse saved</strong> — instant, free. Shows jobs from the last stored batch.</div>'
@@ -50,7 +52,10 @@ async function loadDiscoveryView() {
     // Energize the ambient field while a real run is in flight (honest: it only
     // surges because discovery is actually running right now).
     if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 1 });
-    const data = await fetchJobsLive(Object.assign({}, AppState.filters, mode ? { mode: mode } : {}));
+    const dedupEl = el.querySelector('#disc-dedup');
+    const opts = Object.assign({}, AppState.filters, mode ? { mode: mode } : {});
+    if (dedupEl && !dedupEl.checked) opts.dedup = 0;
+    const data = await fetchJobsLive(opts);
     if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 });
     busy(btn, false);
     if (!data) { status.textContent = 'Discovery failed or timed out. Check Debug tab for details.'; return; }

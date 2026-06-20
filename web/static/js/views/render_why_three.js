@@ -1,83 +1,58 @@
-/* views/render_why_three.js — decision layer. Ranks the top picks from your
-   most recent discovery batch by real match score (review score breaks ties).
-   Never invents a ranking; if fewer than 3 scored candidates exist it says so. */
-
-function _scoreOf(j) {
-  const m = pick(j, ['match', 'match_score'], null);
-  return m == null ? null : Number(m);
-}
-
-function _whyCard(j, i) {
-  const score = _scoreOf(j);
-  const review = pick(j, ['review_score'], null);
-  const company = esc(cleanText(pick(j, ['company', 'company_name', 'restaurant_name'], null), 'Company not listed'));
-  const title = esc(cleanText(pick(j, ['title', 'job_title'], null), 'Untitled role'));
-  const loc = esc(cleanText(pick(j, ['resolved_address', 'location'], null), 'Location not resolved'));
-  const src = esc(cleanText(pick(j, ['source', '_provider', 'via'], null), ''));
-  const commute = j.commute_seconds != null ? esc(formatMins(j.commute_seconds)) : null;
-  const radius = j.radius_miles != null ? esc(formatMiles(j.radius_miles)) : null;
-  const bits = [];
-  if (score != null) bits.push('match ' + score);
-  if (review != null) bits.push('review ' + review);
-  if (commute) bits.push(commute + ' commute');
-  if (radius) bits.push(radius);
-  if (src) bits.push('via ' + src);
-  return '<div class="why-card"><div class="why-card__rank">#' + (i + 1) + '</div>'
-    + '<div class="why-card__title">' + title + ' — ' + company + '</div>'
-    + '<div class="why-card__reason">' + esc(loc) + '</div>'
-    + (bits.length ? '<div class="why-card__score">' + esc(bits.join(' · ')) + '</div>' : '')
-    + '</div>';
-}
+/* views/render_why_three.js — Top Matches: highest-scoring accepted jobs from
+   the most recent discovery batch, shown as full bento cards (top 12).
+   Uses AppState.liveResult first when a live run just completed. */
 
 async function loadWhyThreeView() {
   const el = mount(); if (!el) return;
-  el.innerHTML = (typeof skeletonCards === 'function')
-    ? '<div class="state-loading state-loading--spin">Ranking your last batch…</div>' + skeletonCards(3, 'job')
-    : '<p class="state-loading">Ranking…</p>';
+  el.innerHTML = '<p class="state-loading">Loading top matches…</p>';
 
-  const batchList = await safeFetch('/api/batches');
-  const batches = arr(batchList, ['batches']);
+  // Prefer a just-completed live result; fall back to latest stored batch.
   let jobs = [];
-  if (batches.length) {
-    const snap = await safeFetch('/api/batches/' + encodeURIComponent(batches[0].id || batches[0]));
-    jobs = arr(snap, ['data', 'jobs', 'accepted', 'results']);
-  }
-
-  const header = sectionHeader({
-    icon: 'why-three', kicker: 'Decision layer',
-    title: 'Why these rank',
-    blurb: 'The top picks from your most recent discovery batch, ranked by the real match score the engine computed. Ranked from stored data — not a live search.',
-  });
-  let html = header;
-
-  const scored = jobs.filter(function (j) { return _scoreOf(j) != null; })
-    .sort(function (a, b) {
-      const d = _scoreOf(b) - _scoreOf(a);
-      if (d !== 0) return d;
-      return (Number(pick(b, ['review_score'], 0)) || 0) - (Number(pick(a, ['review_score'], 0)) || 0);
-    });
-
-  if (!scored.length) {
-    html += emptyArt({ icon: 'why-three', title: 'No scored candidates yet',
-      body: jobs.length
-        ? 'Your last batch has jobs but none carry a match score yet. Run a fresh discovery to compute rankings.'
-        : 'Run a discovery batch — once there are scored candidates, the top picks and their evidence appear here.',
-      action: { label: 'Open Discovery', go: 'discovery' } });
+  if (AppState && AppState.liveResult && Array.isArray(AppState.liveResult.jobs)) {
+    jobs = AppState.liveResult.jobs;
   } else {
-    const top = scored.slice(0, 3);
-    html += '<h2 class="section-heading">Top ' + top.length + ' pick' + (top.length === 1 ? '' : 's') + '</h2>'
-      + '<div class="stagger-in">' + top.map(_whyCard).join('') + '</div>';
-    if (scored.length < 3) {
-      html += '<div class="info-box">Only ' + scored.length + ' scored candidate'
-        + (scored.length === 1 ? '' : 's') + ' in the last batch — run more discovery for a fuller ranking.</div>';
-    } else {
-      html += '<p class="status-line">Ranked from ' + scored.length + ' scored candidates in the latest batch.</p>';
+    const batchList = await safeFetch('/api/batches');
+    const batches = arr(batchList, ['batches']);
+    if (batches.length) {
+      const snap = await safeFetch('/api/batches/' + encodeURIComponent(batches[0].id || batches[0]));
+      jobs = arr(snap, ['data', 'jobs', 'accepted', 'results']);
     }
   }
 
-  el.innerHTML = html;
-  wireGo(el);
-  JHP_SYNC.remember('why-three', { ranked: scored.length });
+  const header = sectionHeader({
+    icon: 'spark', kicker: 'Best fits',
+    title: 'Top Matches',
+    blurb: 'Your highest-scoring accepted jobs from the latest discovery, ranked by match score. Sourced from stored batch data — no extra API calls.',
+  });
+
+  if (!jobs.length) {
+    el.innerHTML = header;
+    renderState(el, 'state-empty', 'No discovery results yet. Run a discovery to see your top matches.');
+    return;
+  }
+
+  const topJobs = jobs
+    .slice()
+    .sort(function (a, b) {
+      return (Number(pick(b, ['match', 'match_score'], 0)) || 0)
+           - (Number(pick(a, ['match', 'match_score'], 0)) || 0);
+    })
+    .slice(0, 12);
+
+  const container = document.createElement('div');
+  container.className = 'bento-grid stagger-in';
+  topJobs.forEach(function (job) {
+    const cardHtml = bentoJobCard(job, false);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = cardHtml;
+    const card = wrap.firstElementChild;
+    if (card) container.appendChild(card);
+  });
+
+  el.innerHTML = header;
+  el.appendChild(container);
+  wireBentoCards(container, topJobs);
+  JHP_SYNC.remember('why-three', { ranked: topJobs.length });
 }
 
-registerView('why-three', 'Why Three', loadWhyThreeView);
+registerView('why-three', 'Top Matches', loadWhyThreeView);

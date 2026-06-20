@@ -29,17 +29,23 @@ const _PARTICLES = Array.from({ length: 70 }, function (_, i) {
 function initVolumetric() {
   const canvas = document.getElementById('halo-canvas');
   if (!canvas || !canvas.getContext) return;
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Save-Data only is a hard opt-out (the CSS gradient remains). Reduced-motion is
+  // NOT a hard stop — the wallpaper is meant to always live; we just slow it down.
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-data: reduce)').matches) return;
+  const calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const SPEED = calm ? 0.35 : 1;          // slower drift when reduced-motion is set
   const ctx = canvas.getContext('2d');
   if (!ctx || _volStarted) return;
   _volStarted = true;
+  if (calm) _volIntensity = Math.min(_volIntensity, 0.4);
 
   let W = 0, H = 0;
   function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
   resize();
   window.addEventListener('resize', resize, { passive: true });
 
-  function frame(ts) {
+  function frame(rawTs) {
+    const ts = rawTs * SPEED;
     const I = _volIntensity;
     ctx.clearRect(0, 0, W, H);
 
