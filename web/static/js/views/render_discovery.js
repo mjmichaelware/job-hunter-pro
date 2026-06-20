@@ -23,6 +23,9 @@ async function loadDiscoveryView() {
     + '<button type="button" id="disc-reload" class="btn btn-glow">'
     + '<span class="btn__label">' + esc(t('jobs.reload')) + '</span>'
     + '<span class="spinner" hidden></span></button>'
+    + '<button type="button" id="disc-local" class="btn btn-glow">'
+    + '<span class="btn__label">📍 Local jobs near 84115</span>'
+    + '<span class="spinner" hidden></span></button>'
     + '<button type="button" id="disc-run" class="btn btn-glow btn-warn">'
     + '<span class="btn__label">' + esc(t('jobs.run')) + '</span>'
     + '<span class="spinner" hidden></span></button>'
@@ -37,6 +40,30 @@ async function loadDiscoveryView() {
   const status = el.querySelector('#disc-status');
   const reload = el.querySelector('#disc-reload');
   const run = el.querySelector('#disc-run');
+  const local = el.querySelector('#disc-local');
+
+  async function runDiscovery(btn, mode, label) {
+    if (!confirm(t('jobs.confirm'))) return;
+    busy(btn, true);
+    status.textContent = 'Scanning ' + label + ' across ' + countLabel + '…';
+    if (typeof announce === 'function') announce(label + ' discovery started');
+    // Energize the ambient field while a real run is in flight (honest: it only
+    // surges because discovery is actually running right now).
+    if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 1 });
+    const data = await fetchJobsLive(Object.assign({}, AppState.filters, mode ? { mode: mode } : {}));
+    if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 });
+    busy(btn, false);
+    if (!data) { status.textContent = 'Discovery failed or timed out. Check Debug tab for details.'; return; }
+    const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
+    const rejected = arr(data, ['rejected']);
+    const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
+    const stored = data.stored ? 'saved' : 'not saved (storage error)';
+    const msg = jobs.length + ' accepted · ' + raw + ' raw · ' + rejected.length + ' flagged · ' + stored;
+    AppState.liveResult = { jobs: jobs, rejected: rejected, msg: msg };
+    status.textContent = msg + ' — opening Jobs…';
+    if (typeof announce === 'function') announce(msg);
+    navigate('jobs');
+  }
 
   reload.addEventListener('click', async function () {
     busy(reload, true);
@@ -48,24 +75,8 @@ async function loadDiscoveryView() {
     if (n) { AppState.liveResult = null; navigate('jobs'); }
   });
 
-  run.addEventListener('click', async function () {
-    if (!confirm(t('jobs.confirm'))) return;
-    busy(run, true);
-    status.textContent = 'Scanning across ' + countLabel + '…';
-    if (typeof announce === 'function') announce('Live discovery started');
-    const data = await fetchJobsLive(AppState.filters);
-    busy(run, false);
-    if (!data) { status.textContent = 'Discovery failed or timed out. Check Debug tab for details.'; return; }
-    const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
-    const rejected = arr(data, ['rejected']);
-    const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
-    const stored = data.stored ? 'saved' : 'not saved (storage error)';
-    const msg = jobs.length + ' accepted · ' + raw + ' raw · ' + rejected.length + ' flagged · ' + stored;
-    AppState.liveResult = { jobs: jobs, rejected: rejected, msg: msg };
-    status.textContent = msg + ' — opening Jobs…';
-    if (typeof announce === 'function') announce(msg);
-    navigate('jobs');
-  });
+  if (local) local.addEventListener('click', function () { runDiscovery(local, 'local', 'local jobs near 84115'); });
+  run.addEventListener('click', function () { runDiscovery(run, '', 'all jobs'); });
 
   function busy(btn, on) {
     btn.disabled = on;

@@ -23,6 +23,13 @@ function _matchBadge(job) {
   return '<span class="badge ' + cls + flash + '">match ' + esc(String(v)) + '</span>';
 }
 
+// Industry chip — now always present (deterministic classification, no cost).
+function _industryBadge(job) {
+  const ind = pick(job, ['industry'], null);
+  if (!ind || /^general$/i.test(ind)) return '';
+  return '<span class="badge badge-cached badge-industry">' + esc(String(ind)) + '</span>';
+}
+
 function _researchLinks(company) {
   if (!company || company === 'Company not listed') return '';
   const q = encodeURIComponent(company);
@@ -81,7 +88,7 @@ function bentoJobCard(job, isUnresolved) {
 
   let body = '<div class="bento__head"><div><div class="bento__title">' + title + '</div>'
     + '<div class="bento__company">' + company + (source ? ' · <span class="source-chip">' + source + '</span>' : '') + '</div></div>'
-    + '<div class="bento__badges">' + matchBadge + '</div></div>';
+    + '<div class="bento__badges">' + matchBadge + _industryBadge(job) + '</div></div>';
 
   if (density === 'full' || density === 'key') {
     body += '<div class="bento__meta">'

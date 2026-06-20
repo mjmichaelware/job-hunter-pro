@@ -96,7 +96,18 @@ def build_queries(
                 promoted.append(f"{term} jobs {city}")
 
     queries: List[str] = []
-    if mode == BROAD_MODE or mode == "all":
+    if mode in ("local", "near_me", "nearby"):
+        # Location-biased recall: every seed is anchored to the city/postal so the
+        # keyword-driven boards return physically-local jobs (which then resolve a
+        # Google place + commute), instead of remote-heavy listings.
+        base = broad_queries(city, postal) + _all_industry_queries(per_route=3)
+        anchor = city.split(",")[0].strip()
+        for q in base:
+            ql = (q or "").strip()
+            if not ql:
+                continue
+            queries.append(ql if anchor.lower() in ql.lower() else f"{ql} {anchor} {postal}")
+    elif mode == BROAD_MODE or mode == "all":
         queries.extend(broad_queries(city, postal))
         queries.extend(_all_industry_queries(per_route=3))
     else:

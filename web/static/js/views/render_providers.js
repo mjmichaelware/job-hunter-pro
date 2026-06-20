@@ -51,6 +51,8 @@ async function loadProvidersView() {
 
   const totalReady = providers.filter(function(p){ return p.status === 'ready'; }).length;
   const totalDorm  = providers.filter(function(p){ return p.status === 'dormant'; }).length;
+  const llmOnline  = reasoning.filter(function(p){ return p.status === 'ready'; }).length;
+  const llmCls     = llmOnline === reasoning.length ? 'badge-safe' : llmOnline > 0 ? 'badge-warn' : 'badge-error';
 
   const header = sectionHeader({
     icon: 'providers', kicker: 'Source truth',
@@ -64,7 +66,13 @@ async function loadProvidersView() {
     + '<span class="badge badge-safe">' + totalReady + ' ready</span>'
     + '<span class="badge badge-disabled">' + totalDorm + ' dormant</span>'
     + '<span class="badge badge-cached">' + providers.length + ' total</span>'
-    + '</div>';
+    + '<span class="badge ' + llmCls + '" title="AI research models with a live API key">AI research ' + llmOnline + '/' + reasoning.length + ' online</span>'
+    + '</div>'
+    + (llmOnline === 0
+        ? '<p class="info-box info-box--warn">No AI research models are online. The 5 reasoning keys '
+          + '(OpenAI, Gemini, Claude, Groq, xAI) must be injected into Cloud Run via <code>--set-secrets</code> '
+          + 'for per-job AI research to populate. Discovery still works without them.</p>'
+        : '');
 
   el.innerHTML = header + summary
     + _provTable(discovery, 'Discovery providers', 'These sources retrieve real job listings. Keyless sources are always on; keyed sources activate when you add the key via scripts/add_keys.sh.')

@@ -21,6 +21,13 @@
 .badge-error   { color: var(--c-err); }
 .badge-disabled, .badge-unavailable, .badge-dry-run { color: var(--c-disabled); }
 
+/* industry chip — accent-tinted so it reads as a classification, not a state */
+.badge-industry {
+  color: var(--c-accent, var(--c-cyan));
+  background: color-mix(in srgb, var(--c-accent, var(--c-cyan)) 12%, transparent);
+  text-transform: none; letter-spacing: 0;
+}
+
 /* small tag chips (roles, flags) */
 .tag {
   display: inline-block;
