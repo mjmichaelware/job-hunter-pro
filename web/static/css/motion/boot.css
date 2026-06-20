@@ -1,5 +1,5 @@
-/* boot.css — one-per-session animated launch sequence over an obsidian field.
-   Logo stroke draws in; cyan halo blooms; then fades into the app. */
+/* boot.css — multi-phase 5s launch sequence (stroke → halo bloom → orbits →
+   name reveal → tagline → fade-out). Extended phases in boot_fx.css. */
 
 #boot-splash {
   position: fixed; inset: 0; z-index: 80;
@@ -8,20 +8,13 @@
   background: #000000;
 }
 #boot-splash[hidden] { display: none; }
-#boot-splash.is-leaving { animation: boot-out 0.5s var(--ease) forwards; }
+#boot-splash.is-leaving { animation: boot-out 0.6s var(--ease) forwards; }
 @keyframes boot-out { to { opacity: 0; visibility: hidden; } }
 
-#boot-mark { filter: drop-shadow(0 0 18px var(--c-cyan)); }
-.boot-mark__halo {
-  fill: none; stroke: var(--c-cyan); stroke-width: 2; opacity: 0;
-  transform-origin: 60px 60px;
-  animation: halo-bloom 1.6s var(--ease) forwards;
-}
-@keyframes halo-bloom {
-  0% { opacity: 0; transform: scale(0.4); }
-  55% { opacity: 0.7; transform: scale(1.12); }
-  100% { opacity: 0.35; transform: scale(1); }
-}
+/* Phase A — logo SVG glow */
+#boot-mark { filter: drop-shadow(0 0 22px var(--c-cyan)); }
+
+/* Phase A — stroke draws in (0–1.3s) */
 .boot-mark__stroke {
   stroke: var(--c-text); stroke-width: 6; stroke-linecap: round;
   stroke-dasharray: 240; stroke-dashoffset: 240;
@@ -29,13 +22,43 @@
 }
 @keyframes boot-draw { to { stroke-dashoffset: 0; } }
 
+/* Phase B — halo blooms (0.6–2.2s) */
+.boot-mark__halo {
+  fill: none; stroke: var(--c-cyan); stroke-width: 2; opacity: 0;
+  transform-origin: 60px 60px;
+  animation: halo-bloom 1.6s var(--ease) 0.6s forwards;
+}
+@keyframes halo-bloom {
+  0%   { opacity: 0; transform: scale(0.4); }
+  50%  { opacity: 0.85; transform: scale(1.14); }
+  100% { opacity: 0.4; transform: scale(1); }
+}
+
+/* Phase C — brand name letter-by-letter (each letter fades+slides, staggered via
+   boot_fx.css .boot-letter spans injected by boot_sequence.js) */
 .boot-splash__name {
   font-weight: 800; letter-spacing: 0.18em; font-size: 0.95rem; color: var(--c-text);
-  opacity: 0; animation: boot-name 0.6s var(--ease) 0.9s forwards;
+  display: flex; gap: 0.04em;
 }
-@keyframes boot-name { to { opacity: 1; } }
+/* fallback: whole name fades if spans not injected yet */
+.boot-splash__name:not(:has(.boot-letter)) {
+  opacity: 0; animation: boot-name-fade 0.6s var(--ease) 1.8s forwards;
+}
+@keyframes boot-name-fade { to { opacity: 1; } }
 
+/* Phase D — tagline */
+.boot-splash__tagline {
+  font-size: 0.72rem; letter-spacing: 0.12em; color: var(--c-muted);
+  opacity: 0; animation: boot-tagline 0.5s var(--ease) 3.4s forwards;
+  text-transform: uppercase;
+}
+@keyframes boot-tagline { to { opacity: 0.7; } }
+
+/* reduced-motion: static, instant */
 @media (prefers-reduced-motion: reduce) {
-  .boot-mark__halo, .boot-mark__stroke, .boot-splash__name { animation: none; opacity: 1; stroke-dashoffset: 0; }
+  .boot-mark__halo, .boot-mark__stroke { animation: none; opacity: 1; stroke-dashoffset: 0; }
+  .boot-splash__name { opacity: 1; }
+  .boot-splash__name:not(:has(.boot-letter)) { animation: none; opacity: 1; }
+  .boot-splash__tagline { animation: none; opacity: 0.7; }
   #boot-splash.is-leaving { animation: boot-out 0.15s linear forwards; }
 }

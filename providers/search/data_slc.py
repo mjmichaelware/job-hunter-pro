@@ -1,6 +1,7 @@
 """Data.SLC.gov (Socrata) — Salt Lake City employer/permit LEADS (not postings).
-Keyless (optional DATA_SLC_APP_TOKEN). Default OFF: set ENABLE_DATA_SLC=1.
-Configure DATA_SLC_DATASET to the Socrata 4x4 id you want to sweep.
+Keyless (optional DATA_SLC_APP_TOKEN). ON by default; opt-out via DISABLE_DATA_SLC=1.
+Configure DATA_SLC_DATASET to override the dataset Socrata 4x4 id.
+Default dataset: tqyd-wbgu (SLC business licenses, filtered to active Food & Bev/Retail).
 """
 import logging
 import os
@@ -14,7 +15,9 @@ from ..base import ProviderMetadata, ProviderType, SearchProvider, check_hard_fa
 
 logger = logging.getLogger(__name__)
 
-DATASET = os.environ.get("DATA_SLC_DATASET", "")
+# SLC Business License dataset (Socrata 4x4). Well-known, publicly documented.
+# Override via DATA_SLC_DATASET env var if you need a different dataset.
+DATASET = os.environ.get("DATA_SLC_DATASET", "tqyd-wbgu")
 
 
 class DataSlcProvider(SearchProvider):
@@ -32,8 +35,9 @@ class DataSlcProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        if not os.environ.get("ENABLE_DATA_SLC"):
-            return "Set ENABLE_DATA_SLC=1 to include SLC employer leads."
+        # ON by default; opt-out by setting DISABLE_DATA_SLC=1.
+        if os.environ.get("DISABLE_DATA_SLC"):
+            return "Disabled via DISABLE_DATA_SLC env flag."
         if not DATASET:
             return "Set DATA_SLC_DATASET=<socrata-4x4-id> to choose a dataset."
         return ""

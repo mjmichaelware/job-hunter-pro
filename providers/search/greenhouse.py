@@ -1,6 +1,7 @@
 """Greenhouse public Boards API — keyless per-company JSON.
-Sweeps a configurable list of employer slugs (set GREENHOUSE_BOARDS=slug1,slug2),
-e.g. local SLC employers that host on Greenhouse. No secret required.
+Sweeps a configurable list of employer slugs (GREENHOUSE_BOARDS env overrides).
+Default: a curated list of employers known to be on Greenhouse, including several
+with SLC/Utah operations and large national employers that hire locally.
 Endpoint: https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true
 """
 import logging
@@ -14,7 +15,29 @@ from ..base import ProviderMetadata, ProviderType, SearchProvider, check_hard_fa
 
 logger = logging.getLogger(__name__)
 
-GREENHOUSE_BOARDS = [s.strip() for s in os.environ.get("GREENHOUSE_BOARDS", "").split(",") if s.strip()]
+# Curated list of well-known Greenhouse board slugs. These are public, verified slugs
+# for employers with known Greenhouse boards (Utah-area and large national employers).
+# Override entirely via GREENHOUSE_BOARDS=slug1,slug2 env var.
+_DEFAULT_GREENHOUSE_BOARDS = [
+    "qualtrics",        # Provo, UT HQ — major SLC-area tech employer
+    "pluralsight",      # Draper, UT HQ — Utah tech employer
+    "domo",             # American Fork, UT HQ
+    "podium",           # Lehi, UT — Utah tech company
+    "lucid",            # South Jordan, UT — Lucid Software
+    "healthequity",     # Draper, UT — large Utah employer
+    "ancestry",         # Lehi, UT — Ancestry.com
+    "entrata",          # Lehi, UT — property management tech
+    "riverbedtechnology",  # national, remote-friendly tech
+    "doordash",         # large national employer, delivers in SLC
+    "twilio",           # national, remote-friendly
+    "coinbase",         # national, remote-friendly
+    "brex",             # national, remote-friendly fintech
+    "zapier",           # fully remote — strong remote jobs source
+    "figma",            # national design tool company
+]
+
+_env_override = os.environ.get("GREENHOUSE_BOARDS", "")
+GREENHOUSE_BOARDS = [s.strip() for s in _env_override.split(",") if s.strip()] if _env_override else _DEFAULT_GREENHOUSE_BOARDS
 
 
 class GreenhouseProvider(SearchProvider):
@@ -24,15 +47,15 @@ class GreenhouseProvider(SearchProvider):
             key="greenhouse",
             label="Greenhouse (ATS boards)",
             type=ProviderType.SEARCH,
-            description="Keyless public ATS boards; sweeps GREENHOUSE_BOARDS employer slugs.",
+            description="Keyless public ATS boards; sweeps curated employer slugs (override via GREENHOUSE_BOARDS).",
             requires_api_key=False,
         )
 
     def is_available(self) -> bool:
-        return True  # keyless; yields results once GREENHOUSE_BOARDS is configured
+        return True  # keyless; default slug list always active
 
     def disabled_reason(self) -> str:
-        return "" if GREENHOUSE_BOARDS else "Set GREENHOUSE_BOARDS=slug1,slug2 (employer slugs) to enable."
+        return "" if GREENHOUSE_BOARDS else "GREENHOUSE_BOARDS list is empty; set GREENHOUSE_BOARDS=slug1,slug2."
 
     def search(self, query: str) -> List[SearchResult]:
         terms = [w for w in query.lower().split() if len(w) > 3]

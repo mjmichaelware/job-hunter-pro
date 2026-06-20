@@ -1,0 +1,96 @@
+/* boot_fx.css — Phase B-C orbital rings, particle dots, kinetic letter reveal.
+   Kept separate so boot.css stays ≤150 lines. */
+
+/* ── Orbital rings (Phase B, 1.0s–2.8s) ── */
+.boot-orbit {
+  position: absolute;
+  top: 50%; left: 50%;
+  border-radius: 50%;
+  border: 1px solid var(--c-cyan);
+  transform: translate(-50%, -50%) rotate(0deg);
+  opacity: 0;
+}
+.boot-orbit--1 {
+  width: 140px; height: 140px;
+  border-color: rgba(0,255,204,0.35);
+  animation: orbit-appear 0.6s var(--ease) 1.0s forwards,
+             orbit-spin 6s linear 1.0s infinite;
+}
+.boot-orbit--2 {
+  width: 180px; height: 180px;
+  border-color: rgba(0,255,204,0.18);
+  animation: orbit-appear 0.6s var(--ease) 1.3s forwards,
+             orbit-spin 10s linear 1.3s infinite reverse;
+}
+@keyframes orbit-appear {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7) rotate(0deg); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1)   rotate(0deg); }
+}
+@keyframes orbit-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ── Particle dots riding the rings ── */
+.boot-dot {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 5px; height: 5px;
+  background: var(--c-cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--c-cyan);
+  opacity: 0;
+}
+.boot-dot--a {
+  /* rides orbit-1 radius ~70px at 0° */
+  transform: translate(calc(-50% + 70px), -50%);
+  transform-origin: -70px 0;
+  animation: dot-appear 0.4s var(--ease) 1.2s forwards,
+             dot-spin-a 6s linear 1.2s infinite;
+}
+.boot-dot--b {
+  /* rides orbit-1 at 180° */
+  transform: translate(calc(-50% - 70px), -50%);
+  transform-origin: 70px 0;
+  animation: dot-appear 0.4s var(--ease) 1.4s forwards,
+             dot-spin-b 6s linear 1.4s infinite;
+}
+.boot-dot--c {
+  /* rides orbit-2 radius ~90px at 90° */
+  transform: translate(-50%, calc(-50% - 90px));
+  transform-origin: 0 90px;
+  animation: dot-appear 0.4s var(--ease) 1.6s forwards,
+             dot-spin-c 10s linear 1.6s infinite reverse;
+}
+@keyframes dot-appear { to { opacity: 1; } }
+@keyframes dot-spin-a { to { transform: translate(calc(-50% + 70px), -50%) rotate(360deg); } }
+@keyframes dot-spin-b { to { transform: translate(calc(-50% - 70px), -50%) rotate(360deg); } }
+@keyframes dot-spin-c { to { transform: translate(-50%, calc(-50% - 90px)) rotate(-360deg); } }
+
+/* ── Boot SVG wrapper needs relative positioning for absolute dot overlay ── */
+.boot-splash__orbital {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 200px; height: 200px;
+}
+
+/* ── Phase C — kinetic letter reveal (staggered, injected by boot_sequence.js) ── */
+.boot-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: boot-letter-in 0.35s var(--ease) both;
+}
+@keyframes boot-letter-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* reduced-motion: suppress all orbital/letter motion */
+@media (prefers-reduced-motion: reduce) {
+  .boot-orbit, .boot-dot, .boot-letter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .boot-dot { display: none; }
+}

@@ -30,7 +30,8 @@ class USASpendingProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if os.environ.get("ENABLE_USASPENDING") else "Set ENABLE_USASPENDING=1 to include contractor leads."
+        # ON by default; opt-out by setting DISABLE_USASPENDING=1.
+        return "Disabled via DISABLE_USASPENDING env flag." if os.environ.get("DISABLE_USASPENDING") else ""
 
     def search(self, query: str) -> List[SearchResult]:
         body = {

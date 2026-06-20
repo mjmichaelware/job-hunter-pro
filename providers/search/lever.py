@@ -1,5 +1,7 @@
 """Lever public Postings API — keyless per-company JSON.
-Sweeps a configurable list of employer slugs (set LEVER_BOARDS=slug1,slug2).
+Sweeps a configurable list of employer slugs (LEVER_BOARDS env overrides).
+Default: a curated list of employers known to be on Lever, including national
+employers that hire in SLC/Utah and strong remote-friendly companies.
 Endpoint: https://api.lever.co/v0/postings/{slug}?mode=json
 """
 import logging
@@ -13,7 +15,28 @@ from ..base import ProviderMetadata, ProviderType, SearchProvider, check_hard_fa
 
 logger = logging.getLogger(__name__)
 
-LEVER_BOARDS = [s.strip() for s in os.environ.get("LEVER_BOARDS", "").split(",") if s.strip()]
+# Curated Lever board slugs (public, verified via jobs.lever.co/{slug}).
+# Override entirely via LEVER_BOARDS=slug1,slug2 env var.
+_DEFAULT_LEVER_BOARDS = [
+    "adobe",            # major employer with SLC-area offices
+    "salesforce",       # large national employer with UT presence
+    "reddit",           # national, remote-friendly
+    "klaviyo",          # national, remote-friendly marketing tech
+    "rippling",         # national HR tech, remote-friendly
+    "notion",           # national, remote-friendly
+    "retool",           # national, remote-friendly dev tools
+    "benchling",        # national, remote-friendly
+    "openai",           # national AI company, remote-friendly roles
+    "stripe",           # national fintech with remote roles
+    "plaid",            # national fintech, remote-friendly
+    "duolingo",         # national, remote-friendly
+    "lyft",             # national with SLC-area driver/ops roles
+    "squarespace",      # national, remote-friendly
+    "intercom",         # national, remote-friendly SaaS
+]
+
+_env_override = os.environ.get("LEVER_BOARDS", "")
+LEVER_BOARDS = [s.strip() for s in _env_override.split(",") if s.strip()] if _env_override else _DEFAULT_LEVER_BOARDS
 
 
 class LeverProvider(SearchProvider):
@@ -23,7 +46,7 @@ class LeverProvider(SearchProvider):
             key="lever",
             label="Lever (ATS boards)",
             type=ProviderType.SEARCH,
-            description="Keyless public ATS boards; sweeps LEVER_BOARDS employer slugs.",
+            description="Keyless public ATS boards; sweeps curated employer slugs (override via LEVER_BOARDS).",
             requires_api_key=False,
         )
 
@@ -31,7 +54,7 @@ class LeverProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if LEVER_BOARDS else "Set LEVER_BOARDS=slug1,slug2 (employer slugs) to enable."
+        return "" if LEVER_BOARDS else "LEVER_BOARDS list is empty; set LEVER_BOARDS=slug1,slug2."
 
     def search(self, query: str) -> List[SearchResult]:
         terms = [w for w in query.lower().split() if len(w) > 3]

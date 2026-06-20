@@ -1,5 +1,7 @@
 """Ashby public Job Board API — keyless per-company JSON.
-Sweeps a configurable list of employer slugs (set ASHBY_BOARDS=slug1,slug2).
+Sweeps a configurable list of employer slugs (ASHBY_BOARDS env overrides).
+Default: a curated list of employers known to be on Ashby HQ, including
+remote-friendly and growth-stage companies that hire nationally.
 Endpoint: https://api.ashbyhq.com/posting-api/job-board/{slug}
 """
 import logging
@@ -13,7 +15,28 @@ from ..base import ProviderMetadata, ProviderType, SearchProvider, check_hard_fa
 
 logger = logging.getLogger(__name__)
 
-ASHBY_BOARDS = [s.strip() for s in os.environ.get("ASHBY_BOARDS", "").split(",") if s.strip()]
+# Curated Ashby board slugs (public, verified via jobs.ashbyhq.com/{slug}).
+# Override entirely via ASHBY_BOARDS=slug1,slug2 env var.
+_DEFAULT_ASHBY_BOARDS = [
+    "linear",           # remote-first product tool company
+    "mercury",          # remote-friendly fintech
+    "ramp",             # remote-friendly fintech
+    "vercel",           # remote-first dev tools
+    "posthog",          # remote-first analytics
+    "dbt-labs",         # remote-first data tools
+    "modal",            # remote-first AI infra
+    "baseten",          # remote-friendly ML infra
+    "replit",           # remote-first dev platform
+    "loom",             # remote-friendly (Atlassian-owned)
+    "beehiiv",          # remote-friendly newsletter platform
+    "plain",            # remote-first customer support SaaS
+    "watershed",        # remote-friendly climate tech
+    "arc",              # remote jobs marketplace (relevant to remote seekers)
+    "anduril",          # defense tech, multiple US locations including near UT
+]
+
+_env_override = os.environ.get("ASHBY_BOARDS", "")
+ASHBY_BOARDS = [s.strip() for s in _env_override.split(",") if s.strip()] if _env_override else _DEFAULT_ASHBY_BOARDS
 
 
 class AshbyProvider(SearchProvider):
@@ -23,7 +46,7 @@ class AshbyProvider(SearchProvider):
             key="ashby",
             label="Ashby (ATS boards)",
             type=ProviderType.SEARCH,
-            description="Keyless public ATS boards; sweeps ASHBY_BOARDS employer slugs.",
+            description="Keyless public ATS boards; sweeps curated employer slugs (override via ASHBY_BOARDS).",
             requires_api_key=False,
         )
 
@@ -31,7 +54,7 @@ class AshbyProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if ASHBY_BOARDS else "Set ASHBY_BOARDS=slug1,slug2 (employer slugs) to enable."
+        return "" if ASHBY_BOARDS else "ASHBY_BOARDS list is empty; set ASHBY_BOARDS=slug1,slug2."
 
     def search(self, query: str) -> List[SearchResult]:
         terms = [w for w in query.lower().split() if len(w) > 3]

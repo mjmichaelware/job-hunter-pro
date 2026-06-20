@@ -102,8 +102,41 @@
 .research-grid > *:nth-child(4) { animation-delay: 0.15s; }
 .research-grid > *:nth-child(n+5) { animation-delay: 0.2s; }
 
+/* ── nav-toggle first-visit pulse + hint (state-bound: only when no saved pref) ── */
+.nav-toggle--pulse { animation: nav-pulse 1.1s var(--spring) 3; }
+@keyframes nav-pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,204,0.7); } 60% { box-shadow: 0 0 0 10px rgba(0,255,204,0); } 100% { box-shadow: none; } }
+.nav-hint-label {
+  position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; white-space: nowrap;
+  color: var(--c-cyan); background: var(--c-glass-2); border: 1px solid var(--c-cyan);
+  border-radius: var(--radius-sm); padding: 2px 8px; pointer-events: none;
+  animation: hint-in 0.3s var(--ease) both;
+}
+@keyframes hint-in { from { opacity: 0; transform: translateY(-50%) translateX(-6px); } to { opacity: 1; transform: translateY(-50%) translateX(0); } }
+
+/* ── .kinetic-in — fade+slide utility for landing text, section headers ── */
+.kinetic-in { opacity: 0; transform: translateY(12px); animation: kinetic-in 0.45s var(--ease) var(--ki-delay,0s) both; }
+@keyframes kinetic-in { to { opacity: 1; transform: translateY(0); } }
+
+/* ── landing Enter button: gradient glow + float loop + shimmer ── */
+.btn-enter--glow {
+  background: linear-gradient(135deg, rgba(0,255,204,0.18), rgba(157,0,255,0.12));
+  border-color: var(--c-cyan);
+  box-shadow: 0 0 22px rgba(0,255,204,0.35), inset 0 0 14px rgba(0,255,204,0.08);
+  animation: enter-float 2.8s ease-in-out infinite, enter-shimmer 3.2s linear infinite;
+}
+.btn-enter--glow:hover { box-shadow: 0 0 44px rgba(0,255,204,0.7); }
+@keyframes enter-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes enter-shimmer {
+  0%,100% { box-shadow: 0 0 22px rgba(0,255,204,0.35), inset 0 0 14px rgba(0,255,204,0.08); }
+  50%      { box-shadow: 0 0 36px rgba(0,255,204,0.55), inset 0 0 20px rgba(157,0,255,0.12); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bar__fill, .gauge__arc, .stagger-in > *, .geo-pin, .section-header__kicker { animation: none !important; }
   .state-loading--spin::before { animation: none; border-top-color: var(--c-border); }
   .research-sec, .resume-sec, .audit-sec, .research-grid > * { animation: none !important; }
+  .nav-toggle--pulse, .nav-hint-label { animation: none !important; }
+  .kinetic-in { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .btn-enter--glow { animation: none !important; }
 }

@@ -33,7 +33,8 @@ class UtahOpenDataProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if os.environ.get("ENABLE_UTAH_OPENDATA") else "Set ENABLE_UTAH_OPENDATA=1 to include employer leads."
+        # ON by default; opt-out by setting DISABLE_UTAH_OPENDATA=1.
+        return "Disabled via DISABLE_UTAH_OPENDATA env flag." if os.environ.get("DISABLE_UTAH_OPENDATA") else ""
 
     def search(self, query: str) -> List[SearchResult]:
         params = {"$limit": 50}
