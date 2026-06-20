@@ -659,6 +659,29 @@ def match_score(job: Dict[str, Any]) -> int:
         score += 5
     return max(1, min(score, 99))
 
+def classify_industry(text: str, tags: List[str], role_family: str = "") -> tuple:
+    """Deterministic industry label + 0-100 confidence (no Maps/LLM cost).
+
+    Uses the industry registry's text scorer; falls back to a role_family-derived
+    label so a job is never left with an empty 'industry'. Returns (label, score)."""
+    blob = " ".join([text] + list(tags or []) + [role_family or ""])
+    try:
+        from industries import classify_text, get_route
+        from industries.base import score_text_for_industry
+        key = classify_text(blob)
+        if key:
+            route = get_route(key)
+            raw_score = score_text_for_industry(blob, route) if route else 0.0
+            label = getattr(route, "label", None) or key.replace("_", " ").title()
+            conf = max(1, min(int(raw_score * 12), 99)) if raw_score else 40
+            return label, conf
+    except Exception:
+        pass
+    rf = (role_family or "").strip()
+    if rf and rf.lower() not in ("", "general", "other"):
+        return rf.replace("-", " ").replace("_", " ").title(), 35
+    return "General", 20
+
 def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
     """Cheap pass — NO Google Maps / LLM calls. Runs on every raw job so the bulk
     classification/dedupe finishes fast. Place, commute, radius and review fields
@@ -711,6 +734,17 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
     job["review_score"] = None
     job["consistency_score"] = None
     job["risk_level"] = None
+    # Always-available deterministic classification (no Maps/LLM cost). These were
+    # previously unset, so every job showed industry/canonical/discovery as
+    # "unavailable" in the evidence drawer even though they are cheap to compute.
+    industry, industry_score = classify_industry(text, tags, job["role_family"])
+    job["industry"] = industry
+    job["industry_score"] = industry_score
+    job["classification_confidence"] = industry_score
+    job["discovery_mode"] = "live"
+    key = canonical_key(job)
+    job["canonical_key"] = key
+    job["dedupe_key"] = key
     return job
 
 
@@ -1018,6 +1052,24 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
                 job["needs_resolution"] = bool(flags)
         except Exception:
             pass
+
+    # Guarantee the cheap deterministic fields are present on every accepted job
+    # even if a custom aggregator path produced jobs without going through
+    # normalize_job (so the evidence drawer never shows them as "unavailable").
+    run_mode = mode or "live"
+    for job in accepted:
+        if not job.get("canonical_key"):
+            key = canonical_key(job)
+            job["canonical_key"] = key
+            job["dedupe_key"] = key
+        if not job.get("industry"):
+            ind, sc = classify_industry(
+                " ".join([job.get("title", ""), job.get("company", ""), job.get("description", "")]),
+                job.get("tags", []), job.get("role_family", ""))
+            job["industry"] = ind
+            job["industry_score"] = sc
+            job["classification_confidence"] = sc
+        job["discovery_mode"] = run_mode
 
     # Drop the internal raw payload so it never bloats the response / stored batch.
     for job in accepted:
