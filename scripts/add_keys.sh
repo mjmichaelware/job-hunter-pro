@@ -1,17 +1,10 @@
 #!/usr/bin/env bash
-# scripts/add_keys.sh — interactive, blind-paste wiring for the KEYED job APIs.
+# scripts/add_keys.sh — blind-paste wiring for NEW keyed job APIs.
 #
-# What it does, safely:
-#   • Prompts you for each keyed provider's secret(s), ONE AT A TIME.
-#   • Input is read SILENTLY (read -rs) — your key never prints to the screen,
-#     never lands in shell history, and is never written to a file in the repo.
-#   • Each value is piped straight into Google Secret Manager (no echo, no temp
-#     file). Press ENTER on a blank prompt to SKIP a provider (it stays dormant).
-#   • Grants the Cloud Run runtime service account access to each secret.
-#   • Redeploys job-hunter-pro with --update-secrets (existing secrets are kept),
-#     turns on the matching ENABLE_* flags, then checks /api/health + /api/providers.
-#
-# Nothing here hardcodes a secret. Re-run it any time to add more keys later.
+# This script ONLY prompts for keys not yet in Secret Manager.
+# Keys already stored (SERPAPI_KEY, GROQ_API_KEY, OPENAI_API_KEY,
+# GEMINI_API_KEY, ANTHROPIC_API_KEY, XAI_API_KEY) are detected and
+# skipped automatically — no need to re-paste them.
 #
 # Usage:  bash scripts/add_keys.sh
 set -euo pipefail
@@ -23,7 +16,6 @@ SERVICE="${SERVICE:-job-hunter-pro}"
 echo "==> Project: $PROJECT_ID   Region: $REGION   Service: $SERVICE"
 gcloud config set project "$PROJECT_ID" >/dev/null 2>&1 || true
 
-# Cloud Run runtime service account (what the container runs as).
 RUNTIME_SA="$(gcloud run services describe "$SERVICE" --region "$REGION" \
   --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || true)"
 if [ -z "${RUNTIME_SA:-}" ]; then
@@ -32,13 +24,21 @@ if [ -z "${RUNTIME_SA:-}" ]; then
 fi
 echo "==> Runtime service account: $RUNTIME_SA"
 
-# Accumulators built up as you paste keys.
-SECRET_MAP=""     # for --update-secrets  ENV=SECRET:latest,...
-ENV_VARS=""       # for --update-env-vars ENABLE_X=1,...
+SECRET_MAP=""
+ENV_VARS=""
 
-# put_secret SECRET_NAME — read a value silently and store it (create or new version).
+# has_secret SECRET_NAME — true if the secret already has at least one version.
+has_secret() {
+  gcloud secrets versions list "$1" --limit=1 --format='value(name)' 2>/dev/null | grep -q .
+}
+
+# put_secret SECRET_NAME — prompt blindly; skip if already exists.
 put_secret() {
   local name="$1" val=""
+  if has_secret "$name"; then
+    echo "   · $name already in Secret Manager — skipping"
+    return 0
+  fi
   printf '   paste %s (ENTER to skip): ' "$name"
   read -rs val; echo
   if [ -z "$val" ]; then echo "   · skipped $name"; return 1; fi
@@ -61,7 +61,9 @@ add_map()  { SECRET_MAP="${SECRET_MAP:+$SECRET_MAP,}$1=$1:latest"; }
 add_env()  { ENV_VARS="${ENV_VARS:+$ENV_VARS,}$1"; }
 
 echo
-echo "================ KEYED PROVIDERS (blind paste — ENTER skips) ================"
+echo "================ NEW KEYED PROVIDERS (blind paste — ENTER skips) ================"
+echo "(Already-wired keys like SERPAPI, GROQ, OPENAI, GEMINI, ANTHROPIC, XAI are auto-skipped)"
+echo
 
 echo "[Adzuna]  free signup → https://developer.adzuna.com/  (app id + key)"
 put_secret ADZUNA_APP_ID  && add_map ADZUNA_APP_ID  || true
@@ -89,12 +91,9 @@ if put_secret YELP_API_KEY; then add_map YELP_API_KEY; add_env ENABLE_YELP=1; fi
 echo "[Foursquare Places] free → https://foursquare.com/developers/  (API key — local business leads)"
 if put_secret FOURSQUARE_API_KEY; then add_map FOURSQUARE_API_KEY; add_env ENABLE_FOURSQUARE=1; fi
 
-echo "[SerpAPI] (optional; only if rotating the key) → https://serpapi.com/manage-api-key"
-put_secret SERPAPI_KEY && add_map SERPAPI_KEY || true
-
 echo
 if [ -z "$SECRET_MAP" ] && [ -z "$ENV_VARS" ]; then
-  echo "==> No keys entered. Nothing to deploy. Re-run any time."
+  echo "==> No new keys entered. Nothing to deploy. Re-run any time."
   exit 0
 fi
 
@@ -110,9 +109,9 @@ echo
 echo "==> Health:"
 curl -fsS "$URL/api/health" | python3 -m json.tool || echo "health check failed — see logs"
 echo
-echo "==> Provider status (which sources are now ready):"
+echo "==> Provider status:"
 curl -fsS "$URL/api/providers" | python3 -c \
   'import sys,json; d=json.load(sys.stdin); [print(f"  {p[\"status\"]:>18}  {p[\"label\"]}") for p in d.get("providers",[])]' \
   || true
 echo
-echo "==> Done. Keyed providers you pasted are now live; the rest stay dormant until added."
+echo "==> Done. New keyed providers are now live; the rest stay dormant until added."

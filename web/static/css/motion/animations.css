@@ -1,7 +1,4 @@
-/* animations.css — skeleton shimmer, badge flash, gauge sweep, pipeline pulse.
-   Every animation here is triggered by real state, never idle decoration. */
-
-/* skeleton shimmer for loading states */
+/* animations.css — state-bound animations only; no idle decoration. */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -18,14 +15,9 @@
 }
 @keyframes shimmer { to { transform: translateX(100%); } }
 
-/* badge flash when a real count/state changes */
 .flash { animation: flash 0.6s var(--ease); }
 @keyframes flash { 0% { box-shadow: 0 0 0 0 var(--c-cyan); } 100% { box-shadow: 0 0 0 8px transparent; } }
-
-/* trust gauge sweep — driven by the real capped value via --gauge-deg */
 .gauge__arc { transition: stroke-dashoffset 0.7s var(--ease); }
-
-/* pipeline reactor node ignition (only fires on real SSE events) */
 .reactor-node.is-active { animation: ignite 0.5s var(--spring); }
 @keyframes ignite { 0% { transform: scale(0.9); filter: brightness(1); } 50% { transform: scale(1.06); filter: brightness(1.6); } 100% { transform: scale(1); } }
 
@@ -132,6 +124,16 @@
   50%      { box-shadow: 0 0 36px rgba(0,255,204,0.55), inset 0 0 20px rgba(157,0,255,0.12); }
 }
 
+/* Combined selector: button fades in, then floats (avoids transform conflict with kinetic-in) */
+.btn-enter--glow.kinetic-in {
+  opacity: 0;
+  animation:
+    btn-enter-in 0.45s var(--ease) var(--ki-delay, 0s) both,
+    enter-float 2.8s ease-in-out calc(0.5s + var(--ki-delay, 0s)) infinite,
+    enter-shimmer 3.2s linear calc(0.5s + var(--ki-delay, 0s)) infinite;
+}
+@keyframes btn-enter-in { from { opacity: 0; } to { opacity: 1; } }
+
 @media (prefers-reduced-motion: reduce) {
   .bar__fill, .gauge__arc, .stagger-in > *, .geo-pin, .section-header__kicker { animation: none !important; }
   .state-loading--spin::before { animation: none; border-top-color: var(--c-border); }
@@ -139,4 +141,5 @@
   .nav-toggle--pulse, .nav-hint-label { animation: none !important; }
   .kinetic-in { animation: none !important; opacity: 1 !important; transform: none !important; }
   .btn-enter--glow { animation: none !important; }
+  .btn-enter--glow.kinetic-in { animation: none !important; opacity: 1 !important; }
 }
