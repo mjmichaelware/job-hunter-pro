@@ -1283,6 +1283,23 @@ def index():
 
 @app.route("/api/health")
 def health():
+    try:
+        from providers import get_all_providers
+        from services.provider_status import disabled_reason as _dr
+        _all = get_all_providers()
+        _ready   = [p for p in _all if p.is_available() and not _dr(p)]
+        _dormant = [p for p in _all if not p.is_available()]
+        _off     = [p for p in _all if p.is_available() and _dr(p)]
+        provider_summary = {
+            "total": len(_all),
+            "ready": len(_ready),
+            "dormant_needs_key": len(_dormant),
+            "disabled_by_policy": len(_off),
+            "ready_list": [p.metadata.key for p in _ready],
+            "dormant_list": [p.metadata.key for p in _dormant],
+        }
+    except Exception:
+        provider_summary = {"total": 0, "ready": 0}
     return jsonify({
         "status": "ok",
         "version": VERSION,
@@ -1301,12 +1318,14 @@ def health():
         "serpapi_budget_mode": Config.SERPAPI_BUDGET_MODE,
         "serpapi_min_searches_left": Config.SERPAPI_MIN_SEARCHES_LEFT,
         "batch_bucket": Config.BATCH_BUCKET,
+        "providers": provider_summary,
         "pipeline": [
-            "Google Places opportunities",
-            "budget-limited SerpAPI job discovery",
-            "place resolution",
-            "Google Distance Matrix transit",
-            "review intelligence",
+            "multi-source fan-out (" + str(provider_summary.get("ready", 0)) + " live providers)",
+            "cross-provider canonical deduplication",
+            "Google Places address resolution",
+            "Google Distance Matrix transit & radius",
+            "review intelligence scoring",
+            "5-LLM per-job enrichment (capped)",
             "Cloud Storage batch history",
             "Cloud Scheduler ingestion",
         ],

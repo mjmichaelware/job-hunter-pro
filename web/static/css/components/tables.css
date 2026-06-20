@@ -34,3 +34,17 @@
 .evidence-table td { padding: 6px 0; color: var(--c-text); word-break: break-word; }
 
 .batch-id { color: var(--c-cyan); }
+
+/* provider table enrichments */
+.provider-table { white-space: normal; }
+.provider-table .provider-desc { max-width: 28ch; white-space: normal; font-size: 0.82rem; color: var(--c-muted); }
+.provider-key-hint { font-size: 0.7rem; color: var(--c-faint); font-family: monospace; margin-top: 2px; }
+.provider-group { margin-bottom: var(--s-5); }
+.provider-count-chip {
+  display: inline-flex; align-items: center;
+  font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
+  color: var(--c-accent); border: 1px solid color-mix(in srgb, var(--c-accent) 30%, transparent);
+  margin-left: 8px; vertical-align: middle;
+}
+.provider-summary-row { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-bottom: var(--s-4); }

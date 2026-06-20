@@ -7,20 +7,34 @@ function _provStatusCls(s) {
     : 'badge-disabled';
 }
 
+function _keyNote(p) {
+  if (!p.requires_api_key) return '<span class="badge badge-safe" title="No API key needed">free</span>';
+  if (p.is_available) return '<span class="badge badge-safe">key ✓</span>';
+  return '<span class="badge badge-disabled">key needed</span>';
+}
+
 function _provRow(p) {
-  const keyNote = p.requires_api_key ? (p.is_available ? '' : ' — key missing') : ' — no key needed';
-  const reason = p.reason ? '<span class="na"> (' + esc(p.reason) + ')</span>' : '';
-  return '<tr><td>' + esc(p.label || p.key) + '</td>'
+  const reason = p.reason ? ' <span class="na">(' + esc(p.reason) + ')</span>' : '';
+  return '<tr>'
+    + '<td><strong>' + esc(p.label || p.key) + '</strong>'
+    + '<div class="provider-key-hint">' + esc(p.key) + '</div></td>'
     + '<td><span class="badge ' + _provStatusCls(p.status) + '">' + esc(p.status || 'unknown') + '</span></td>'
-    + '<td>' + esc(p.description || '') + keyNote + reason + '</td></tr>';
+    + '<td>' + _keyNote(p) + '</td>'
+    + '<td class="provider-desc">' + esc(p.description || '') + reason + '</td>'
+    + '</tr>';
 }
 
 function _provTable(list, heading, note) {
   if (!list.length) return '';
-  return '<h2 class="section-heading">' + esc(heading) + '</h2>'
+  const ready = list.filter(function(p){ return p.status === 'ready'; }).length;
+  return '<div class="provider-group">'
+    + '<h2 class="section-heading">' + esc(heading)
+    + ' <span class="provider-count-chip">' + ready + '/' + list.length + ' ready</span></h2>'
     + (note ? '<p class="section-note">' + esc(note) + '</p>' : '')
-    + '<table class="data-table"><thead><tr><th>Provider</th><th>Status</th><th>Notes</th></tr></thead><tbody>'
-    + list.map(_provRow).join('') + '</tbody></table>';
+    + '<table class="data-table provider-table">'
+    + '<thead><tr><th>Provider</th><th>Status</th><th>Key</th><th>Notes</th></tr></thead>'
+    + '<tbody>' + list.map(_provRow).join('') + '</tbody>'
+    + '</table></div>';
 }
 
 async function loadProvidersView() {
@@ -33,17 +47,29 @@ async function loadProvidersView() {
 
   const discovery = providers.filter(function (p) { return p.type === 'discovery' || p.type === 'search'; });
   const reasoning = providers.filter(function (p) { return p.type === 'reasoning' || p.type === 'llm'; });
-  const other = providers.filter(function (p) { return discovery.indexOf(p) === -1 && reasoning.indexOf(p) === -1; });
+  const other     = providers.filter(function (p) { return discovery.indexOf(p) === -1 && reasoning.indexOf(p) === -1; });
+
+  const totalReady = providers.filter(function(p){ return p.status === 'ready'; }).length;
+  const totalDorm  = providers.filter(function(p){ return p.status === 'dormant'; }).length;
 
   const header = sectionHeader({
     icon: 'providers', kicker: 'Source truth',
     title: 'Providers',
-    blurb: 'Discovery providers retrieve real listings; reasoning models only classify, extract, and score — they never invent jobs. ' + discovery.length + ' discovery · ' + reasoning.length + ' reasoning registered.',
+    blurb: discovery.length + ' discovery sources · ' + reasoning.length + ' reasoning models registered. '
+      + totalReady + ' ready now · ' + totalDorm + ' dormant (need key). '
+      + 'Reasoning models classify and score — they never invent job listings.',
   });
-  el.innerHTML = header
-    + _provTable(discovery, 'Discovery providers', 'These providers retrieve real job listings.')
-    + _provTable(reasoning, 'Reasoning providers', 'Reasoning only — these LLMs classify, extract, and score. They are never used for job discovery.')
-    + _provTable(other, 'Other providers', '');
+
+  const summary = '<div class="provider-summary-row">'
+    + '<span class="badge badge-safe">' + totalReady + ' ready</span>'
+    + '<span class="badge badge-disabled">' + totalDorm + ' dormant</span>'
+    + '<span class="badge badge-cached">' + providers.length + ' total</span>'
+    + '</div>';
+
+  el.innerHTML = header + summary
+    + _provTable(discovery, 'Discovery providers', 'These sources retrieve real job listings. Keyless sources are always on; keyed sources activate when you add the key via scripts/add_keys.sh.')
+    + _provTable(reasoning, 'Reasoning providers', 'These LLMs classify, enrich, and explain jobs. They are never used for job discovery. Add keys via Google Secret Manager.')
+    + (other.length ? _provTable(other, 'Other providers', '') : '');
 }
 
 registerView('providers', 'Providers', loadProvidersView);
