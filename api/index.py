@@ -78,22 +78,41 @@ class Config:
     # fires — a real provider job is never killed for a long commute; the user
     # filters by commute in the UI instead.
     MAX_TRANSIT_SECONDS = int(os.environ.get("MAX_TRANSIT_SECONDS", "7200"))
+    # Radius is a DISPLAY/UI filter, not a hard rejection gate. Jobs outside this
+    # radius receive a -10 match_score penalty and a resolution_flag entry, but are
+    # KEPT in the accepted set so the user can see and filter them in the UI.
+    # Jobs that fail place resolution entirely also become resolution_flags, never
+    # hard deletions — this is the project's live-jobs law (see services/job_aggregator.py).
     MAX_RADIUS_MILES = float(os.environ.get("MAX_RADIUS_MILES", "5.0"))
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "12"))
 
     MAX_SERP_QUERIES = int(os.environ.get("MAX_SERP_QUERIES", "4"))
-    # Bounded but large. A live run is synchronous, so the global cap must let
-    # fetch_jobs_live early-stop and RETURN within Cloud Run's request timeout.
-    # 100000 (effectively no cap) caused the run to grind through every query and
-    # never respond. 1200 returns far more than the old 500 yet still completes.
-    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "1200"))
+    # ---------------------------------------------------------------------------
+    # THROUGHPUT CAPS — raise these to pull more listings per live run.
+    #
+    # Timeout tradeoff: a live run is synchronous under Cloud Run's request
+    # timeout. Caps prevent the run from grinding forever, but the main timeout
+    # risk is NOT raw-fetch volume — it is the 5-LLM enrichment fan-out
+    # (MAX_LLM_CALLS * LLM_TIMEOUT). If a run times out:
+    #   1. Lower ENABLE_LLM_RESEARCH=0 to skip all LLM calls, OR
+    #   2. Lower MAX_LLM_CALLS (e.g. to 50), OR
+    #   3. Lower MAX_ENRICH_JOBS (controls how many jobs enter the Maps+LLM path).
+    # Raw fetch and cross-provider dedup are fast; the LLM layer is the bottleneck.
+    #
+    # Safe knobs for higher throughput:
+    #   MAX_RAW_JOBS    — total raw listings collected across all providers (3000+)
+    #   MAX_QUERIES     — keyword queries dispatched per run (40+)
+    #   MAX_ENRICH_JOBS — jobs that get Maps place/commute + LLM enrichment (200+)
+    #   MAX_LLM_CALLS   — guard on total LLM API calls inside one run
+    # ---------------------------------------------------------------------------
+    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "3000"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
     SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "0").strip() == "1"
     # Per-run query count. The full ~1400-keyword bank rotates across runs (see
     # raw_job_queries offset), so coverage accumulates over saved batches rather
-    # than in one impossible request. 24 is the count that reliably completes.
-    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "24"))
+    # than in one impossible request.
+    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "40"))
 
     ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "0").strip() == "1"
     ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "0").strip() == "1"
@@ -107,12 +126,16 @@ class Config:
     # set only, so the run completes inside Cloud Run's request timeout. Jobs past
     # the cap keep their honest needs_resolution flag instead of fake data. Both
     # are env-tunable upward once quota allows.
-    MAX_ENRICH_JOBS = int(os.environ.get("MAX_ENRICH_JOBS", "40"))
+    # Raised from 40 → 200: Maps calls are throttled+retried by maps_get so this
+    # is safe to raise high; the bottleneck is LLM calls, not Maps QPS.
+    MAX_ENRICH_JOBS = int(os.environ.get("MAX_ENRICH_JOBS", "200"))
     # LLM research: every accepted, enriched job is sent to all five reasoning
     # providers (enrichment/classification only — never discovery). Guarded by a
     # per-run call budget. A provider with no key is skipped (dormant), never faked.
+    # PRIMARY TIMEOUT RISK: if runs time out, set ENABLE_LLM_RESEARCH=0 or lower
+    # MAX_LLM_CALLS. These are the two knobs that control the wall-clock bottleneck.
     ENABLE_LLM_RESEARCH = os.environ.get("ENABLE_LLM_RESEARCH", "1").strip() == "1"
-    MAX_LLM_CALLS = int(os.environ.get("MAX_LLM_CALLS", "250"))
+    MAX_LLM_CALLS = int(os.environ.get("MAX_LLM_CALLS", "400"))
     LLM_TIMEOUT = float(os.environ.get("LLM_TIMEOUT", "18"))
     LLM_MODEL_OPENAI = os.environ.get("LLM_MODEL_OPENAI", "gpt-4o-mini").strip()
     LLM_MODEL_GROQ = os.environ.get("LLM_MODEL_GROQ", "llama-3.3-70b-versatile").strip()
