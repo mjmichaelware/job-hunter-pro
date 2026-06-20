@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "Job Hunter Pro",
   "short_name": "JHP",
   "description": "Local opportunity intelligence cockpit — discover, resolve, and track jobs.",
@@ -8,11 +9,28 @@
   "orientation": "portrait-primary",
   "background_color": "#000000",
   "theme_color": "#000000",
+  "categories": ["productivity", "utilities"],
   "icons": [
-    { "src": "/static/assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/static/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/static/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/static/assets/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/static/assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/static/assets/icons/icon.svg",         "sizes": "any",     "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/static/assets/icons/icon-192.png",     "sizes": "192x192", "type": "image/png",     "purpose": "any" },
+    { "src": "/static/assets/icons/icon-512.png",     "sizes": "512x512", "type": "image/png",     "purpose": "any" },
+    { "src": "/static/assets/icons/maskable-192.png", "sizes": "192x192", "type": "image/png",     "purpose": "maskable" },
+    { "src": "/static/assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png",     "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/assets/screenshot-portrait.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Job Hunter Pro — discovery cockpit"
+    },
+    {
+      "src": "/static/assets/screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Job Hunter Pro — desktop view"
+    }
   ]
 }
