@@ -1,25 +1,100 @@
 {
-  "_source": "Seed derived from project docs (Michael Ware). Replace with the uploaded résumé to make matches reflect the real document.",
-  "name": "Michael Ware",
-  "origin": "28 E Bryan Ave, Salt Lake City, UT 84115",
+  "_source": "Michael Alonzo Prentice Ware — résumé uploaded 2026-06-20",
+  "name": "Michael Alonzo Prentice Ware",
+  "origin": "SLC, UT 84115",
+  "phone": "(801)-386-4047",
+  "email": "michaelware433@yahoo.com",
+  "headline": "Chef & Service Professional",
+  "summary": "Steadfast and attentive, with a readiness to turn a hand to whatever the work asks and to learn its ways quickly. Keeps a clear head and an even temper through the busiest hours. Carries a quiet sense of hospitality and a willingness to serve well, wherever the work leads.",
   "languages": [
-    { "code": "en", "label": "English", "level": "C2" },
-    { "code": "es", "label": "Spanish", "level": "C1" },
-    { "code": "ru", "label": "Russian", "level": "B1" }
+    { "code": "en", "label": "English",  "level": "C2" },
+    { "code": "es", "label": "Spanish",  "level": "C1" },
+    { "code": "ru", "label": "Russian",  "level": "B1" }
   ],
-  "target_industries": ["food_service", "hospitality", "care_social", "customer_service"],
+  "target_industries": ["food_service", "hospitality", "care_social", "customer_service", "retail_ops"],
+  "education": [
+    { "institution": "Weber State University", "field": "Computer Science", "status": "current" },
+    { "institution": "S.L. School for the Performing Arts", "field": "Music / Piano", "credential": "HSD", "years": "2013-2018" }
+  ],
   "skills": [
-    { "label": "De-escalation", "tier": "advanced", "keywords": ["de-escalation", "conflict", "crisis", "behavioral", "peer support"] },
-    { "label": "Inventory & expo flow", "tier": "expert", "keywords": ["inventory", "expo", "expediter", "kitchen", "prep", "line"] },
-    { "label": "Food-service operations", "tier": "experienced", "keywords": ["restaurant", "server", "busser", "host", "cook", "dishwasher", "barista", "food runner"] },
-    { "label": "Hospitality operations", "tier": "experienced", "keywords": ["hotel", "banquet", "front desk", "housekeeping", "pool", "f&b", "hospitality"] },
-    { "label": "Customer service", "tier": "experienced", "keywords": ["customer service", "call center", "support", "scheduling", "inbound"] },
-    { "label": "Behavioral health / peer support", "tier": "developing", "keywords": ["peer support", "case aide", "recovery", "behavioral health technician", "residential", "intake"] }
+    {
+      "label": "Kitchen operations & knife skills",
+      "tier": "expert",
+      "keywords": ["cook", "chef", "grill", "fry", "prep", "line cook", "kitchen", "garmo", "knife", "expo", "expediter", "dishwasher", "food runner", "culinary", "menu", "fine dining", "high-volume", "sanitation", "food safety", "sop", "quality control"]
+    },
+    {
+      "label": "Inventory & expo flow",
+      "tier": "expert",
+      "keywords": ["inventory", "expo", "expediter", "stock", "receiving", "ordering", "kitchen supervisor", "operations", "daily operations"]
+    },
+    {
+      "label": "Staff training & shift leadership",
+      "tier": "advanced",
+      "keywords": ["training", "crew trainer", "shift leader", "supervisor", "staff training", "team lead", "leadership", "shift manager", "management"]
+    },
+    {
+      "label": "De-escalation & conflict resolution",
+      "tier": "advanced",
+      "keywords": ["de-escalation", "conflict resolution", "crisis", "crisis intervention", "behavioral", "peer support", "de escalation", "emotional", "calm", "mediation"]
+    },
+    {
+      "label": "Direct support / care",
+      "tier": "experienced",
+      "keywords": ["direct support", "dsp", "care", "peer support", "individualized care", "compliance", "documentation", "residential", "behavioral health", "case aide", "recovery", "intake", "bht", "cpss"]
+    },
+    {
+      "label": "Customer service & sales",
+      "tier": "experienced",
+      "keywords": ["customer service", "sales", "retail", "cashier", "inbound", "call center", "client", "accounts", "debt collections", "communication", "scheduling", "support", "transactions"]
+    },
+    {
+      "label": "Hospitality & food & beverage",
+      "tier": "experienced",
+      "keywords": ["server", "busser", "host", "barista", "hotel", "banquet", "front desk", "housekeeping", "pool", "f&b", "hospitality", "food service", "restaurant", "fast food", "amusement"]
+    },
+    {
+      "label": "Time management & resilience",
+      "tier": "advanced",
+      "keywords": ["time management", "multitask", "fast-paced", "high volume", "busy", "stress", "resilience", "adaptable", "flexible", "reliable"]
+    },
+    {
+      "label": "Regulations & compliance",
+      "tier": "experienced",
+      "keywords": ["regulations", "compliance", "documentation", "health code", "food handler", "safety", "OSHA", "sop", "standards", "audit"]
+    }
   ],
   "experience": [
-    { "employer": "August Sun LLC", "year": "2025", "evidence": "de-escalation" },
-    { "employer": "Liberty Park Amusement", "year": "2026", "evidence": "inventory expo flow" }
+    {
+      "employer": "Liberty Park Amusement",
+      "title": "Chef & Kitchen Supervisor",
+      "years": "Dec 2025 – May 2026",
+      "highlights": ["daily operations", "expo flow", "inventory", "staff training", "SOPs", "operational efficiency", "service excellence"]
+    },
+    {
+      "employer": "August Sun LLC",
+      "title": "Direct Support Professional",
+      "years": "2025",
+      "highlights": ["crisis intervention", "individualized care", "compliance documentation"]
+    },
+    {
+      "employer": "Urban Hill / Carson Kitchen / Matteo's Italian",
+      "title": "Chef de Partie / Line Cook",
+      "years": "2020 – 2024",
+      "highlights": ["fine dining", "high-volume menus", "quality control", "sanitation standards"]
+    },
+    {
+      "employer": "The Local Pages / Teleperformance / Walmart",
+      "title": "Ops, Sales & Retail",
+      "years": "2018 – 2020",
+      "highlights": ["client accounts", "debt collections", "retail transactions", "conflict resolution", "professional communication"]
+    },
+    {
+      "employer": "McDonald's / Arby's / Burger King",
+      "title": "Culinary Associate (Crew Trainer / Shift Leader)",
+      "years": "2016 – 2018",
+      "highlights": ["crew leadership", "shift management", "staff training", "food safety", "high-volume"]
+    }
   ],
-  "held_credentials": [],
-  "credentials_note": "No credentials asserted in the seed. Upload the real résumé to populate held certifications (e.g. Food Handler, ServSafe, CPR, CPSS/BHT)."
+  "held_credentials": ["Utah Food Handler (assumed from kitchen roles)"],
+  "credentials_seeking": ["ServSafe", "CPR", "Food Handler Certificate"]
 }
