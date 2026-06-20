@@ -93,9 +93,23 @@ put_secret ADZUNA_APP_KEY && add_map ADZUNA_APP_KEY || true
 
 echo "[USAJobs] free → https://developer.usajobs.gov/  (API key; email is your account email)"
 put_secret USAJOBS_API_KEY && add_map USAJOBS_API_KEY || true
-printf '   type USAJOBS_EMAIL (not secret, ENTER to skip): '
+printf '   type USAJOBS_EMAIL (your account email, ENTER to skip): '
 read -r USAJOBS_EMAIL || true
-[ -n "${USAJOBS_EMAIL:-}" ] && add_env "USAJOBS_EMAIL=${USAJOBS_EMAIL}"
+if [ -n "${USAJOBS_EMAIL:-}" ]; then
+  # Stored as a SECRET (not a literal env var) to match the service's existing
+  # variable type. Cloud Run refuses to flip a variable from secret to literal
+  # in an update ("already set with a different type"), so this keeps it a secret.
+  if gcloud secrets describe USAJOBS_EMAIL >/dev/null 2>&1; then
+    printf '%s' "$USAJOBS_EMAIL" | gcloud secrets versions add USAJOBS_EMAIL --data-file=- >/dev/null
+  else
+    printf '%s' "$USAJOBS_EMAIL" | gcloud secrets create USAJOBS_EMAIL --data-file=- \
+      --replication-policy=automatic >/dev/null
+  fi
+  gcloud secrets add-iam-policy-binding USAJOBS_EMAIL \
+    --member="serviceAccount:${RUNTIME_SA}" \
+    --role="roles/secretmanager.secretAccessor" >/dev/null 2>&1 || true
+  add_map USAJOBS_EMAIL
+fi
 
 echo "[CareerOneStop / US DOL] free → https://www.careeronestop.org/Developers/WebAPI/  (userId + token)"
 put_secret CAREERONESTOP_USERID && add_map CAREERONESTOP_USERID || true
