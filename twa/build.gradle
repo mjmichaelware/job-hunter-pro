@@ -1,0 +1,5 @@
+// Root build file for the Job Hunter Pro TWA (Trusted Web Activity) wrapper.
+// This wraps the deployed PWA into an installable Android APK.
+plugins {
+    id 'com.android.application' version '8.1.4' apply false
+}

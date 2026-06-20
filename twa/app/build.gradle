@@ -1,0 +1,32 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.mjmichaelware.jobhunterpro'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.mjmichaelware.jobhunterpro"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Google's official TWA support library — renders the PWA fullscreen.
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
