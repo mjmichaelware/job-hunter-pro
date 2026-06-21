@@ -34,18 +34,21 @@ def list_industries() -> List[str]:
 def classify_text(text: str) -> Optional[str]:
     """
     Deterministically classifies text into one of the registered industries.
-    Returns the key of the best matching industry route, or None if no good match.
+    Returns the key of the best matching industry route, or None if no positive match.
+    Requires at least one positive term hit (score >= 1) to avoid assigning an
+    industry just because it scored least-bad-of-zero.
     """
     best_key = None
     best_score = 0.0
-    
+
     for key, route in _INDUSTRY_REGISTRY.items():
         score = score_text_for_industry(text, route)
         if score > best_score:
             best_score = score
             best_key = key
-            
-    return best_key
+
+    # Minimum positive evidence required — a score of 0 means no terms matched.
+    return best_key if best_score >= 1.0 else None
 
 __all__ = [
     "get_all_routes",

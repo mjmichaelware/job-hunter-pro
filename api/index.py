@@ -11,7 +11,7 @@ from urllib.parse import quote as url_quote
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request, render_template_string, Response
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 VERSION = "job_hunter_v8_stable_orchestrated_dashboard"
@@ -234,7 +234,7 @@ def role_family_for_text(text: str) -> str:
     for term, family in ROLE_GROUPS.items():
         if term_present(t, term):
             return family
-    return "food-service"
+    return "general"
 
 def miles_between(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     lat1, lon1 = a
@@ -661,10 +661,10 @@ def match_score(job: Dict[str, Any]) -> int:
     return max(1, min(score, 99))
 
 def classify_industry(text: str, tags: List[str], role_family: str = "") -> tuple:
-    """Deterministic industry label + 0-100 confidence (no Maps/LLM cost).
+    """Deterministic industry label + 0-100 confidence + registry key (no Maps/LLM cost).
 
     Uses the industry registry's text scorer; falls back to a role_family-derived
-    label so a job is never left with an empty 'industry'. Returns (label, score)."""
+    label so a job is never left with an empty 'industry'. Returns (label, score, key)."""
     blob = " ".join([text] + list(tags or []) + [role_family or ""])
     try:
         from industries import classify_text, get_route
@@ -675,13 +675,13 @@ def classify_industry(text: str, tags: List[str], role_family: str = "") -> tupl
             raw_score = score_text_for_industry(blob, route) if route else 0.0
             label = getattr(route, "label", None) or key.replace("_", " ").title()
             conf = max(1, min(int(raw_score * 12), 99)) if raw_score else 40
-            return label, conf
+            return label, conf, key
     except Exception:
         pass
     rf = (role_family or "").strip()
-    if rf and rf.lower() not in ("", "general", "other"):
-        return rf.replace("-", " ").replace("_", " ").title(), 35
-    return "General", 20
+    if rf and rf.lower() not in ("", "general", "other", "food-service"):
+        return rf.replace("-", " ").replace("_", " ").title(), 35, None
+    return "General", 20, None
 
 def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
     """Cheap pass — NO Google Maps / LLM calls. Runs on every raw job so the bulk
@@ -738,8 +738,9 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
     # Always-available deterministic classification (no Maps/LLM cost). These were
     # previously unset, so every job showed industry/canonical/discovery as
     # "unavailable" in the evidence drawer even though they are cheap to compute.
-    industry, industry_score = classify_industry(text, tags, job["role_family"])
+    industry, industry_score, ind_key = classify_industry(text, tags, job["role_family"])
     job["industry"] = industry
+    job["industry_key"] = ind_key or ""
     job["industry_score"] = industry_score
     job["classification_confidence"] = industry_score
     job["discovery_mode"] = "live"
@@ -962,12 +963,13 @@ def raw_job_queries(mode: str = "broad", domain: str = "", extra_terms: Optional
     return unique
 
 def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None,
-                    dedup: bool = True) -> Dict[str, Any]:
+                    dedup: bool = True, _emit=None) -> Dict[str, Any]:
     raw_jobs = []
     provider_breakdown = {}
     quarantined_providers: Dict[str, Any] = {}
     queries = raw_job_queries(mode=mode, domain=domain, extra_terms=extra_terms)
     query_count = len(queries)
+    if _emit: _emit("fanout_started", {"queries": query_count, "mode": mode})
 
     try:
         from search.live_provider_bridge import fetch_provider_raw_jobs
@@ -981,6 +983,7 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
         provider_breakdown = fanout.get("provider_breakdown", {})
         query_count = fanout.get("query_count", query_count)
         quarantined_providers = fanout.get("quarantined_providers", {})
+        if _emit: _emit("fanout_done", {"raw": len(raw_jobs), "providers": len(provider_breakdown)})
     except Exception as exc:
         import logging
         logging.getLogger(__name__).warning("Federated provider fan-out failed; falling back to legacy SerpAPI path", exc_info=True)
@@ -1011,6 +1014,7 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
                 break
 
     normalized = [normalize_job(raw) for raw in raw_jobs]
+    if _emit: _emit("normalized", {"count": len(normalized)})
 
     # Partition into accepted (every usable job; missing resolution becomes
     # non-fatal resolution_flags) and rejected (genuinely unusable: no title,
@@ -1030,6 +1034,7 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
                 continue
             seen.add(key)
             accepted.append(job)
+    if _emit: _emit("partitioned", {"accepted": len(accepted), "rejected": len(rejected)})
 
     # Enrich the most promising accepted jobs (Google place/commute + 5-LLM
     # research). This is the only paid-per-job work and runs AFTER partition on a
@@ -1039,7 +1044,31 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
     if not fast:
         accepted.sort(key=lambda j: -j.get("match", 0))  # enrich best candidates first
         _llm_calls_left[0] = Config.MAX_LLM_CALLS
-        to_enrich = accepted[:Config.MAX_ENRICH_JOBS]
+
+        # Place cache backfill: fill jobs from cache BEFORE spending Maps/LLM budget.
+        # Jobs at the same place share a single cache entry.
+        _CACHE_FIELDS = ["resolved_address", "commute_seconds", "radius_miles",
+                         "google_rating", "review_count", "review_score",
+                         "commute_label", "place_id", "lat", "lng"]
+        try:
+            from services.enrichment_cache import place_get, place_set
+            cache_hits = 0
+            for job in accepted:
+                company = job.get("company", "") or ""
+                addr = job.get("listing_location", "") or job.get("location", "") or ""
+                cached = place_get(company, addr)
+                if cached:
+                    for f in _CACHE_FIELDS:
+                        if f in cached and job.get(f) is None:
+                            job[f] = cached[f]
+                    job["_cache_hit"] = True
+                    cache_hits += 1
+            if _emit and cache_hits:
+                _emit("cache_backfill", {"hits": cache_hits, "total": len(accepted)})
+        except Exception:
+            pass
+
+        to_enrich = [j for j in accepted if not j.get("_cache_hit")][:Config.MAX_ENRICH_JOBS]
         # Enrich jobs CONCURRENTLY so far more get place/commute/review + LLM
         # research inside the request timeout. maps_get keeps its own global throttle
         # (so Google QPS stays safe); the LLM calls parallelize across jobs. This is
@@ -1047,16 +1076,38 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
         workers = max(1, int(os.environ.get("ENRICH_WORKERS", "8")))
 
         def _safe_enrich(job):
+            if job.get("_cache_hit"):
+                return True
             try:
                 enrich_job(job)
+                # Write result back to place cache
+                try:
+                    from services.enrichment_cache import place_set
+                    company = job.get("company", "") or ""
+                    addr = job.get("listing_location", "") or job.get("location", "") or ""
+                    if company or addr:
+                        cache_data = {f: job.get(f) for f in ["resolved_address", "commute_seconds",
+                            "radius_miles", "google_rating", "review_count", "review_score",
+                            "commute_label", "place_id", "lat", "lng"] if job.get(f) is not None}
+                        if cache_data:
+                            place_set(company, addr, cache_data)
+                except Exception:
+                    pass
                 return True
             except Exception:
                 logger.warning("enrich_job failed; keeping job unresolved", exc_info=True)
                 return False
 
+        if _emit: _emit("enriching", {"total": len(to_enrich)})
         if to_enrich:
             with _ThreadPool(max_workers=min(workers, len(to_enrich))) as _ex:
                 list(_ex.map(_safe_enrich, to_enrich))
+        if _emit: _emit("enrich_done", {"enriched": len(to_enrich)})
+
+        # Clean up cache-hit markers before further processing.
+        for job in accepted:
+            job.pop("_cache_hit", None)
+
         # Recompute resolution flags now that place/commute may be filled in.
         try:
             from services.job_aggregator import resolution_flags as _rflags
@@ -1077,15 +1128,18 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
             job["canonical_key"] = key
             job["dedupe_key"] = key
         if not job.get("industry"):
-            ind, sc = classify_industry(
+            ind, sc, ind_key = classify_industry(
                 " ".join([job.get("title", ""), job.get("company", ""), job.get("description", "")]),
                 job.get("tags", []), job.get("role_family", ""))
             job["industry"] = ind
+            job["industry_key"] = ind_key or ""
             job["industry_score"] = sc
             job["classification_confidence"] = sc
         job["discovery_mode"] = run_mode
 
-    # Drop the internal raw payload so it never bloats the response / stored batch.
+    # Drop internal marker fields so they never appear in the response / stored batch.
+    for job in accepted:
+        job.pop("_cache_hit", None)
     for job in accepted:
         job.pop("_raw", None)
 
@@ -1598,6 +1652,67 @@ def jobs():
     response_payload["batch_object"] = batch_object
 
     return jsonify(response_payload)
+
+@app.route("/api/jobs/stream")
+def jobs_stream():
+    """SSE live console for the Discovery page. Streams real pipeline events."""
+    import queue as _queue_mod
+    import threading as _threading_mod
+
+    mode  = clean(request.args.get("mode", "broad")).lower() or "broad"
+    domain = clean(request.args.get("domain", "")).lower()
+    dedup = request.args.get("dedup", "1").strip().lower() not in ("0", "false", "no")
+    q = _queue_mod.Queue()
+
+    def _emit(event, data):
+        q.put((event, data))
+
+    def _run():
+        try:
+            result = fetch_jobs_live(mode=mode, domain=domain, dedup=dedup, _emit=_emit)
+            stored = False
+            try:
+                from datetime import datetime, timezone as _tz
+                created_dt = datetime.now(_tz.utc)
+                batch = {
+                    "batch_schema": "job_hunter_batch_v1",
+                    "created_at_utc": created_dt.replace(microsecond=0).isoformat(),
+                    "source": VERSION, "trigger": "sse_stream",
+                    "counts": {"accepted": len(result["accepted"]),
+                               "rejected": result.get("rejected_total", 0),
+                               "raw": result["raw_count"]},
+                    "accepted": result["accepted"],
+                    "rejected": result.get("rejected", []),
+                }
+                obj = f"batches/{created_dt.strftime('%Y/%m/%d/%H%M%S')}_stream_batch.json"
+                stored = gcs_upload_json(obj, batch)
+            except Exception:
+                pass
+            _emit("done", {
+                "accepted": len(result["accepted"]),
+                "rejected": result.get("rejected_total", len(result.get("rejected", []))),
+                "raw": result["raw_count"],
+                "stored": stored,
+            })
+        except Exception as exc:
+            _emit("error", {"message": str(exc)[:240]})
+        finally:
+            q.put(None)
+
+    _threading_mod.Thread(target=_run, daemon=True).start()
+
+    def _generate():
+        import json as _json
+        yield "event: run_started\ndata: " + _json.dumps({"mode": mode, "domain": domain}) + "\n\n"
+        while True:
+            item = q.get(timeout=300)
+            if item is None:
+                break
+            event, data = item
+            yield "event: " + event + "\ndata: " + _json.dumps(data) + "\n\n"
+
+    return Response(_generate(), content_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 @app.route("/api/debug/jobs")
 def debug_jobs():
