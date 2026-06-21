@@ -194,6 +194,15 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
     url = _pick(item_dict, raw_dict, keys=["url", "source_url", "apply_url", "redirect_url", "link"], default="")
     snippet = _pick(item_dict, raw_dict, keys=["snippet", "description", "summary", "body"], default="")
     location = _pick(item_dict, raw_dict, keys=["location", "formatted_location", "candidate_required_location", "where"], default=default_location)
+    # Carry the provider's posting date through to the normalizer. Providers expose
+    # it under many names and formats (ISO, epoch, or relative like "3 days ago");
+    # the frontend parses both. Empty when the provider returns no date.
+    published = _pick(
+        item_dict, raw_dict,
+        keys=["published_date", "posted_at", "posted_date", "created", "created_at",
+              "publication_date", "date", "datePosted", "pubDate", "publishedAt"],
+        default="",
+    )
 
     # Provider-scoped identity (used as job_id for stable reference within a run).
     # This is NOT used for the cross-provider seen-set — see _canonical_dedup_key.
@@ -225,6 +234,7 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
         "_query_used": query,
         "_federated": True,
         "_canonical_key": cross_key,  # cross-provider dedup key, visible in debug output
+        "published_date": published,
     })
     return raw
 

@@ -106,9 +106,9 @@ function applyLocalFilters(jobs, f) {
     if (f.quick_apply && !QUICK_APPLY_RE.test(String(pick(j, ['source_url','url','_provider','via'], '')))) return false;
     if (f.work_model && txt(j).indexOf(f.work_model === 'onsite' ? 'on-site' : f.work_model) === -1) return false;
     if (f.job_type) { const map = {full:'full',part:'part',shift:'shift',contract:'contract'}; if (txt(j).indexOf(map[f.job_type]) === -1) return false; }
-    if (f.posted_within) {
-      const d = Date.parse(String(pick(j, ['published_date','posted_date','created','date'], '') || ''));
-      if (!d || (_PW[f.posted_within] && Date.now() - d > _PW[f.posted_within])) return false;
+    if (f.posted_within && _PW[f.posted_within]) {
+      const age = Date.now() - ((typeof jobDateMs === 'function') ? jobDateMs(j) : NaN);
+      if (isNaN(age) || age < 0 || age > _PW[f.posted_within]) return false;
     }
     if (f.provider) { const jp = String(pick(j, ['_provider','source','via','provider'], '') || '').toLowerCase();
       if (!jp.includes(String(f.provider).toLowerCase())) return false; }

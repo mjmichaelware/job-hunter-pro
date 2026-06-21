@@ -705,6 +705,7 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
         "listing_location": listing_location,
         "salary": salary_from_raw(raw),
         "description": description,
+        "published_date": clean(raw.get("published_date") or raw.get("posted_at") or raw.get("created") or raw.get("date")),
         "commute_seconds": None,
         "commute_label": "Resolution pending",
         "radius_miles": None,

@@ -1,6 +1,24 @@
 /* components/filters_facets.js — facet counts, keyword suggest index, provider chips.
    Loaded after filters.js. All helpers are global so filters.js can call them. */
 
+// Parse a job's posting date to epoch ms. Handles ISO/RFC strings, epoch
+// numbers, and the relative phrases providers return ("3 days ago", "30+ days
+// ago", "today", "yesterday"). Returns NaN when no date is present/parseable —
+// so the recency filter and facet counts treat undated jobs identically.
+const _REL_UNIT_MS = { minute: 6e4, hour: 36e5, day: 864e5, week: 6048e5, month: 2592e6, year: 31536e6 };
+function jobDateMs(job) {
+  const v = pick(job, ['published_date', 'posted_at', 'posted_date', 'created', 'created_at', 'date', 'pubDate'], null);
+  if (v == null || v === '') return NaN;
+  if (typeof v === 'number') return v < 1e12 ? v * 1000 : v;  // epoch s vs ms
+  const s = String(v).trim().toLowerCase();
+  if (/^(today|just posted|just now|new|active today)/.test(s)) return Date.now();
+  if (/^yesterday/.test(s)) return Date.now() - _REL_UNIT_MS.day;
+  const rel = s.match(/(\d+)\s*\+?\s*(minute|hour|day|week|month|year)s?\s*ago/);
+  if (rel) return Date.now() - Number(rel[1]) * _REL_UNIT_MS[rel[2]];
+  const abs = Date.parse(v);
+  return isNaN(abs) ? NaN : abs;
+}
+
 function _suggestIndex(jobs) {
   const counts = {};
   (jobs || []).forEach(function (j) {
@@ -43,10 +61,10 @@ function facetCounts(jobs) {
     if (prov) out.provider[prov] = (out.provider[prov] || 0) + 1;
 
     // posted_within — count how many fall within each window
-    const d = Date.parse(String(pick(j, ['published_date','posted_date','created','date'], '') || ''));
-    if (d) {
+    const d = jobDateMs(j);
+    if (!isNaN(d)) {
       const age = Date.now() - d;
-      Object.keys(_PW).forEach(function (k) { if (age <= _PW[k]) out.posted_within[k] = (out.posted_within[k] || 0) + 1; });
+      Object.keys(_PW).forEach(function (k) { if (age >= 0 && age <= _PW[k]) out.posted_within[k] = (out.posted_within[k] || 0) + 1; });
     }
   });
   return out;
