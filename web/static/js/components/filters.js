@@ -1,4 +1,4 @@
-/* components/filters.js — grouped filter sheet, centralized chip-remove, sort+review. */
+/* components/filters.js — grouped filter sheet, centralized chip-remove, sort+review. Facets: filters_facets.js */
 const DATE_WINDOWS = [['24h','Last 24h'],['3d','Last 3d'],['7d','Last 7d'],['14d','Last 2wk'],['30d','Last 30d']];
 const QUICK_APPLY_RE = /indeed|snagajob|ziprecruiter|easyapply|easy-apply/i;
 const SORT_OPTS = [['match_score_desc','Match ↓'],['match_score_asc','Match ↑'],['review_score_desc','Review ↓'],['date_desc','Newest'],['company_asc','Company A–Z']];
@@ -63,6 +63,7 @@ function renderFilters(filters, industries, jobs) {
     + '<div class="filter-block"><span class="filter-block__label">Posted within</span>' + _chips('posted_within', DATE_WINDOWS, f.posted_within) + '</div>'
     + '<div class="filter-block"><span class="filter-block__label">Work model</span>' + _chips('work_model', [['remote','Remote'],['onsite','On-site'],['hybrid','Hybrid']], f.work_model) + '</div>'
     + '<div class="filter-block"><span class="filter-block__label">Type</span>' + _chips('job_type', [['full','Full-time'],['part','Part-time'],['shift','Shift'],['contract','Contract']], f.job_type) + '</div>'
+    + (typeof renderProviderChips === 'function' ? renderProviderChips(jobs, f.provider) : '')
     + '</div></details>'
 
     + '<div class="filter-actions"><button type="button" id="f-apply" class="btn">Apply</button><button type="button" id="f-clear" class="btn">Clear</button></div>'
@@ -81,7 +82,7 @@ function readFilters(c) {
   if (g('#f-transit')) f.max_transit  = g('#f-transit');
   if (g('#f-radius'))  f.max_radius   = g('#f-radius');
   const chk = c.querySelector('#f-quick'); if (chk && chk.checked) f.quick_apply = '1';
-  ['posted_within','work_model','job_type'].forEach(function (name) {
+  ['posted_within','work_model','job_type','provider'].forEach(function (name) {
     const on = c.querySelector('[data-chipset="' + name + '"] .pill.is-on');
     if (on) f[name] = on.dataset.val;
   });
@@ -90,8 +91,13 @@ function readFilters(c) {
 function applyLocalFilters(jobs, f) {
   if (!f) return jobs;
   const txt = function (j) { return JSON.stringify(j).toLowerCase(); };
+  const _PW = {'24h':864e5,'3d':259.2e6,'7d':604.8e6,'14d':1209.6e6,'30d':2592e6};
   return (jobs || []).filter(function (j) {
-    if (f.industry && pick(j, ['industry','role_family'], '') !== f.industry) return false;
+    if (f.industry) {
+      const jk = String(pick(j, ['industry_key'], '') || '').replace(/-/g, '_');
+      const rf = String(pick(j, ['role_family'],  '') || '').replace(/-/g, '_');
+      if (jk !== f.industry && rf !== f.industry) return false;
+    }
     if (f.min_core   && j.review_score != null && Number(j.review_score) < Number(f.min_core))   return false;
     if (f.min_review && j.review_score != null && Number(j.review_score) < Number(f.min_review)) return false;
     if (f.min_role_fit != null && pick(j, ['match','match_score'], null) != null && Number(pick(j, ['match','match_score'], 0)) < Number(f.min_role_fit)) return false;
@@ -100,17 +106,15 @@ function applyLocalFilters(jobs, f) {
     if (f.quick_apply && !QUICK_APPLY_RE.test(String(pick(j, ['source_url','url','_provider','via'], '')))) return false;
     if (f.work_model && txt(j).indexOf(f.work_model === 'onsite' ? 'on-site' : f.work_model) === -1) return false;
     if (f.job_type) { const map = {full:'full',part:'part',shift:'shift',contract:'contract'}; if (txt(j).indexOf(map[f.job_type]) === -1) return false; }
+    if (f.posted_within) {
+      const d = Date.parse(String(pick(j, ['published_date','posted_date','created','date'], '') || ''));
+      if (!d || (_PW[f.posted_within] && Date.now() - d > _PW[f.posted_within])) return false;
+    }
+    if (f.provider) { const jp = String(pick(j, ['_provider','source','via','provider'], '') || '').toLowerCase();
+      if (!jp.includes(String(f.provider).toLowerCase())) return false; }
     if (f.q && txt(j).indexOf(String(f.q).toLowerCase()) === -1) return false;
     return true;
   });
-}
-function _suggestIndex(jobs) {
-  const counts = {};
-  (jobs || []).forEach(function (j) {
-    (Array.isArray(j.tags) ? j.tags : []).forEach(function (tag) { const k = String(tag).toLowerCase(); counts[k] = (counts[k] || 0) + 1; });
-    String(pick(j, ['title','job_title'], '') || '').toLowerCase().split(/[^a-z]+/).forEach(function (w) { if (w.length >= 3) counts[w] = (counts[w] || 0) + 1; });
-  });
-  return counts;
 }
 function wireChipRemove(container, onRefresh) {
   (container || document).querySelectorAll('.chip__x').forEach(function (x) {
@@ -128,6 +132,7 @@ function openFiltersSheet(industries, jobs, onApply) {
         });
       });
     });
+    if (typeof applyFacetBadges === 'function') applyFacetBadges(body, jobs);
     const q = body.querySelector('#f-q'), sug = body.querySelector('#f-suggest');
     if (q && sug) {
       const idx = _suggestIndex(jobs);

@@ -47,44 +47,65 @@ async function loadDiscoveryView() {
   async function runDiscovery(btn, mode, label) {
     if (!confirm(t('jobs.confirm'))) return;
     busy(btn, true);
-    log.textContent = '';
-    log.hidden = false;
-    logLine('▶ Starting ' + label + ' — ' + countLabel);
-    if (liveProviders.length) logLine('  Providers: ' + liveProviders.slice(0, 8).map(function (p) { return p.label || p.key; }).join(', ') + (liveProviders.length > 8 ? ' + ' + (liveProviders.length - 8) + ' more…' : ''));
-    logLine('  Running concurrently — this may take 30–120 s…');
-    status.textContent = 'Scanning ' + label + ' across ' + countLabel + '…';
+    log.textContent = ''; log.hidden = false;
+    logLine('▶ ' + label + ' — ' + countLabel);
+    if (liveProviders.length) logLine('  Providers: ' + liveProviders.slice(0, 10).map(function (p) { return p.label || p.key; }).join(', ') + (liveProviders.length > 10 ? ' +' + (liveProviders.length - 10) + ' more' : ''));
+    status.textContent = 'Scanning…';
     if (typeof announce === 'function') announce(label + ' discovery started');
     if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 1 });
-
     const t0 = Date.now();
-    const ticker = setInterval(function () { status.textContent = 'Still scanning… ' + Math.round((Date.now() - t0) / 1000) + 's elapsed'; }, 2000);
-
     const dedupEl = el.querySelector('#disc-dedup');
+
+    function _done(accepted, rejected, raw, stored) {
+      if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 });
+      busy(btn, false);
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      logLine('✓ Done in ' + elapsed + 's · ' + (stored ? 'saved' : 'storage error'));
+      const msg = accepted + ' accepted · ' + raw + ' raw · ' + rejected + ' flagged · ' + (stored ? 'saved to history' : 'storage error');
+      status.textContent = msg;
+      if (typeof announce === 'function') announce(msg);
+    }
+
+    if (typeof EventSource !== 'undefined') {
+      const qs = new URLSearchParams(Object.assign({}, AppState.filters));
+      if (mode) qs.set('mode', mode);
+      if (dedupEl && !dedupEl.checked) qs.set('dedup', '0');
+      const es = new EventSource('/api/jobs/stream?' + qs.toString());
+      es.addEventListener('fanout_done',    function (e) { try { const d = JSON.parse(e.data); logLine('  Fetched  : ' + d.raw + ' raw (' + d.providers + ' providers)'); } catch (_) {} });
+      es.addEventListener('partitioned',    function (e) { try { const d = JSON.parse(e.data); logLine('  Accepted : ' + d.accepted + ' · Flagged: ' + d.rejected); } catch (_) {} });
+      es.addEventListener('cache_backfill', function (e) { try { const d = JSON.parse(e.data); logLine('  Cache    : ' + d.hits + '/' + d.total + ' hits (free)'); } catch (_) {} });
+      es.addEventListener('enriching',      function (e) { try { const d = JSON.parse(e.data); status.textContent = 'Enriching ' + d.total + ' jobs (Maps + AI)…'; } catch (_) {} });
+      es.addEventListener('enrich_done',    function (e) { try { const d = JSON.parse(e.data); logLine('  Enriched : ' + d.enriched); } catch (_) {} });
+      es.addEventListener('done', function (e) {
+        es.close();
+        try { const d = JSON.parse(e.data); _done(d.accepted, d.rejected, d.raw, d.stored);
+          AppState.liveResult = { jobs: [], rejected: [], msg: status.textContent };
+          setTimeout(function () { AppState.liveResult = null; navigate('jobs'); }, 1800);
+        } catch (_) { busy(btn, false); }
+      });
+      es.addEventListener('error', function (e) {
+        es.close();
+        if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 });
+        busy(btn, false);
+        try { status.textContent = JSON.parse(e.data).message; } catch (_) { status.textContent = 'Stream error — see Debug tab.'; }
+      });
+      es.onerror = function () { if (es.readyState === 2) { es.close(); busy(btn, false); if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 }); } };
+      return;
+    }
+
+    // Fallback: single blocking request (no EventSource support)
+    const ticker = setInterval(function () { status.textContent = 'Still scanning… ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 2000);
     const opts = Object.assign({}, AppState.filters, mode ? { mode: mode } : {});
     if (dedupEl && !dedupEl.checked) opts.dedup = 0;
     const data = await fetchJobsLive(opts);
-
     clearInterval(ticker);
-    if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 });
-    busy(btn, false);
-    if (!data) { status.textContent = 'Discovery failed or timed out. Check Debug tab for details.'; logLine('✗ Failed or timed out.'); return; }
-
+    if (!data) { busy(btn, false); if (typeof updateVolumetric === 'function') updateVolumetric({ intensity: 0.55 }); status.textContent = 'Discovery failed or timed out.'; logLine('✗ Failed.'); return; }
     const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
     const rejected = arr(data, ['rejected']);
     const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
-    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-    const stored = data.stored ? 'saved to history' : 'storage error';
-    logLine('✓ Done in ' + elapsed + 's');
-    logLine('  Raw fetched : ' + raw);
-    logLine('  Accepted    : ' + jobs.length);
-    logLine('  Flagged     : ' + rejected.length);
-    logLine('  Storage     : ' + stored);
-    if (data.enriched_count != null) logLine('  Enriched    : ' + data.enriched_count + ' jobs (Maps + AI)');
-    if (data.enrich_cap != null) logLine('  Enrich cap  : ' + data.enrich_cap);
-    const msg = jobs.length + ' accepted · ' + raw + ' raw · ' + rejected.length + ' flagged · ' + stored;
-    AppState.liveResult = { jobs: jobs, rejected: rejected, msg: msg };
-    status.textContent = msg;
-    if (typeof announce === 'function') announce(msg);
+    _done(jobs.length, rejected.length, raw, data.stored);
+    if (data.enriched_count != null) logLine('  Enriched : ' + data.enriched_count);
+    AppState.liveResult = { jobs: jobs, rejected: rejected, msg: status.textContent };
     setTimeout(function () { navigate('jobs'); }, 1800);
   }
 

@@ -30,10 +30,10 @@
   border-radius: var(--radius-sm);
 }
 
-/* Respect the human: no parallax, no spring under reduced-motion. The ambient
-   wallpaper stays — it's an intentional always-on living background — but the JS
-   renders a slower, calmer field (see volumetric.js). It is exempted from the
-   blanket animation kill below so the canvas keeps breathing. */
+/* SYSTEM OVERRIDE: The aurora canvas is a living wallpaper that ALWAYS animates.
+   prefers-reduced-motion cuts parallax/spring transitions for UI chrome but the
+   canvas itself stays fully alive. prefers-reduced-data has no effect on the canvas
+   (owner directive — it is the core visual, not optional). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -41,11 +41,6 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  /* keep the canvas element's own CSS drift alive */
-  #halo-canvas { animation-duration: 40s !important; animation-iteration-count: infinite !important; }
-}
-
-/* Save-Data only: drop the canvas paint to the flat CSS-gradient tier. */
-@media (prefers-reduced-data: reduce) {
-  #halo-canvas::after { content: none; }
+  /* Exempt the canvas — it is always-on by owner directive */
+  #halo-canvas { animation-duration: 14s !important; animation-iteration-count: infinite !important; }
 }

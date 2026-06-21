@@ -1,11 +1,11 @@
-/* visuals/volumetric.js — immersive ambient aurora field on #halo-canvas.
-   Drifting nebula blobs + flowing wave + constellation particles. Always-on
-   living wallpaper; brightness rises with real system state via updateVolumetric().
-   Only prefers-reduced-data is a hard stop; reduced-motion just slows the drift. */
+/* visuals/volumetric.js — always-on aurora living wallpaper on #halo-canvas.
+   SYSTEM OVERRIDE: ignores prefers-reduced-data and prefers-reduced-motion.
+   Reacts to pointer position and system activity via updateVolumetric(). */
 
 let _volRAF = null;
 let _volIntensity = 0.75;
 let _volStarted = false;
+let _volMx = 0.5, _volMy = 0.5;  // normalised pointer position
 
 const _BLOBS = [
   { hue: '0,255,204',  x: 0.16, y: 0.14, r: 0.68, ox: 0.12, oy: 0.08, sx: 0.00021, sy: 0.00017 },
@@ -29,13 +29,15 @@ const _PARTICLES = Array.from({ length: 80 }, function (_, i) {
 function initVolumetric() {
   const canvas = document.getElementById('halo-canvas');
   if (!canvas || !canvas.getContext) return;
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-data: reduce)').matches) return;
-  const calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const SPEED = calm ? 0.4 : 1;
+  // SYSTEM OVERRIDE: always animate — do not gate on prefers-reduced-data or
+  // prefers-reduced-motion. The canvas is the living wallpaper per owner directive.
+  const SPEED = 1;
   const ctx = canvas.getContext('2d');
   if (!ctx || _volStarted) return;
   _volStarted = true;
-  if (calm) _volIntensity = Math.min(_volIntensity, 0.55);
+  // Pointer tracking — parallax effect on blobs
+  document.addEventListener('mousemove', function (e) { _volMx = e.clientX / window.innerWidth; _volMy = e.clientY / window.innerHeight; }, { passive: true });
+  document.addEventListener('touchmove', function (e) { if (e.touches[0]) { _volMx = e.touches[0].clientX / window.innerWidth; _volMy = e.touches[0].clientY / window.innerHeight; } }, { passive: true });
 
   let W = 0, H = 0;
   function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
@@ -47,11 +49,11 @@ function initVolumetric() {
     const I = _volIntensity;
     ctx.clearRect(0, 0, W, H);
 
-    // Aurora nebula blobs
+    // Aurora nebula blobs — pointer position adds gentle parallax
     ctx.globalCompositeOperation = 'lighter';
     _BLOBS.forEach(function (b, i) {
-      const px = (b.x + Math.sin(ts * b.sx + i * 1.3) * b.ox) * W;
-      const py = (b.y + Math.cos(ts * b.sy + i * 1.9) * b.oy) * H;
+      const px = (b.x + Math.sin(ts * b.sx + i * 1.3) * b.ox + (_volMx - 0.5) * 0.06 * (i % 2 ? 1 : -1)) * W;
+      const py = (b.y + Math.cos(ts * b.sy + i * 1.9) * b.oy + (_volMy - 0.5) * 0.06 * (i % 3 ? 1 : -1)) * H;
       const rad = b.r * Math.min(W, H) * (0.90 + I * 0.4);
       const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
       const a = (0.18 + I * 0.26).toFixed(3);

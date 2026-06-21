@@ -50,13 +50,16 @@ function renderJobsView() {
     + renderLayoutToggle() + renderGroupControl() + renderSortControl()
     + '</div></div>' + renderChips(f);
 
+  // domOrder tracks the exact card-render order so wireBentoCards index always
+  // matches the DOM position, even when groupBy reorders the cards.
+  const domOrder = [];
   function section(label, list, unres) {
     if (!list.length) return '';
     const groups = groupJobs(list, AppState.groupBy);
     let s = label ? '<h2 class="section-heading">' + esc(label) + ' (' + list.length + ')</h2>' : '';
     groups.forEach(function (g) {
       if (g.label) s += '<h3 class="group-heading">' + esc(g.label) + '</h3>';
-      s += '<div class="bento-grid ' + esc(AppState.layout) + '">' + g.jobs.map(function (j) { return bentoJobCard(j, unres); }).join('') + '</div>';
+      s += '<div class="bento-grid ' + esc(AppState.layout) + '">' + g.jobs.map(function (j) { domOrder.push(j); return bentoJobCard(j, unres); }).join('') + '</div>';
     });
     return s;
   }
@@ -76,7 +79,7 @@ function renderJobsView() {
   el.innerHTML = html;
   applyIndustryFromJobs(_jobsState.jobs);
   if (typeof setCohort === 'function') setCohort(_jobsState.jobs.concat(_jobsState.rejected));
-  wireBentoCards(el, accepted.concat(unresolved));
+  wireBentoCards(el, domOrder);
   wireJobsToolbar(el);
   wireGo(el);
 }
