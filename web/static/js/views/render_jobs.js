@@ -59,6 +59,7 @@ function renderJobsView() {
   if (!_jobsState.jobs.length && !_jobsState.rejected.length) {
     html += '<p class="state-empty">No saved jobs yet. Open <b>Discovery</b> to run the first search.</p>';
   } else {
+    console.debug('[UI_RENDER] jobs view rendering', accepted.length, 'accepted +', unresolved.length, 'unresolved');
     html += section('Accepted', accepted, false) + section('Needs resolution', unresolved, true);
     if (!accepted.length && !unresolved.length) html += '<p class="state-empty">No jobs match the current filters.</p>';
   }

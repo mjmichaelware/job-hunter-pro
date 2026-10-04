@@ -211,6 +211,7 @@ def fetch_provider_raw_jobs(
     # quarantine ledger. Each provider's own breakdown entry is written only by
     # that provider's worker thread, so it needs no lock.
     lock = threading.Lock()
+    _run_start_ts = int(__import__("time").time())
 
     active_count = max(1, len(available_providers))
     fair_default_cap = max(1, (max_raw_jobs + active_count - 1) // active_count)
@@ -293,6 +294,35 @@ def fetch_provider_raw_jobs(
                     return
 
             queries_run += 1
+            # IMPORTANT: persist each provider's results IMMEDIATELY so that a
+            # global timeout / browser abort never loses completed work. Every
+            # provider finishes its queries sequentially within its own thread,
+            # so writing here is thread-safe per provider.
+            if bd["raw_count"] > 0:
+                try:
+                    from store.sqlite_repo import get_sqlite_batches_repo
+                    import datetime as _dt, os as _os
+
+                    db_path = _os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite")
+                    sqlite_batches = get_sqlite_batches_repo(db_path)
+                    provider_jobs = [j for j in raw_jobs if j.get("_provider") == key]
+                    doc_key = f"batches/incremental_{key}_{_run_start_ts}_batch.json"
+                    sqlite_batches.save(
+                        doc_key,
+                        {
+                            "batch_schema": "job_hunter_batch_v1",
+                            "created_at_utc": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat(),
+                            "object_name": doc_key,
+                            "source": "incremental_provider_save",
+                            "provider": key,
+                            "accepted": provider_jobs,
+                            "rejected": [],
+                            "counts": {"accepted": len(provider_jobs), "rejected": 0, "raw": len(provider_jobs), "queries": queries_run},
+                        },
+                    )
+                    logger.info("[DISCOVERY_PERSIST] provider=%s saved %d raws key=%s", key, len(provider_jobs), doc_key)
+                except Exception as exc:
+                    logger.warning("incremental sqlite save for %s failed: %s", key, exc)
             # Early exit: avoid running all queries if we've already made progress
             if queries_run >= len(queries) // max(1, len(runnable)) + 2:
                 break

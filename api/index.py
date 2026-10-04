@@ -1333,9 +1333,12 @@ def batch_by_name(object_name):
             sqlite_batches = get_sqlite_batches_repo(os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite"))
             for b in sqlite_batches.get_all():
                 bn = b.get("object_name") or ""
-                if bn == object_name or bn == object_name.replace("batches/", "") or b.get("batch_schema"):
-                    if bn == object_name or object_name.endswith(bn) or not bn:
-                        return jsonify({"status": "success", "object_name": object_name, "batch": b})
+                if not bn:
+                    continue
+                bn_norm = bn if bn.endswith(".json") else bn + ".json"
+                if bn_norm != object_name and bn != object_name:
+                    continue
+                return jsonify({"status": "success", "object_name": object_name, "batch": b})
         except Exception as exc:
             logger.warning("batch_by_name sqlite fallback failed: %s", exc)
     return jsonify({"status": "success" if data else "not_found", "object_name": object_name, "batch": data})

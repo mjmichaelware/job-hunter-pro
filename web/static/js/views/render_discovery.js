@@ -37,7 +37,13 @@ function loadDiscoveryView() {
     if (typeof announce === 'function') announce('Live discovery started');
     const data = await fetchJobsLive(AppState.filters);   // forward-wired query params
     busy(run, false);
-    if (!data) { status.textContent = 'Discovery failed or timed out. Try again.'; return; }
+    if (!data) {
+      status.textContent = 'Live call timed out — showing what was saved incrementally.';
+      if (typeof announce === 'function') announce('Discovery call timed out; loading saved incremental batches.');
+      AppState.liveResult = null;
+      navigate('jobs');
+      return;
+    }
     const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
     const rejected = arr(data, ['rejected']);
     const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
