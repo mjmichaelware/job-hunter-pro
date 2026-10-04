@@ -11,12 +11,14 @@ function loadDiscoveryView() {
     + '<button type="button" id="disc-reload" class="btn btn-glow"><span class="btn__label">' + esc(t('jobs.reload')) + '</span><span class="spinner" hidden></span></button>'
     + '<button type="button" id="disc-run" class="btn btn-glow btn-warn"><span class="btn__label">' + esc(t('jobs.run')) + '</span><span class="spinner" hidden></span></button>'
     + '</div>'
+    + '<div class="disc-progress" id="disc-progress" hidden><div class="disc-progress__bar"></div></div>'
     + '<p class="status-line" id="disc-status">' + esc(t('disc.idle')) + '</p>'
     + '</section>';
 
   const status = el.querySelector('#disc-status');
   const reload = el.querySelector('#disc-reload');
   const run = el.querySelector('#disc-run');
+  const progress = el.querySelector('#disc-progress');
 
   reload.addEventListener('click', async function () {
     busy(reload, true);
@@ -51,6 +53,7 @@ function loadDiscoveryView() {
     btn.disabled = on;
     const sp = btn.querySelector('.spinner');
     if (sp) sp.hidden = !on;
+    if (progress) progress.hidden = !on;
   }
 }
 

@@ -4,6 +4,7 @@
 async function loadWhyThreeView() {
   const data = await safeFetch('/api/why-three');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'why-three') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load why-three data.'); return; }
   JHP_SYNC.remember('why-three', data);
 

@@ -79,6 +79,18 @@ function applyLocalFilters(jobs, f) {
     if (f.work_model && txt(j).indexOf(f.work_model === 'onsite' ? 'on-site' : f.work_model) === -1) return false;
     if (f.job_type) { const map = { full: 'full', part: 'part', shift: 'shift', contract: 'contract' }; if (txt(j).indexOf(map[f.job_type]) === -1) return false; }
     if (f.q && txt(j).indexOf(String(f.q).toLowerCase()) === -1) return false;
+    if (f.posted_within) {
+      const days = Number(String(f.posted_within).replace('d', '').replace('h', ''));
+      const raw = pick(j, ['published_date', 'posted_at', 'publication_date', 'date'], null);
+      if (raw) {
+        const then = Date.parse(raw);
+        if (!isNaN(then)) {
+          const hoursAgo = (Date.now() - then) / 3600000;
+          const maxHours = String(f.posted_within).endsWith('h') ? days : days * 24;
+          if (hoursAgo > maxHours) return false;
+        }
+      }
+    }
     return true;
   });
 }

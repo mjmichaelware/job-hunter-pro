@@ -51,6 +51,16 @@ def apply_filters(jobs: List[Dict[str, Any]], params: Dict[str, Any]) -> List[Di
     role = _text(params.get("role"))
     house = _text(params.get("house"))
     q = _text(params.get("q"))
+    posted_within = _text(params.get("posted_within"))
+
+    import re as _re
+    from datetime import datetime, timezone
+
+    _pw = None
+    if posted_within and posted_within != "all":
+        m = _re.match(r"^(\d+)([hd])$", posted_within)
+        if m:
+            _pw = int(m.group(1)) * (1 if m.group(2) == "h" else 24)
 
     out: List[Dict[str, Any]] = []
     for job in jobs:
@@ -103,5 +113,17 @@ def apply_filters(jobs: List[Dict[str, Any]], params: Dict[str, Any]) -> List[Di
             ])
             if q not in haystack:
                 continue
+        if _pw is not None:
+            raw_date = _job_field(job, ["published_date", "posted_at", "publication_date", "date"])
+            if raw_date:
+                try:
+                    dt = datetime.fromisoformat(str(raw_date).replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    age_hours = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+                    if age_hours > _pw:
+                        continue
+                except Exception:
+                    pass
         out.append(job)
     return out

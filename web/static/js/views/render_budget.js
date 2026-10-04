@@ -23,6 +23,7 @@ function _fuelCell(used, capacity, left, guard) {
 async function loadBudgetView() {
   const data = await safeFetch('/api/usage');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'budget') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load usage data.'); return; }
   JHP_SYNC.remember('budget', data);
   const serp = data.serpapi || {}; const budget = data.budget || {}; const storage = data.storage || {};

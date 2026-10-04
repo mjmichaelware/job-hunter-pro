@@ -31,7 +31,7 @@ class FoursquareProvider(SearchProvider):
         return bool(Config.provider_key("FOURSQUARE_API_KEY"))
 
     def disabled_reason(self) -> str:
-        return "" if os.environ.get("ENABLE_FOURSQUARE") else "Set ENABLE_FOURSQUARE=1 to include business leads."
+        return ""  # cost controls removed by user request
 
     def search(self, query: str) -> List[SearchResult]:
         key = Config.provider_key("FOURSQUARE_API_KEY")

@@ -33,7 +33,7 @@ class YelpProvider(SearchProvider):
         return bool(Config.provider_key("YELP_API_KEY"))
 
     def disabled_reason(self) -> str:
-        return "" if os.environ.get("ENABLE_YELP") else "Set ENABLE_YELP=1 to include business leads."
+        return ""  # cost controls removed by user request
 
     def search(self, query: str) -> List[SearchResult]:
         key = Config.provider_key("YELP_API_KEY")

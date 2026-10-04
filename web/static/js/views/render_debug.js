@@ -4,6 +4,7 @@
 async function loadDebugView() {
   const data = await safeFetch('/api/debug/jobs');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'debug') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load debug data. /api/debug/jobs may be unavailable.'); return; }
   JHP_SYNC.remember('debug', data);
 

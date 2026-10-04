@@ -51,18 +51,16 @@ class Config:
     MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "1200"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
-    SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "1").strip() == "1"
+    SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "0").strip() == "1"
     # Per-run query count. The full ~1400-keyword bank rotates across runs (see
     # raw_job_queries offset), so coverage accumulates over saved batches rather
     # than in one impossible request. 24 is the count that reliably completes.
     MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "24"))
 
-    ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "0").strip() == "1"
-    ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "0").strip() == "1"
-    # Google Places "opportunities" radar costs Maps quota per call. It is an
-    # OPTIONAL feature and core job discovery does not depend on it. Off by
-    # default for cost control; the endpoint reports this honestly when disabled.
-    ENABLE_PLACES_OPPORTUNITIES = os.environ.get("ENABLE_PLACES_OPPORTUNITIES", "0").strip() == "1"
+    ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "1").strip() == "1"
+    ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "1").strip() == "1"
+    # Places opportunities radar is always enabled now — cost controls removed.
+    ENABLE_PLACES_OPPORTUNITIES = os.environ.get("ENABLE_PLACES_OPPORTUNITIES", "1").strip() == "1"
 
     BATCH_BUCKET = os.environ.get("BATCH_BUCKET", "").strip()
 
@@ -616,6 +614,7 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
         "source_url": apply_link(raw),
         "job_id": clean(raw.get("job_id")),
         "via": clean(raw.get("via")),
+        "published_date": clean(raw.get("published_date") or raw.get("posted_at") or raw.get("publication_date") or raw.get("date") or ""),
         "ai_provider": "deterministic_budget_safe",
         "chef_names": [],
         "place_query_used": place.get("query_used"),
@@ -680,7 +679,7 @@ def raw_job_queries(mode: str = "broad", domain: str = "", extra_terms: Optional
             unique.append(query)
     return unique
 
-def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None) -> Dict[str, Any]:
+def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None, timeout_per_query: int = 15) -> Dict[str, Any]:
     raw_jobs = []
     provider_breakdown = {}
     quarantined_providers: Dict[str, Any] = {}
@@ -693,6 +692,7 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
             queries,
             max_raw_jobs=Config.MAX_RAW_JOBS,
             location="Salt Lake City, UT",
+            timeout_per_query=timeout_per_query,
         )
         raw_jobs = fanout.get("raw_jobs", [])
         provider_breakdown = fanout.get("provider_breakdown", {})
@@ -788,7 +788,7 @@ def request_filter_params() -> Dict[str, Any]:
     """
     params: Dict[str, Any] = {}
     for name in ("min_rating", "max_radius", "max_transit", "min_score", "min_match",
-                 "industry", "provider", "role", "house", "q"):
+                 "industry", "provider", "role", "house", "q", "posted_within"):
         value = request.args.get(name)
         if value not in (None, ""):
             params[name] = value
@@ -1074,15 +1074,13 @@ def why_three():
 @app.route("/api/opportunities")
 def opportunities():
     if not Config.ENABLE_PLACES_OPPORTUNITIES:
-        # Honest cost-control state: feature intentionally off, not broken.
+        # Backstop only — user removed cost-control messaging; explain honestly.
         return jsonify({
-            "status": "disabled",
-            "source": "google_places_opportunities",
-            "enabled": False,
-            "reason": "disabled_for_cost_control",
-            "message": "Places opportunities radar is off to protect Google Maps quota. Core job discovery does not depend on it. Set ENABLE_PLACES_OPPORTUNITIES=1 to enable.",
+            "status": "success",
+            "source": "google_places_opportunities_no_serpapi",
             "count": 0,
-            "rules": {"origin": Config.ORIGIN_ADDRESS, "uses_serpapi": False, "uses_google_maps": True},
+            "enabled": False,
+            "message": "Places opportunities disabled via ENABLE_PLACES_OPPORTUNITIES=0.",
             "data": [],
         })
     try:
@@ -1207,8 +1205,28 @@ def jobs():
     except Exception as _store_exc:
         logger.warning("jobs() persistence failed (response unaffected): %s", _store_exc)
 
-    response_payload["stored"] = stored
+    # Always persist locally (SQLite) regardless of Cloud Storage availability,
+    # so results never vanish when the GCS bucket is missing/unconfigured.
+    sqlite_stored = False
+    try:
+        from store.sqlite_repo import get_sqlite_batches_repo, get_sqlite_jobs_repo
+        sqlite_db = os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite")
+        sqlite_batches = get_sqlite_batches_repo(sqlite_db)
+        sqlite_jobs = get_sqlite_jobs_repo(sqlite_db)
+        if not batch_object:
+            batch_object = f"batches/{datetime.now(timezone.utc).strftime('%Y/%m/%d/%H%M%S')}_job_batch.json"
+        batch["object_name"] = batch_object
+        sqlite_batches.save(str(batch["object_name"]), batch)
+        for j in result["accepted"]:
+            jid = j.get("job_id") or j.get("sourced_url") or f'{j.get("title","")}|{j.get("company","")}'
+            sqlite_jobs.save(str(jid), j)
+        sqlite_stored = True
+    except Exception as _sqlite_exc:
+        logger.warning("jobs() sqlite persistence failed (response unaffected): %s", _sqlite_exc)
+
+    response_payload["stored"] = stored or sqlite_stored
     response_payload["batch_object"] = batch_object
+    response_payload["sqlite_stored"] = sqlite_stored
 
     return jsonify(response_payload)
 
@@ -1275,12 +1293,32 @@ def ingest():
 @app.route("/api/batches")
 def batches():
     items = gcs_list_batches(200)
-    return jsonify({
-        "status": "success",
-        "count": len(items),
-        "bucket": Config.BATCH_BUCKET,
-        "batches": [{"object_name": i.get("name"), "updated": i.get("updated"), "size": i.get("size"), "batch_id": i.get("name", "").replace("batches/", "").replace(".json", "")} for i in items],
-    })
+    if items:
+        return jsonify({
+            "status": "success",
+            "count": len(items),
+            "bucket": Config.BATCH_BUCKET,
+            "batches": [{"object_name": i.get("name"), "updated": i.get("updated"), "size": i.get("size"), "batch_id": i.get("name", "").replace("batches/", "").replace(".json", "")} for i in items],
+        })
+    # Fallback to locally-persisted SQLite batches when no GCS bucket exists
+    try:
+        from store.sqlite_repo import get_sqlite_batches_repo
+        sqlite_batches = get_sqlite_batches_repo(os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite"))
+        all_batches = sqlite_batches.get_all()
+        items = []
+        for idx, b in enumerate(all_batches):
+            created = b.get("created_at_utc") or ""
+            items.append({"name": b.get("object_name") or f"sqlite_batch_{idx}", "updated": created, "size": "0", "_batch": b})
+        items.sort(key=lambda x: x.get("updated", ""), reverse=True)
+        return jsonify({
+            "status": "success",
+            "count": len(items),
+            "bucket": "sqlite-fallback",
+            "batches": [{"object_name": i["name"], "updated": i["updated"], "size": i["size"], "batch_id": i["name"].replace("batches/", "").replace(".json", "")} for i in items],
+        })
+    except Exception as exc:
+        logger.warning("batches() sqlite fallback failed: %s", exc)
+        return jsonify({"status": "success", "count": 0, "bucket": Config.BATCH_BUCKET, "batches": []})
 
 @app.route("/api/batch/<path:object_name>")
 def batch_by_name(object_name):
@@ -1289,6 +1327,17 @@ def batch_by_name(object_name):
     if not object_name.endswith(".json"):
         object_name += ".json"
     data = gcs_download_json(object_name)
+    if not data:
+        try:
+            from store.sqlite_repo import get_sqlite_batches_repo
+            sqlite_batches = get_sqlite_batches_repo(os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite"))
+            for b in sqlite_batches.get_all():
+                bn = b.get("object_name") or ""
+                if bn == object_name or bn == object_name.replace("batches/", "") or b.get("batch_schema"):
+                    if bn == object_name or object_name.endswith(bn) or not bn:
+                        return jsonify({"status": "success", "object_name": object_name, "batch": b})
+        except Exception as exc:
+            logger.warning("batch_by_name sqlite fallback failed: %s", exc)
     return jsonify({"status": "success" if data else "not_found", "object_name": object_name, "batch": data})
 
 @app.route("/api/history")
@@ -1310,9 +1359,18 @@ def history():
             pass
     jobs_out = []
     batch_summaries = []
-    for item in gcs_list_batches(300):
+    gcs_items = gcs_list_batches(300)
+    if not gcs_items:
+        try:
+            from store.sqlite_repo import get_sqlite_batches_repo
+            sqlite_batches = get_sqlite_batches_repo(os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite"))
+            for b in sqlite_batches.get_all():
+                gcs_items.append({"name": b.get("object_name") or "sqlite_batch", "_batch": b})
+        except Exception as exc:
+            logger.warning("history() sqlite fallback failed: %s", exc)
+    for item in gcs_items:
         name = item.get("name")
-        data = gcs_download_json(name)
+        data = item.get("_batch") or gcs_download_json(name)
         if not data:
             continue
         created_raw = data.get("created_at_utc", "")

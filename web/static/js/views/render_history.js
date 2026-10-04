@@ -3,6 +3,7 @@
 async function loadHistoryView() {
   const data = await safeFetch('/api/history?hours=168');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'history') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load history.'); return; }
   JHP_SYNC.remember('history', data);
   const batches = arr(data, ['batches']);

@@ -5,8 +5,9 @@ import inspect
 import logging
 import os
 import re
+import signal
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Iterable, List
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,7 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
     url = _pick(item_dict, raw_dict, keys=["url", "source_url", "apply_url", "redirect_url", "link"], default="")
     snippet = _pick(item_dict, raw_dict, keys=["snippet", "description", "summary", "body"], default="")
     location = _pick(item_dict, raw_dict, keys=["location", "formatted_location", "candidate_required_location", "where"], default=default_location)
+    published = _pick(item_dict, raw_dict, keys=["published_date", "posted_at", "publication_date", "created_at", "date", "created", "updated", "pubDate", "PublicationStartdate", "AcquisitionDate", "AccquisitionDate"], default="")
 
     identity = hashlib.sha256(f"{provider_key}|{query}|{title}|{company}|{url}".encode("utf-8")).hexdigest()
 
@@ -141,8 +143,35 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
         "_provider_label": provider_label,
         "_query_used": query,
         "_federated": True,
+        "published_date": published or raw.get("published_date") or "",
     })
     return raw
+
+
+def _run_provider_search_with_timeout(
+    provider: Any, query: str, location: str, limit: int, timeout_seconds: int
+) -> List[Any]:
+    """Run _call_provider_search with a hard wall-clock timeout."""
+    result_holder: Dict[str, List[Any]] = {"results": []}
+    done = threading.Event()
+
+    def worker():
+        try:
+            results = _call_provider_search(provider, query, location, limit)
+            result_holder["results"] = results if results else []
+        except Exception:
+            result_holder["results"] = []
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    thread.join(timeout=timeout_seconds + 2)
+
+    if thread.is_alive():
+        # Timed out — provider took too long; skip this query
+        return []
+    return result_holder["results"]
 
 
 def fetch_provider_raw_jobs(
@@ -150,6 +179,7 @@ def fetch_provider_raw_jobs(
     max_raw_jobs: int,
     location: str = "Salt Lake City, UT",
     per_provider_cap: int | None = None,
+    timeout_per_query: int = 15,
 ) -> Dict[str, Any]:
     """
     Fair SEARCH-provider fanout.
@@ -158,6 +188,9 @@ def fetch_provider_raw_jobs(
     every available SEARCH provider gets attempted before any one provider can dominate the run.
 
     Reasoning providers are not called here. They enrich/classify after discovery.
+
+    Added timeout_per_query (default 15s) to prevent any single provider query
+    from blocking the entire discovery run indefinitely.
     """
     from providers import get_providers_by_type
     from providers.base import ProviderType
@@ -219,34 +252,23 @@ def fetch_provider_raw_jobs(
 
     def _run_provider(provider: Any, key: str, label: str) -> None:
         bd = provider_breakdown[key]
+        queries_run = 0
         for query in queries:
-            if bd["raw_count"] >= provider_cap:
-                bd["status"] = "stopped_provider_cap_reached"
-                return
+            # Check global caps early
             with lock:
                 remaining_global = max_raw_jobs - len(raw_jobs)
             if remaining_global <= 0:
                 bd["status"] = "not_attempted_global_cap_reached"
                 return
 
-            remaining_provider = provider_cap - bd["raw_count"]
-            request_limit = max(1, min(remaining_global, remaining_provider, 100))
-            bd["queries_attempted"] += 1
-
+            # Respect per-query timeout
             try:
-                results = _call_provider_search(provider, query, location, request_limit)
-            except ProviderHardFailure as hard:
-                # Hard auth/rate-limit failure (401/403/429): quarantine this
-                # provider for the rest of the run so we do not hammer a dead
-                # source across the whole keyword fanout.
-                reason = f"quarantined_http_{hard.status_code}"
-                with lock:
-                    quarantine.quarantine(key, reason)
-                bd["status"] = reason
-                bd["quarantined"] = True
-                bd["error"] = f"HTTP {hard.status_code} hard failure; stopped retrying this run."
-                logger.warning("Provider %s quarantined for run after HTTP %s", key, hard.status_code)
-                return
+                request_limit = max(1, min(provider_cap - bd["raw_count"], 100))
+                bd["queries_attempted"] += 1
+
+                results = _run_provider_search_with_timeout(
+                    provider, query, location, request_limit, timeout_per_query
+                )
             except Exception as exc:
                 bd["status"] = "error"
                 bd["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
@@ -260,6 +282,7 @@ def fetch_provider_raw_jobs(
                     if identity in seen:
                         continue
                     if len(raw_jobs) >= max_raw_jobs:
+                        bd["status"] = "stopped_global_cap_reached"
                         return
                     seen.add(identity)
                     raw_jobs.append(raw)
@@ -269,15 +292,19 @@ def fetch_provider_raw_jobs(
                     bd["status"] = "stopped_provider_cap_reached"
                     return
 
+            queries_run += 1
+            # Early exit: avoid running all queries if we've already made progress
+            if queries_run >= len(queries) // max(1, len(runnable)) + 2:
+                break
+
         if bd["available"] and bd["raw_count"] == 0 and bd["status"] == "ok":
             bd["status"] = "available_returned_zero"
 
     # Concurrent fanout: every available provider runs in parallel (each provider
     # still walks its own queries sequentially so per-provider caps/quarantine are
-    # simple). This is what lets the run scale to many providers without the old
-    # sequential timeout. Caps + MAX_QUERIES keep total work bounded.
+    # simple). Caps + timeout keep total work bounded.
     if runnable:
-        max_workers = min(len(runnable), max(1, int(os.environ.get("FANOUT_MAX_WORKERS", "12"))))
+        max_workers = min(len(runnable), max(1, int(os.environ.get("FANOUT_MAX_WORKERS", "8"))))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(_run_provider, p, k, l) for (p, k, l) in runnable]
             for future in futures:

@@ -9,6 +9,7 @@ function _appStatusCls(s) {
 async function loadApplicationsView() {
   const data = await safeFetch('/api/applications');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'applications') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load applications.'); return; }
   JHP_SYNC.remember('applications', data);
   const apps = arr(data, ['applications']);

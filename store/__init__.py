@@ -7,6 +7,14 @@ from store.reviews_repo import ReviewsRepository
 from store.applications_repo import ApplicationsRepository
 from store.usage_repo import UsageRepository
 from store.cache_repo import CacheRepository
+from store.sqlite_repo import (
+    SQLiteJobsRepository,
+    SQLiteBatchesRepository,
+    SQLiteCacheRepository,
+    get_sqlite_jobs_repo,
+    get_sqlite_batches_repo,
+    get_sqlite_cache_repo,
+)
 
 __all__ = [
     "get_db",
@@ -18,4 +26,10 @@ __all__ = [
     "ApplicationsRepository",
     "UsageRepository",
     "CacheRepository",
+    "SQLiteJobsRepository",
+    "SQLiteBatchesRepository",
+    "SQLiteCacheRepository",
+    "get_sqlite_jobs_repo",
+    "get_sqlite_batches_repo",
+    "get_sqlite_cache_repo",
 ]

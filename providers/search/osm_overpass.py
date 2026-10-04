@@ -34,7 +34,7 @@ class OsmOverpassProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if os.environ.get("ENABLE_OSM_OVERPASS") else "Set ENABLE_OSM_OVERPASS=1 to include nearby-business leads."
+        return ""  # cost controls removed by user request
 
     def search(self, query: str) -> List[SearchResult]:
         # Overpass QL: named shops/offices/amenities within the radius of origin.

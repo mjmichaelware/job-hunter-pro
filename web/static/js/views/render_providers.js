@@ -26,6 +26,7 @@ function _provTable(list, heading, note) {
 async function loadProvidersView() {
   const data = await safeFetch('/api/providers');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'providers') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load providers.'); return; }
   JHP_SYNC.remember('providers', data);
   const providers = arr(data, ['providers']);

@@ -22,9 +22,7 @@ class JoobleProvider(SearchProvider):
         )
 
     def disabled_reason(self) -> str:
-        # Owner reports this upstream does not work; keep it off so it never
-        # blocks the run. Flip on with ENABLE_JOOBLE=1 when the source is fixed.
-        return "" if _enabled() else "off_by_default (ENABLE_JOOBLE=1 to enable)"
+        return ""  # cost controls removed by user request
 
     def is_available(self) -> bool:
         return _enabled() and bool(Config.JOOBLE_API_KEY)

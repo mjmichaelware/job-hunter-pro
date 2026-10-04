@@ -30,7 +30,7 @@ class USASpendingProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if os.environ.get("ENABLE_USASPENDING") else "Set ENABLE_USASPENDING=1 to include contractor leads."
+        return ""  # cost controls removed by user request
 
     def search(self, query: str) -> List[SearchResult]:
         body = {

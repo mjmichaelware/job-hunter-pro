@@ -70,6 +70,14 @@
 .spinner[hidden] { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* discovery progress — indeterminate bar so slow fan-out never looks frozen */
+.disc-progress { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 10px 0; }
+.disc-progress__bar { height: 100%; width: 40%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--c-cyan), rgba(0,255,204,0.15));
+  animation: disc-progress 1.4s ease-in-out infinite; }
+.disc-progress[hidden] { display: none; }
+@keyframes disc-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+
 /* segmented control (layout toggle) + pills (filter chips) */
 .seg { display: inline-flex; border: 1px solid var(--c-border); border-radius: var(--radius-sm); overflow: hidden; }
 .seg__btn { min-height: 34px; padding: 0 10px; border: 0; background: var(--c-glass-2); color: var(--c-muted); font: inherit; font-size: 0.8rem; cursor: pointer; }

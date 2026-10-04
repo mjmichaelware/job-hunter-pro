@@ -4,6 +4,7 @@
 async function loadOpportunitiesView() {
   const data = await safeFetch('/api/opportunities');
   const el = mount(); if (!el) return;
+  if (AppState.activeView !== 'opportunities') return; // stale view, user navigated away
   if (!data) { renderState(el, 'state-error', 'Could not load opportunities.'); return; }
   JHP_SYNC.remember('opportunities', data);
 

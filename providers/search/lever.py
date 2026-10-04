@@ -31,7 +31,7 @@ class LeverProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        return "" if LEVER_BOARDS else "Set LEVER_BOARDS=slug1,slug2 (employer slugs) to enable."
+        return ""  # cost controls removed by user request
 
     def search(self, query: str) -> List[SearchResult]:
         terms = [w for w in query.lower().split() if len(w) > 3]

@@ -9,6 +9,7 @@ function _flagRow(label, on) {
 async function loadDiagnosticsView() {
   const el = mount(); if (!el) return;
   const h = await safeFetch('/api/health');
+  if (AppState.activeView !== 'diagnostics') return; // stale view, user navigated away
   if (!h) { renderState(el, 'state-error', 'Backend unreachable — /api/health did not respond.'); return; }
 
   const ok = (h.status === 'ok' || h.status === 'healthy');

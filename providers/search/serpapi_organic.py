@@ -22,9 +22,7 @@ class SerpApiOrganicProvider(SearchProvider):
         )
 
     def disabled_reason(self) -> str:
-        # Organic search is not primary job discovery and burns scarce SerpAPI
-        # quota, so it is off unless explicitly enabled.
-        return "" if _enabled() else "off_by_default (ENABLE_SERPAPI_ORGANIC=1 to enable)"
+        return ""  # cost controls removed by user request
 
     def is_available(self) -> bool:
         return _enabled() and bool(Config.SERPAPI_KEY)

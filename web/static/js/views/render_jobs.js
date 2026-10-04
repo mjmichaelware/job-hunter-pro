@@ -62,6 +62,7 @@ function renderJobsView() {
     html += section('Accepted', accepted, false) + section('Needs resolution', unresolved, true);
     if (!accepted.length && !unresolved.length) html += '<p class="state-empty">No jobs match the current filters.</p>';
   }
+  if (AppState.activeView !== 'jobs') return; // stale view, user navigated away
   el.innerHTML = html;
   wireBentoCards(el, accepted.concat(unresolved));
   wireJobsToolbar(el);
@@ -100,6 +101,7 @@ async function loadJobsView() {
       ? 'No saved batches yet.'
       : (r.jobs.length + ' accepted · ' + r.rejected.length + ' need resolution · ' + (r.batchCount || '?') + ' batches' + (r.cached ? ' · cached (offline)' : ' · free'));
   }
+  if (AppState.activeView !== 'jobs') return; // stale view, user navigated away
   renderJobsView();
 }
 

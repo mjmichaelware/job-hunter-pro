@@ -24,6 +24,7 @@ async function loadHomeView() {
       + (sub ? '<div class="stat-card__sub">' + esc(sub) + '</div>' : '') + '</button>';
   }
 
+  if (AppState.activeView !== 'home') return; // stale view, user navigated away
   el.innerHTML = '<section class="home">'
     + '<div class="home__hero glass"><h2>Job Hunter Pro</h2>'
     + '<p class="status-line">' + esc(t('home.tag')) + '</p>'

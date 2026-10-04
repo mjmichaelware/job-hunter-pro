@@ -32,11 +32,7 @@ class DataSlcProvider(SearchProvider):
         return True
 
     def disabled_reason(self) -> str:
-        if not os.environ.get("ENABLE_DATA_SLC"):
-            return "Set ENABLE_DATA_SLC=1 to include SLC employer leads."
-        if not DATASET:
-            return "Set DATA_SLC_DATASET=<socrata-4x4-id> to choose a dataset."
-        return ""
+        return ""  # cost controls removed by user request
 
     def search(self, query: str) -> List[SearchResult]:
         if not DATASET:
