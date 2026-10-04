@@ -305,7 +305,24 @@ def fetch_provider_raw_jobs(
 
                     db_path = _os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite")
                     sqlite_batches = get_sqlite_batches_repo(db_path)
-                    provider_jobs = [j for j in raw_jobs if j.get("_provider") == key]
+                    provider_jobs = []
+                    seen_provider_titles = set()
+                    for j in raw_jobs:
+                        if j.get("_provider") != key:
+                            continue
+                        # Dedupe by exact normalised title — combining identical
+                        # listings (same word for word) even from the same provider.
+                        raw_title = str(j.get("title") or "").strip().lower()
+                        if raw_title in seen_provider_titles:
+                            continue
+                        seen_provider_titles.add(raw_title)
+                        provider_jobs.append(j)
+                    # Enrich before persisting so the UI never sees raw "unavailable" fields.
+                    try:
+                        from api.index import normalize_job
+                        provider_jobs = [normalize_job(j) for j in provider_jobs]
+                    except Exception as _norm_exc:
+                        logger.debug("incremental normalize_job failed, saving raw: %s", _norm_exc)
                     doc_key = f"batches/incremental_{key}_{_run_start_ts}_batch.json"
                     sqlite_batches.save(
                         doc_key,

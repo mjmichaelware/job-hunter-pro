@@ -14,17 +14,33 @@ async function loadJobsFromBatches() {
   batches = batches.slice(0, 30);
   const results = await Promise.all(batches.map(function (b) { return safeFetch('/api/batch/' + b.object_name); }));
   const seen = new Set(); const jobs = []; const rejected = [];
+  // Dedupe by EXACT title (word-for-word, letter-for-letter) across providers
+  // and within the same provider. Each unique title becomes one card with a
+  // count of how many raw listings collapsed into it.
+  const byTitle = {};
   results.forEach(function (res) {
     const batch = res && res.batch ? res.batch : null;
     if (!batch) return;
     arr(batch, ['accepted', 'data', 'jobs']).forEach(function (j) {
       const key = [pick(j, ['source_url', 'url'], ''), pick(j, ['title'], ''), pick(j, ['company', 'company_name'], '')].join('|');
-      if (seen.has(key)) return; seen.add(key); jobs.push(j);
+      if (seen.has(key)) return; seen.add(key);
+      const titleKey = String(pick(j, ['title'], '') || '').trim();
+      if (!titleKey) return;
+      if (!byTitle[titleKey]) byTitle[titleKey] = { count: 0, providers: [], sample: j };
+      byTitle[titleKey].count += 1;
+      const prov = String(pick(j, ['via', 'source', '_provider', 'provider'], '') || '').trim();
+      if (prov && byTitle[titleKey].providers.indexOf(prov) === -1) byTitle[titleKey].providers.push(prov);
     });
     arr(batch, ['rejected']).forEach(function (j) {
       const key = 'R|' + [pick(j, ['source_url', 'url'], ''), pick(j, ['title'], '')].join('|');
       if (seen.has(key)) return; seen.add(key); rejected.push(j);
     });
+  });
+  Object.keys(byTitle).forEach(function (t) {
+    const g = byTitle[t];
+    g.sample._dup_count = g.count;
+    g.sample._dup_providers = g.providers;
+    jobs.push(g.sample);
   });
   const out = { jobs: jobs, rejected: rejected, batchCount: batches.length, source: 'saved' };
   JHP_SYNC.remember('jobs', out);
@@ -101,6 +117,25 @@ async function loadJobsView() {
     _jobsState.msg = (r.source === 'none')
       ? 'No saved batches yet.'
       : (r.jobs.length + ' accepted · ' + r.rejected.length + ' need resolution · ' + (r.batchCount || '?') + ' batches' + (r.cached ? ' · cached (offline)' : ' · free'));
+  }
+
+  // Dedupe live-result jobs by EXACT title too (word-for-word across providers).
+  if (_jobsState.jobs.length) {
+    const byTitle = {};
+    _jobsState.jobs.forEach(function (j) {
+      const t = String(pick(j, ['title'], '') || '').trim();
+      if (!t) { byTitle['_raw_' + Math.random()] = { count: 1, sample: j, providers: [] }; return; }
+      if (!byTitle[t]) byTitle[t] = { count: 0, sample: j, providers: [] };
+      byTitle[t].count += 1;
+      const prov = String(pick(j, ['via', 'source', '_provider', 'provider'], '') || '').trim();
+      if (prov && byTitle[t].providers.indexOf(prov) === -1) byTitle[t].providers.push(prov);
+    });
+    _jobsState.jobs = Object.keys(byTitle).map(function (k) {
+      const g = byTitle[k];
+      g.sample._dup_count = g.count;
+      g.sample._dup_providers = g.providers;
+      return g.sample;
+    });
   }
   if (AppState.activeView !== 'jobs') return; // stale view, user navigated away
   renderJobsView();

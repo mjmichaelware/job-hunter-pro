@@ -35,13 +35,15 @@ function bentoJobCard(job, isUnresolved) {
   const posted = postedRaw ? esc(cleanText(postedRaw, '')) : '';
   const gauge = (typeof reviewGauge === 'function') ? reviewGauge(pick(job, ['review_score'], null), pick(job, ['google_rating'], null)) : '';
   const matchBadge = _matchBadge(job);
+  const dupCount = Number(job._dup_count || 1);
+  const dupBadge = (dupCount > 1) ? '<span class="badge badge-cached">×' + dupCount + '</span>' : '';
   const flags = Array.isArray(job.resolution_flags) ? job.resolution_flags : [];
   const cls = 'bento bento--' + density + (isUnresolved ? ' bento--unresolved' : '');
   const uid = 'job-' + Math.random().toString(36).slice(2, 9);
 
   let body = '<div class="bento__head"><div><div class="bento__title">' + title + '</div>'
     + '<div class="bento__company">' + company + (source ? ' · <span class="source-chip">' + source + '</span>' : '') + '</div></div>'
-    + '<div class="bento__badges">' + matchBadge + '</div></div>';
+    + '<div class="bento__badges">' + matchBadge + dupBadge + '</div></div>';
 
   if (density === 'full' || density === 'key') {
     body += '<div class="bento__meta">'
@@ -51,12 +53,14 @@ function bentoJobCard(job, isUnresolved) {
       + '</div>';
   }
 
+  const fullTiles = [];
+  const g = reviewGauge(pick(job, ['review_score'], null), pick(job, ['google_rating'], null));
+  if (g) fullTiles.push('<div class="tile"><div class="tile__label">Core</div>' + g + '</div>');
+  if (job.commute_seconds != null) fullTiles.push('<div class="tile"><div class="tile__label">Commute</div><div class="tile__value">' + esc(formatMins(job.commute_seconds)) + '</div></div>');
+  if (job.radius_miles != null) fullTiles.push('<div class="tile"><div class="tile__label">Radius</div><div class="tile__value">' + esc(formatMiles(job.radius_miles)) + '</div></div>');
+
   if (density === 'full') {
-    body += '<div class="bento__tiles">'
-      + '<div class="tile"><div class="tile__label">Core</div>' + gauge + '</div>'
-      + '<div class="tile"><div class="tile__label">Commute</div><div class="tile__value' + (job.commute_seconds == null ? ' na' : '') + '">' + esc(formatMins(job.commute_seconds)) + '</div></div>'
-      + '<div class="tile"><div class="tile__label">Radius</div><div class="tile__value' + (job.radius_miles == null ? ' na' : '') + '">' + esc(formatMiles(job.radius_miles)) + '</div></div>'
-      + '</div>'
+    body += (fullTiles.length ? '<div class="bento__tiles">' + fullTiles.join('') + '</div>' : '')
       + (flags.length ? '<div class="bento__flags">' + tagList(flags) + '</div>' : '')
       + (url ? '<div class="bento__actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="btn-link" data-stop>' + esc(t('common.apply')) + '</a></div>' : '');
   } else if (density === 'key') {

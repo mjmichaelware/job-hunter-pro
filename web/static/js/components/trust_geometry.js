@@ -9,8 +9,7 @@ const GAUGE_C = 2 * Math.PI * GAUGE_R; // circumference
 // reviewScore: 0–100 (capped 60/15/15/10 server-side). rating: 0–5 stars (the ceiling).
 function reviewGauge(reviewScore, rating) {
   if (reviewScore == null || reviewScore === '') {
-    return '<div class="gauge gauge--na" title="No review intelligence">'
-      + '<span class="gauge__na">' + esc(t('common.unavailable')) + '</span></div>';
+    return '';
   }
   const score = Math.max(0, Math.min(100, Number(reviewScore)));
   const hasRating = rating != null && rating !== '';
