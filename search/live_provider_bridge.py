@@ -121,7 +121,19 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
     company = _pick(item_dict, raw_dict, keys=["company", "company_name", "employer", "organization", "source_name", "source"], default=provider_label)
     url = _pick(item_dict, raw_dict, keys=["url", "source_url", "apply_url", "redirect_url", "link"], default="")
     snippet = _pick(item_dict, raw_dict, keys=["snippet", "description", "summary", "body"], default="")
-    location = _pick(item_dict, raw_dict, keys=["location", "formatted_location", "candidate_required_location", "where", "jobGeo", "job_geo", "region", "locations", "city", "area"], default=default_location)
+    # Keep the location value as-is (str | dict | list); the normalizer renders
+    # provider shapes (Adzuna display_name/area, The Muse locations[]) cleanly.
+    location: Any = None
+    for source in (item_dict, raw_dict):
+        for key in ("location", "formatted_location", "candidate_required_location", "where", "jobGeo", "job_geo", "region", "locations", "city", "area"):
+            value = source.get(key)
+            if value not in (None, ""):
+                location = value
+                break
+        if location is not None:
+            break
+    if location in (None, ""):
+        location = default_location
     published = _pick(item_dict, raw_dict, keys=["published_date", "posted_at", "publication_date", "created_at", "date", "created", "updated", "pubDate", "PublicationStartdate", "AcquisitionDate", "AccquisitionDate"], default="")
 
     identity = hashlib.sha256(f"{provider_key}|{query}|{title}|{company}|{url}".encode("utf-8")).hexdigest()

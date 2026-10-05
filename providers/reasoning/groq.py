@@ -31,7 +31,7 @@ class GroqProvider(ReasoningProvider):
         return bool(Config.GROQ_API_KEY)
 
     def _model(self) -> str:
-        return os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+        return os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
     def _call_llm(self, text: str, context: Dict[str, Any], model: str) -> Optional[Dict[str, Any]]:
         messages = build_messages(

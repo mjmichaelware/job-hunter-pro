@@ -19,8 +19,17 @@ from __future__ import annotations
 import os
 import re
 
-# Keep-list tokens for address-less jobs: Salt Lake City / South Salt Lake City.
-_LOCAL_TOKENS = ("salt lake", "slc")
+# Keep-list tokens for address-less jobs: Salt Lake City / South Salt Lake City
+# plus the surrounding Salt Lake Valley ring (within ~10 mi of 84115). These
+# are the local job market; foreign/remote/other-state listings still drop.
+_LOCAL_TOKENS = (
+    "salt lake", "slc", "south salt lake", "north salt lake",
+    "west valley", "west jordan", "murray", "millcreek", "mill creek",
+    "holladay", "cottonwood", "taylorsville", "kearns", "magna", "midvale",
+    "sandy", "bountiful", "woods cross", "west bountiful", "sugar house",
+    "downtown", "fort union", "union park", "mount olympus", "emigration",
+    "granger",
+)
 
 # Bare street-address detection: "123 Main St", "400 S 700 E", "Suite 200".
 _STREET_SUFFIX = (
@@ -70,7 +79,6 @@ _NON_LOCAL_CITIES = (
     "atlanta", "miami", "philadelphia", "portland", "san diego", "san jose",
     "minneapolis", "detroit", "nashville", "charlotte", "raleigh",
     "las vegas", "boise", "provo", "orem", "logan", "st. george",
-    "salt lake city, ut",  # never hit: kept earlier via _LOCAL_TOKENS
 )
 
 _NON_LOCAL_REGIONS = (
@@ -114,23 +122,16 @@ def local_gate_enabled() -> bool:
 def location_is_local(location: str) -> bool:
     """True when an address-less location is acceptable.
 
-    Accept: Salt Lake City / South Salt Lake City text, "slc", or a bare
-    street address. Reject: blank, remote/generic, foreign, other US states,
-    other cities.
+    Accept: Salt Lake City / South Salt Lake City / SLC valley ring text, or a
+    bare street address. Reject: blank, remote/generic, foreign, other US
+    states, other cities. Explicit elsewhere always wins — so a local token
+    like "sandy" cannot leak "Sandy Springs, GA".
     """
     loc = re.sub(r"\s+", " ", str(location or "")).strip().lower()
     if not loc:
         return False
 
-    if any(token in loc for token in _LOCAL_TOKENS):
-        return True
-    if re.search(r"(?<![a-z])slc(?![a-z])", loc):
-        return True
-
-    # A bare street address cannot be proven non-local; keep it.
-    if _STREET_ADDRESS_RE.search(loc) or _GRID_ADDRESS_RE.search(loc):
-        return True
-
+    # Hard negatives first: provably elsewhere.
     if any(country in loc for country in _NON_LOCAL_COUNTRIES):
         return False
     if any(
@@ -147,6 +148,16 @@ def location_is_local(location: str) -> bool:
         return False
     if _STATE_ABBR_RE.search(loc):
         return False
+
+    # Local positives.
+    if any(token in loc for token in _LOCAL_TOKENS):
+        return True
+    if re.search(r"(?<![a-z])slc(?![a-z])", loc):
+        return True
+
+    # A bare street address cannot be proven non-local; keep it.
+    if _STREET_ADDRESS_RE.search(loc) or _GRID_ADDRESS_RE.search(loc):
+        return True
 
     return False
 

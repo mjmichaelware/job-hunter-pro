@@ -26,18 +26,29 @@ class JoobleProvider(SearchProvider):
 
     def search(self, query: str) -> List[SearchResult]:
         """
-        Calls Jooble API: https://jooble.org/api/queries/v1/us
+        Calls the documented Jooble API: POST https://jooble.org/api/{key}
+        (the /queries/v1/us/ path is Cloudflare-blocked; this endpoint is not).
         """
         if not self.is_available():
             return list()
 
         import os
-        max_pages = int(os.environ.get("JOOBLE_MAX_PAGES", "3"))
+        max_pages = int(os.environ.get("JOOBLE_MAX_PAGES", "5"))
         location = os.environ.get("JOOBLE_LOCATION", "Salt Lake City, UT")
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+            ),
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Origin": "https://jooble.org",
+            "Referer": "https://jooble.org/",
+        }
         results = []
         seen = set()
         try:
-            url = f"https://jooble.org/api/queries/v1/us/{Config.JOOBLE_API_KEY}"
+            url = f"https://jooble.org/api/{Config.JOOBLE_API_KEY}"
             for page in range(1, max_pages + 1):
                 # Jooble uses POST with JSON body; supports page + ResultOnPage.
                 payload = {
@@ -46,7 +57,7 @@ class JoobleProvider(SearchProvider):
                     "page": page,
                     "ResultOnPage": 50,
                 }
-                response = http_session.post(url, json=payload, timeout=Config.REQUEST_TIMEOUT)
+                response = http_session.post(url, json=payload, headers=headers, timeout=Config.REQUEST_TIMEOUT)
                 check_hard_failure(self.metadata.key, response)
                 response.raise_for_status()
                 data = response.json()

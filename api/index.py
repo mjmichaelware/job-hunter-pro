@@ -13,6 +13,15 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 from flask import Flask, jsonify, request, render_template_string
 
+# Load .env (gitignored) before Config reads os.environ, so keys stored there
+# activate the keyed providers (Adzuna, Jooble, SerpAPI, OpenAI, Groq, ...).
+try:
+    from core.env_loader import load_project_env
+
+    load_project_env()
+except Exception:
+    pass
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 VERSION = "job_hunter_v8_stable_orchestrated_dashboard"
 
@@ -134,6 +143,43 @@ def clean(value: Any, fallback: str = "") -> str:
 def clean_company(value: Any) -> str:
     text = clean(value).replace("-", " ").replace("_", " ")
     return re.sub(r"\s+", " ", text).strip(" -–—")
+
+def clean_location_value(value: Any) -> str:
+    """Normalize provider location shapes (str | dict | list) into display text.
+
+    Adzuna sends {"display_name": ...} or {"area": [US, Utah, ...]}; The Muse
+    sends [{"name": "Salt Lake City, UT"}, ...]. Prefer a local name when one
+    exists so multi-city listings read as "Salt Lake City, UT (+N more)".
+    """
+    if value in (None, ""):
+        return ""
+    if isinstance(value, str):
+        return clean(value)
+    if isinstance(value, dict):
+        name = clean(value.get("display_name") or value.get("name") or value.get("formatted_address"))
+        if name:
+            return name
+        area = value.get("area")
+        if isinstance(area, list) and area:
+            return clean(", ".join(str(part) for part in area[-2:]))
+        return ""
+    if isinstance(value, (list, tuple)):
+        names: List[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                name = clean(item.get("name") or item.get("display_name"))
+            else:
+                name = clean(item)
+            if name and name not in names:
+                names.append(name)
+        if not names:
+            return ""
+        local = [name for name in names if "salt lake" in name.lower()]
+        chosen = local[0] if local else names[0]
+        if len(names) > 1:
+            return f"{chosen} (+{len(names) - 1} more)"
+        return chosen
+    return clean(str(value))
 
 @lru_cache(maxsize=4096)
 def _term_regex(term: str):
@@ -586,7 +632,7 @@ def match_score(job: Dict[str, Any]) -> int:
 def normalize_job(raw: Dict[str, Any], enrich: bool = True) -> Dict[str, Any]:
     title = clean(raw.get("title"), "Untitled role")
     company = clean_company(raw.get("company_name") or raw.get("company")) or "Company not listed"
-    listing_location = clean(raw.get("location"), Config.JOB_LOCATION)
+    listing_location = clean_location_value(raw.get("location")) or Config.JOB_LOCATION
     description = clean(raw.get("description"), "No description available.")
     if not enrich or os.environ.get("FAST_JOBS", "0") == "1":
         place = {}

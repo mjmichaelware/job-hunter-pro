@@ -1,6 +1,14 @@
 import os
 from functools import lru_cache
 
+# Load .env (gitignored) before any Config class attribute is evaluated, so
+# provider keys stored there actually reach every entry point that imports
+# core. Real environment variables always win over .env values.
+from .env_loader import load_project_env
+
+load_project_env()
+
+
 class Config:
     """
     Configuration class for the application.
