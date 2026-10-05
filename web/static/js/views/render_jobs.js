@@ -2,6 +2,19 @@
    /api/batches (free). No discovery here — that lives in the Discovery view.
    Toolbar = Filters (sheet) · layout toggle · group-by · sort. */
 
+// Stable identity for a job: exact source URL only. Distinct openings that
+// share a title/company are NOT collapsed. Falls back to title|company|location
+// solely when a job has no URL at all.
+function _jobUniqueKey(j) {
+  const url = String(pick(j, ['source_url', 'url', 'share_link', 'apply_url', 'job_id'], '') || '').trim().toLowerCase();
+  if (url) return url;
+  return [
+    pick(j, ['title'], ''),
+    pick(j, ['company', 'company_name'], ''),
+    pick(j, ['location', 'resolved_address'], '')
+  ].join('|').toLowerCase();
+}
+
 async function loadJobsFromBatches() {
   const list = await safeFetch('/api/batches');
   let batches = arr(list, ['batches']);
@@ -14,33 +27,20 @@ async function loadJobsFromBatches() {
   batches = batches.slice(0, 30);
   const results = await Promise.all(batches.map(function (b) { return safeFetch('/api/batch/' + b.object_name); }));
   const seen = new Set(); const jobs = []; const rejected = [];
-  // Dedupe by EXACT title (word-for-word, letter-for-letter) across providers
-  // and within the same provider. Each unique title becomes one card with a
-  // count of how many raw listings collapsed into it.
-  const byTitle = {};
+  // Deduplicate on exact source URL only. EVERY distinct opening is kept as
+  // its own card — no title collapsing, no count rollups, no truncation.
   results.forEach(function (res) {
     const batch = res && res.batch ? res.batch : null;
     if (!batch) return;
     arr(batch, ['accepted', 'data', 'jobs']).forEach(function (j) {
-      const key = [pick(j, ['source_url', 'url'], ''), pick(j, ['title'], ''), pick(j, ['company', 'company_name'], '')].join('|');
+      const key = 'A|' + _jobUniqueKey(j);
       if (seen.has(key)) return; seen.add(key);
-      const titleKey = String(pick(j, ['title'], '') || '').trim();
-      if (!titleKey) return;
-      if (!byTitle[titleKey]) byTitle[titleKey] = { count: 0, providers: [], sample: j };
-      byTitle[titleKey].count += 1;
-      const prov = String(pick(j, ['via', 'source', '_provider', 'provider'], '') || '').trim();
-      if (prov && byTitle[titleKey].providers.indexOf(prov) === -1) byTitle[titleKey].providers.push(prov);
+      jobs.push(j);
     });
     arr(batch, ['rejected']).forEach(function (j) {
-      const key = 'R|' + [pick(j, ['source_url', 'url'], ''), pick(j, ['title'], '')].join('|');
+      const key = 'R|' + _jobUniqueKey(j);
       if (seen.has(key)) return; seen.add(key); rejected.push(j);
     });
-  });
-  Object.keys(byTitle).forEach(function (t) {
-    const g = byTitle[t];
-    g.sample._dup_count = g.count;
-    g.sample._dup_providers = g.providers;
-    jobs.push(g.sample);
   });
   const out = { jobs: jobs, rejected: rejected, batchCount: batches.length, source: 'saved' };
   JHP_SYNC.remember('jobs', out);
@@ -107,9 +107,17 @@ async function loadJobsView() {
   _jobsState.industries = arr(indData, ['industries']);
 
   if (AppState.liveResult) {                      // came from a Discovery run
-    // Combine accepted and rejected into a single master collection;
-    // no filtering so every job is displayed.
-    _jobsState.jobs = (AppState.liveResult.jobs || []).concat(AppState.liveResult.rejected || []);
+    // Combine accepted and rejected into a single master collection, then
+    // dedupe on exact URL only. Every distinct opening is displayed.
+    const combined = (AppState.liveResult.jobs || []).concat(AppState.liveResult.rejected || []);
+    const seenLive = new Set();
+    _jobsState.jobs = combined.filter(function (j) {
+      const k = _jobUniqueKey(j);
+      if (seenLive.has(k)) return false;
+      seenLive.add(k);
+      return true;
+    });
+    _jobsState.rejected = [];
     _jobsState.msg = AppState.liveResult.msg + ' · live result';
     AppState.liveResult = null;
   } else {
@@ -120,18 +128,12 @@ async function loadJobsView() {
       : (r.jobs.length + ' accepted · ' + r.rejected.length + ' need resolution · ' + (r.batchCount || '?') + ' batches' + (r.cached ? ' · cached (offline)' : ' · free'));
   }
 
-  // Render ALL jobs with zero filters applied — no title dedup, no cutoff.
-  // The UI will show every accepted job and every job needing resolution.
-  if (_jobsState.jobs.length) {
-    // No dedup by title here — every unique source URL is a distinct job.
-    // _jobsState.jobs already contains the full combined set.
-  }
-
-  // Default filters: all blank => show everything
+  // Default filters: all blank => show everything. No filter ever narrows the
+  // feed unless the user explicitly opens the filter sheet and applies one.
   AppState.filters = {
     industry: '',
-    min_core: 0,
-    min_role_fit: 0,
+    min_core: '',
+    min_role_fit: '',
     max_transit: '',
     max_radius: '',
     q: '',

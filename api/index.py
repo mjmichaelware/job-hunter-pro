@@ -49,6 +49,10 @@ class Config:
     # 100000 (effectively no cap) caused the run to grind through every query and
     # never respond. 1200 returns far more than the old 500 yet still completes.
     MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "1200"))
+    # Only this many jobs per run get synchronous place/transit/review calls.
+    # The rest are fast-normalized with resolution_flags and can be hydrated
+    # later — this keeps a 1200-job run from exceeding Cloud Run's timeout.
+    MAX_SYNC_ENRICH = int(os.environ.get("MAX_SYNC_ENRICH", "50"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
     SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "0").strip() == "1"
@@ -117,22 +121,32 @@ ROLE_GROUPS = {
     "lead": "management",
 }
 
+@lru_cache(maxsize=8192)
+def _squash_ws(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
 def clean(value: Any, fallback: str = "") -> str:
     if value is None:
         return fallback
-    text = re.sub(r"\s+", " ", str(value)).strip()
+    text = _squash_ws(str(value))
     return text if text else fallback
 
 def clean_company(value: Any) -> str:
     text = clean(value).replace("-", " ").replace("_", " ")
     return re.sub(r"\s+", " ", text).strip(" -–—")
 
-def term_present(text: str, term: str) -> bool:
-    parts = [re.escape(part) for part in clean(term).lower().split()]
+@lru_cache(maxsize=4096)
+def _term_regex(term: str):
+    parts = [re.escape(part) for part in term.lower().split()]
     if not parts:
+        return None
+    return re.compile(r"(?<![a-z0-9])" + r"\s+".join(parts) + r"(?![a-z0-9])")
+
+def term_present(text: str, term: str) -> bool:
+    pattern = _term_regex(clean(term))
+    if pattern is None:
         return False
-    pattern = r"(?<![a-z0-9])" + r"\s+".join(parts) + r"(?![a-z0-9])"
-    return re.search(pattern, clean(text).lower()) is not None
+    return pattern.search(clean(text).lower()) is not None
 
 def is_food_text(text: str) -> bool:
     t = clean(text).lower()
@@ -569,12 +583,12 @@ def match_score(job: Dict[str, Any]) -> int:
         score += 5
     return max(1, min(score, 99))
 
-def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_job(raw: Dict[str, Any], enrich: bool = True) -> Dict[str, Any]:
     title = clean(raw.get("title"), "Untitled role")
     company = clean_company(raw.get("company_name") or raw.get("company")) or "Company not listed"
     listing_location = clean(raw.get("location"), Config.JOB_LOCATION)
     description = clean(raw.get("description"), "No description available.")
-    if os.environ.get("FAST_JOBS", "0") == "1":
+    if not enrich or os.environ.get("FAST_JOBS", "0") == "1":
         place = {}
         resolved_address = ""
         resolved_name = ""
@@ -611,7 +625,7 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
         "distance_label": f"{radius_miles} mi radius" if radius_miles is not None else "Radius unavailable",
         "transit_distance_miles": transit["transit_distance_miles"],
         "transit_distance_label": transit["transit_distance_label"],
-        "source_url": apply_link(raw),
+        "source_url": apply_link(raw) or clean(raw.get("source_url") or raw.get("url") or raw.get("share_link") or raw.get("apply_url")),
         "job_id": clean(raw.get("job_id")),
         "via": clean(raw.get("via")),
         "published_date": clean(raw.get("published_date") or raw.get("posted_at") or raw.get("publication_date") or raw.get("date") or ""),
@@ -624,7 +638,7 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
         "role_family": role_family_for_text(" ".join(tags + [title, description])),
     }
     job["match"] = match_score(job)
-    ri = {} if os.environ.get("FAST_JOBS", "0") == "1" else review_intelligence(job)
+    ri = {} if (not enrich or os.environ.get("FAST_JOBS", "0") == "1") else review_intelligence(job)
     job["review_intelligence"] = ri
     job["google_rating"] = ri.get("google_rating") or job.get("place_rating")
     job["google_review_count"] = ri.get("google_review_count")
@@ -639,12 +653,12 @@ def normalize_job(raw: Dict[str, Any]) -> Dict[str, Any]:
 # no longer applied to the default discovery universe.
 
 def canonical_key(job: Dict[str, Any]) -> str:
+    url = (clean(job.get("source_url")) or clean(job.get("url")) or clean(job.get("job_id"))).lower()
+    if url:
+        return url
     title = clean(job.get("title")).lower()
-    name = clean(job.get("restaurant_name")).lower()
-    addr = clean(job.get("resolved_address")).lower()
-    if not name and not addr:
-        uniq = (clean(job.get("source_url")) or clean(job.get("url")) or clean(job.get("company")) or clean(job.get("job_id"))).lower()
-        return f"{title}|{uniq}"
+    name = clean(job.get("company") or job.get("restaurant_name")).lower()
+    addr = clean(job.get("location") or job.get("resolved_address")).lower()
     return f"{title}|{name}|{addr}"
 
 def raw_job_queries(mode: str = "broad", domain: str = "", extra_terms: Optional[List[str]] = None) -> List[str]:
@@ -727,7 +741,19 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
             if len(raw_jobs) >= Config.MAX_RAW_JOBS:
                 break
 
-    normalized = [normalize_job(raw) for raw in raw_jobs]
+    # Bounded synchronous enrichment: place/transit/review lookups are external
+    # API calls; running them for all 1200 raw jobs makes the run exceed Cloud
+    # Run's request timeout (which then drops the UI to saved-batch fallback).
+    # Enrich up to MAX_SYNC_ENRICH jobs; fast-normalize the rest so EVERY job
+    # still returns, with resolution_flags describing what can be hydrated later.
+    enrich_budget = max(0, int(Config.MAX_SYNC_ENRICH or 0))
+    normalized = []
+    for raw in raw_jobs:
+        if enrich_budget > 0:
+            normalized.append(normalize_job(raw, enrich=True))
+            enrich_budget -= 1
+        else:
+            normalized.append(normalize_job(raw, enrich=False))
 
     # Partition into accepted (every usable job; missing resolution becomes
     # non-fatal resolution_flags) and rejected (genuinely unusable: no title,
@@ -1163,6 +1189,7 @@ def jobs():
             "places_opportunities": "optional_separate_endpoint_/api/opportunities",
         },
         "data": filtered,
+        "accepted": result["accepted"],
         "rejected": result.get("rejected", []),
     }
 

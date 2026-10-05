@@ -44,7 +44,9 @@ function loadDiscoveryView() {
       navigate('jobs');
       return;
     }
-    const jobs = arr(data, ['data', 'jobs', 'accepted', 'results']);
+    // Prefer the full accepted list over the filtered `data` slice so the
+    // discovery feed can never be silently narrowed by server-side filters.
+    const jobs = arr(data, ['accepted', 'data', 'jobs', 'results']);
     const rejected = arr(data, ['rejected']);
     const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
     const stored = data.stored ? 'saved' : 'NOT saved (storage error)';

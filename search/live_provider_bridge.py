@@ -7,6 +7,7 @@ import os
 import re
 import signal
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Iterable, List
 
@@ -211,7 +212,17 @@ def fetch_provider_raw_jobs(
     # quarantine ledger. Each provider's own breakdown entry is written only by
     # that provider's worker thread, so it needs no lock.
     lock = threading.Lock()
-    _run_start_ts = int(__import__("time").time())
+    _run_start_ts = int(time.time())
+    # Hard wall-clock deadline for the whole fanout. Every provider stops
+    # starting new queries once it passes; all jobs already collected are kept
+    # (and were persisted incrementally). This guarantees the HTTP response
+    # arrives before Cloud Run's request timeout, so the UI never has to fall
+    # back and jobs are never dropped by a timeout.
+    try:
+        deadline_seconds = int(os.environ.get("FANOUT_DEADLINE_SECONDS", "150"))
+    except Exception:
+        deadline_seconds = 150
+    deadline_ts = time.time() + max(10, deadline_seconds)
 
     active_count = max(1, len(available_providers))
     # Per-provider cap removed — each provider can now run all its queries.
@@ -256,6 +267,11 @@ def fetch_provider_raw_jobs(
         bd = provider_breakdown[key]
         queries_run = 0
         for query in queries:
+            # Stop starting new queries once the run deadline passes. Jobs
+            # already found stay in raw_jobs — nothing discovered is discarded.
+            if time.time() > deadline_ts:
+                bd["status"] = "stopped_run_deadline_reached"
+                return
             # Check global caps early
             with lock:
                 remaining_global = max_raw_jobs - len(raw_jobs)
@@ -263,13 +279,16 @@ def fetch_provider_raw_jobs(
                 bd["status"] = "not_attempted_global_cap_reached"
                 return
 
-            # Respect per-query timeout
+            # Respect per-query timeout, capped to the remaining run deadline so
+            # an in-flight query can never push the response past it.
             try:
-                request_limit = max(1, min(100, 100))
+                remaining = max(3, int(deadline_ts - time.time()))
+                per_query_timeout = max(3, min(timeout_per_query, remaining))
+                request_limit = 100
                 bd["queries_attempted"] += 1
 
                 results = _run_provider_search_with_timeout(
-                    provider, query, location, request_limit, timeout_per_query
+                    provider, query, location, request_limit, per_query_timeout
                 )
             except Exception as exc:
                 bd["status"] = "error"
@@ -279,7 +298,16 @@ def fetch_provider_raw_jobs(
 
             for item in results:
                 raw = _result_to_raw(item, key, label, query, location)
-                identity = raw.get("job_id") or f"{raw.get('title')}|{raw.get('company_name')}|{raw.get('source_url')}"
+                # URL-first identity: the same posting found via multiple queries
+                # (or providers) collapses to one; distinct openings that share a
+                # title are all kept. Hash/job_id is only a last resort.
+                identity = (
+                    raw.get("source_url") or raw.get("url") or raw.get("share_link") or ""
+                ).strip().lower()
+                if not identity:
+                    identity = raw.get("job_id") or (
+                        f"{raw.get('title')}|{raw.get('company_name')}|{raw.get('location')}"
+                    )
                 with lock:
                     if identity in seen:
                         continue
@@ -303,21 +331,32 @@ def fetch_provider_raw_jobs(
                     db_path = _os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite")
                     sqlite_batches = get_sqlite_batches_repo(db_path)
                     provider_jobs = []
-                    seen_provider_titles = set()
+                    seen_provider_urls = set()
                     for j in raw_jobs:
                         if j.get("_provider") != key:
                             continue
-                        # Dedupe by exact normalised title — combining identical
-                        # listings (same word for word) even from the same provider.
-                        raw_title = str(j.get("title") or "").strip().lower()
-                        if raw_title in seen_provider_titles:
+                        # Dedupe by exact source URL only — distinct openings
+                        # that share a title are all kept.
+                        raw_url = str(
+                            j.get("source_url") or j.get("url") or j.get("share_link") or j.get("job_id") or ""
+                        ).strip().lower()
+                        if not raw_url:
+                            raw_url = "|".join([
+                                str(j.get("title") or ""),
+                                str(j.get("company_name") or j.get("company") or ""),
+                                str(j.get("location") or ""),
+                            ]).strip().lower()
+                        if raw_url in seen_provider_urls:
                             continue
-                        seen_provider_titles.add(raw_title)
+                        seen_provider_urls.add(raw_url)
                         provider_jobs.append(j)
-                    # Enrich before persisting so the UI never sees raw "unavailable" fields.
+                    # Normalize before persisting so the UI never sees raw
+                    # "unavailable" fields. enrich=False keeps incremental saves
+                    # fast — external place/transit calls would make a big run
+                    # exceed Cloud Run's timeout and force a fallback.
                     try:
                         from api.index import normalize_job
-                        provider_jobs = [normalize_job(j) for j in provider_jobs]
+                        provider_jobs = [normalize_job(j, enrich=False) for j in provider_jobs]
                     except Exception as _norm_exc:
                         logger.debug("incremental normalize_job failed, saving raw: %s", _norm_exc)
                     doc_key = f"batches/incremental_{key}_{_run_start_ts}_batch.json"
