@@ -8,9 +8,6 @@ from core.errors import ProviderHardFailure
 
 logger = logging.getLogger(__name__)
 
-def _enabled() -> bool:
-    return str(os.environ.get("ENABLE_CAREERJET", "")).strip() in {"1", "true", "True", "yes", "on"}
-
 class CareerjetProvider(SearchProvider):
     @property
     def metadata(self) -> ProviderMetadata:
@@ -25,7 +22,7 @@ class CareerjetProvider(SearchProvider):
         return ""  # cost controls removed by user request
 
     def is_available(self) -> bool:
-        return _enabled() and bool(Config.CAREERJET_AFFID)
+        return bool(Config.CAREERJET_AFFID)
 
     def search(self, query: str) -> List[SearchResult]:
         """

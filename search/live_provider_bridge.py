@@ -214,8 +214,9 @@ def fetch_provider_raw_jobs(
     _run_start_ts = int(__import__("time").time())
 
     active_count = max(1, len(available_providers))
-    fair_default_cap = max(1, (max_raw_jobs + active_count - 1) // active_count)
-    provider_cap = int(per_provider_cap or fair_default_cap)
+    # Per-provider cap removed — each provider can now run all its queries.
+    # The global MAX_RAW_JOBS cap still applies across all providers.
+    provider_cap = max_raw_jobs
 
     # First pass (single thread): seed a breakdown entry for EVERY provider and
     # collect the ones that should actually run. Keeps dormant/disabled providers
@@ -264,7 +265,7 @@ def fetch_provider_raw_jobs(
 
             # Respect per-query timeout
             try:
-                request_limit = max(1, min(provider_cap - bd["raw_count"], 100))
+                request_limit = max(1, min(100, 100))
                 bd["queries_attempted"] += 1
 
                 results = _run_provider_search_with_timeout(
@@ -288,10 +289,6 @@ def fetch_provider_raw_jobs(
                     seen.add(identity)
                     raw_jobs.append(raw)
                 bd["raw_count"] += 1
-
-                if bd["raw_count"] >= provider_cap:
-                    bd["status"] = "stopped_provider_cap_reached"
-                    return
 
             queries_run += 1
             # IMPORTANT: persist each provider's results IMMEDIATELY so that a
@@ -340,12 +337,6 @@ def fetch_provider_raw_jobs(
                     logger.info("[DISCOVERY_PERSIST] provider=%s saved %d raws key=%s", key, len(provider_jobs), doc_key)
                 except Exception as exc:
                     logger.warning("incremental sqlite save for %s failed: %s", key, exc)
-            # Early exit: avoid running all queries if we've already made progress
-            if queries_run >= len(queries) // max(1, len(runnable)) + 2:
-                break
-
-        if bd["available"] and bd["raw_count"] == 0 and bd["status"] == "ok":
-            bd["status"] = "available_returned_zero"
 
     # Concurrent fanout: every available provider runs in parallel (each provider
     # still walks its own queries sequentially so per-provider caps/quarantine are

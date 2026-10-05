@@ -107,8 +107,9 @@ async function loadJobsView() {
   _jobsState.industries = arr(indData, ['industries']);
 
   if (AppState.liveResult) {                      // came from a Discovery run
-    _jobsState.jobs = AppState.liveResult.jobs;
-    _jobsState.rejected = AppState.liveResult.rejected;
+    // Combine accepted and rejected into a single master collection;
+    // no filtering so every job is displayed.
+    _jobsState.jobs = (AppState.liveResult.jobs || []).concat(AppState.liveResult.rejected || []);
     _jobsState.msg = AppState.liveResult.msg + ' · live result';
     AppState.liveResult = null;
   } else {
@@ -119,25 +120,24 @@ async function loadJobsView() {
       : (r.jobs.length + ' accepted · ' + r.rejected.length + ' need resolution · ' + (r.batchCount || '?') + ' batches' + (r.cached ? ' · cached (offline)' : ' · free'));
   }
 
-  // Dedupe live-result jobs by EXACT title too (word-for-word across providers).
+  // Render ALL jobs with zero filters applied — no title dedup, no cutoff.
+  // The UI will show every accepted job and every job needing resolution.
   if (_jobsState.jobs.length) {
-    const byTitle = {};
-    _jobsState.jobs.forEach(function (j) {
-      const t = String(pick(j, ['title'], '') || '').trim();
-      if (!t) { byTitle['_raw_' + Math.random()] = { count: 1, sample: j, providers: [] }; return; }
-      if (!byTitle[t]) byTitle[t] = { count: 0, sample: j, providers: [] };
-      byTitle[t].count += 1;
-      const prov = String(pick(j, ['via', 'source', '_provider', 'provider'], '') || '').trim();
-      if (prov && byTitle[t].providers.indexOf(prov) === -1) byTitle[t].providers.push(prov);
-    });
-    _jobsState.jobs = Object.keys(byTitle).map(function (k) {
-      const g = byTitle[k];
-      g.sample._dup_count = g.count;
-      g.sample._dup_providers = g.providers;
-      return g.sample;
-    });
+    // No dedup by title here — every unique source URL is a distinct job.
+    // _jobsState.jobs already contains the full combined set.
   }
-  if (AppState.activeView !== 'jobs') return; // stale view, user navigated away
+
+  // Default filters: all blank => show everything
+  AppState.filters = {
+    industry: '',
+    min_core: 0,
+    min_role_fit: 0,
+    max_transit: '',
+    max_radius: '',
+    q: '',
+    posted_within: ''
+  };
+
   renderJobsView();
 }
 

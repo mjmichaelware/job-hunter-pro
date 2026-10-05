@@ -7,9 +7,6 @@ from core import Config, http_session
 
 logger = logging.getLogger(__name__)
 
-def _enabled() -> bool:
-    return str(os.environ.get("ENABLE_SERPAPI_ORGANIC", "")).strip() in {"1", "true", "True", "yes", "on"}
-
 class SerpApiOrganicProvider(SearchProvider):
     @property
     def metadata(self) -> ProviderMetadata:
@@ -25,7 +22,7 @@ class SerpApiOrganicProvider(SearchProvider):
         return ""  # cost controls removed by user request
 
     def is_available(self) -> bool:
-        return _enabled() and bool(Config.SERPAPI_KEY)
+        return bool(Config.SERPAPI_KEY)
 
     def search(self, query: str) -> List[SearchResult]:
         """

@@ -1163,7 +1163,7 @@ def jobs():
             "places_opportunities": "optional_separate_endpoint_/api/opportunities",
         },
         "data": filtered,
-        "rejected": result.get("rejected", [])[:100],
+        "rejected": result.get("rejected", []),
     }
 
     # Persist live run to Cloud Storage so quota spend is captured.
