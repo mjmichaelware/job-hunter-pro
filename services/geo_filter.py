@@ -1,115 +1,82 @@
-"""Local-geography gate for discovery (origin: 28 E Bryan Ave, SLC, UT 84115).
+"""Radius-based locality filter for discovery (origin: 28 E Bryan Ave, SLC 84115).
 
-Rule (explicit user request):
-  * When a job has a computed ``radius_miles`` (Google Places / Haversine), it
-    is kept only if it is within ``MAX_RADIUS_MILES`` (default 5).
-  * When a job has NO exact address / no radius, it is kept only when the
-    location text says Salt Lake City / South Salt Lake City (any "salt lake"
-    or "slc" token). Bare street addresses (e.g. "123 Main St") are also kept
-    because they may be local and cannot be proven otherwise.
-  * Everything provably elsewhere (Berlin, Paris, New York, Provo, "Remote",
-    blank, …) is excluded.
+No hardcoded country/city blocklists drive the decision. The filter is:
 
-No role/industry/score restrictions are applied here — locality is the only
-restriction.
+  1. If the job already has a computed ``radius_miles`` (Google Places /
+     Haversine), keep it only when within ``MAX_RADIUS_MILES`` (default 5).
+  2. Otherwise geocode the location text (free Photon, Nominatim fallback,
+     in-process cache + per-run budget) and keep it only when its distance to
+     the 84115 origin is within the radius. Berlin, Paris, New York, Provo,
+     Sandy — all excluded by distance, no lists required.
+  3. If geocoding is unavailable/unreachable, fall back to requiring a Salt
+     Lake City / South Salt Lake signal ("salt lake", "slc") or a bare street
+     address, per the user's address-less rule.
+
+This module contains no foreign-country or out-of-state name lists.
 """
 
 from __future__ import annotations
 
+import math
 import os
 import re
+import threading
+from typing import Any, Dict, Optional, Tuple
 
-# Keep-list tokens for address-less jobs: Salt Lake City / South Salt Lake City
-# plus the surrounding Salt Lake Valley ring (within ~10 mi of 84115). These
-# are the local job market; foreign/remote/other-state listings still drop.
-_LOCAL_TOKENS = (
-    "salt lake", "slc", "south salt lake", "north salt lake",
-    "west valley", "west jordan", "murray", "millcreek", "mill creek",
-    "holladay", "cottonwood", "taylorsville", "kearns", "magna", "midvale",
-    "sandy", "bountiful", "woods cross", "west bountiful", "sugar house",
-    "downtown", "fort union", "union park", "mount olympus", "emigration",
-    "granger",
-)
+from core import http_session
 
-# Bare street-address detection: "123 Main St", "400 S 700 E", "Suite 200".
+# 84115 origin (28 E Bryan Ave, Salt Lake City, UT).
+ORIGIN_LATLNG = (40.7106, -111.8867)
+
+_UA = "JobHunterPro/1.0 (local job radius filter; contact: app owner)"
+
 _STREET_SUFFIX = (
     r"(?:st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|way|ct|court|"
     r"ln|lane|pkwy|parkway|hwy|highway|cir|circle|pl|place|ter|terrace|"
     r"suite|ste|unit|#)"
 )
 _STREET_ADDRESS_RE = re.compile(
-    r"\b\d{1,6}\s+[nesw]?\s*[a-z0-9.' -]{2,40}\b" + _STREET_SUFFIX + r"\b",
-    re.I,
+    r"\b\d{1,6}\s+[nesw]?\s*[a-z0-9.' -]{2,40}\b" + _STREET_SUFFIX + r"\b", re.I
 )
-# Salt Lake grid-style address: "400 S 700 E", "2100 S State St".
 _GRID_ADDRESS_RE = re.compile(r"\b\d{1,6}\s+[nesw]\s+\d{1,6}\s+[nesw]\b", re.I)
+_MORE_SUFFIX_RE = re.compile(r"\s*\(\+\d+\s*more\)\s*$", re.I)
 
-_NON_LOCAL_COUNTRIES = (
-    "germany", "france", "united kingdom", "england", "scotland", "wales",
-    "ireland", "canada", "mexico", "spain", "italy", "netherlands", "belgium",
-    "switzerland", "austria", "poland", "portugal", "sweden", "norway",
-    "denmark", "finland", "iceland", "luxembourg", "czech republic", "czechia",
-    "slovakia", "slovenia", "hungary", "romania", "bulgaria", "croatia",
-    "serbia", "ukraine", "russia", "greece", "turkey", "india", "pakistan",
-    "bangladesh", "philippines", "indonesia", "malaysia", "singapore",
-    "thailand", "vietnam", "japan", "china", "hong kong", "taiwan", "korea",
-    "south korea", "australia", "new zealand", "brazil", "argentina", "chile",
-    "colombia", "peru", "israel", "egypt", "nigeria", "kenya", "ghana",
-    "south africa", "morocco", "united arab emirates", "saudi arabia", "qatar",
-)
+_geo_lock = threading.Lock()
+_geo_cache: Dict[str, Optional[Tuple[float, float]]] = {}
+_geo_budget = {"remaining": 120}
+_MAX_CACHE = 5000
+_STORE_MISS = object()
 
-_NON_LOCAL_CITIES = (
-    "berlin", "munich", "hamburg", "frankfurt", "cologne", "stuttgart",
-    "paris", "lyon", "london", "manchester", "birmingham", "edinburgh",
-    "dublin", "amsterdam", "rotterdam", "utrecht", "barcelona", "madrid",
-    "lisbon", "porto", "rome", "milan", "turin", "zurich", "geneva",
-    "vienna", "prague", "warsaw", "krakow", "budapest", "bucharest", "sofia",
-    "athens", "stockholm", "oslo", "copenhagen", "helsinki", "brussels",
-    "toronto", "vancouver", "montreal", "ottawa", "calgary", "mexico city",
-    "guadalajara", "monterrey", "sao paulo", "rio de janeiro",
-    "buenos aires", "santiago", "lima", "bogota", "bangalore", "bengaluru",
-    "hyderabad", "mumbai", "pune", "chennai", "delhi", "new delhi", "noida",
-    "gurgaon", "manila", "cebu", "jakarta", "bangkok", "hanoi", "ho chi minh",
-    "kuala lumpur", "tokyo", "osaka", "seoul", "taipei", "shanghai",
-    "beijing", "shenzhen", "sydney", "melbourne", "brisbane", "auckland",
-    "wellington", "cape town", "johannesburg", "nairobi", "lagos", "cairo",
-    "tel aviv", "dubai", "abu dhabi", "istanbul", "kyiv", "lviv",
-    "new york", "brooklyn", "los angeles", "san francisco", "chicago",
-    "boston", "seattle", "austin", "dallas", "houston", "denver", "phoenix",
-    "atlanta", "miami", "philadelphia", "portland", "san diego", "san jose",
-    "minneapolis", "detroit", "nashville", "charlotte", "raleigh",
-    "las vegas", "boise", "provo", "orem", "logan", "st. george",
-)
 
-_NON_LOCAL_REGIONS = (
-    "europe", "emea", "european union", "apac", "asia", "africa",
-    "latin america", "south america", "middle east", "caribbean",
-)
+def _sqlite_get(query: str):
+    """Persisted geocode cache lookup (survives process restarts)."""
+    try:
+        from store.sqlite_repo import get_sqlite_cache_repo
 
-_OTHER_US_STATE_NAMES = (
-    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
-    "connecticut", "delaware", "florida", "georgia", "hawaii", "idaho",
-    "illinois", "indiana", "iowa", "kansas", "kentucky", "louisiana",
-    "maine", "maryland", "massachusetts", "michigan", "minnesota",
-    "mississippi", "missouri", "montana", "nebraska", "nevada",
-    "new hampshire", "new jersey", "new mexico", "new york",
-    "north carolina", "north dakota", "ohio", "oklahoma", "oregon",
-    "pennsylvania", "rhode island", "south carolina", "south dakota",
-    "tennessee", "texas", "vermont", "virginia", "washington",
-    "west virginia", "wisconsin", "wyoming",
-)
+        repo = get_sqlite_cache_repo(os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite"))
+        doc = repo.get("geo|" + query)
+        if doc is None:
+            return _STORE_MISS
+        coords = doc.get("coords")
+        return tuple(coords) if coords else None
+    except Exception:
+        return _STORE_MISS
 
-# Unambiguous 2-letter state codes (excludes in/or/me/de/la/ma/md/ok/ar/co/hi).
-_OTHER_STATE_ABBRS = (
-    "ny", "ca", "tx", "wa", "fl", "il", "oh", "ga", "nc", "sc", "az", "nm",
-    "nv", "id", "mt", "wy", "nd", "sd", "ne", "ks", "mn", "ia", "mo", "mi",
-    "wi", "ky", "tn", "pa", "nj", "ct", "ri", "vt", "nh", "ak", "al", "ms",
-    "wv", "va",
-)
 
-_STATE_ABBR_RE = re.compile(
-    r"(?<![a-z])(" + "|".join(_OTHER_STATE_ABBRS) + r")(?![a-z])"
-)
+def _sqlite_put(query: str, coords: Optional[Tuple[float, float]]) -> None:
+    try:
+        from store.sqlite_repo import get_sqlite_cache_repo
+
+        repo = get_sqlite_cache_repo(os.environ.get("JHP_SQLITE_DB", "/tmp/job_hunter_pro.sqlite"))
+        repo.save("geo|" + query, {"q": query, "coords": list(coords) if coords else None})
+    except Exception:
+        pass
+
+
+def set_geocode_budget(remaining: int) -> None:
+    """Per-run budget for NEW geocode lookups (cache hits are always free)."""
+    with _geo_lock:
+        _geo_budget["remaining"] = max(0, int(remaining))
 
 
 def local_gate_enabled() -> bool:
@@ -119,51 +86,115 @@ def local_gate_enabled() -> bool:
     }
 
 
-def location_is_local(location: str) -> bool:
-    """True when an address-less location is acceptable.
+def _normalize_query(location: Any) -> str:
+    text = re.sub(r"\s+", " ", str(location or "")).strip()
+    text = _MORE_SUFFIX_RE.sub("", text)
+    text = text.strip(" ,;-")
+    return text[:140]
 
-    Accept: Salt Lake City / South Salt Lake City / SLC valley ring text, or a
-    bare street address. Reject: blank, remote/generic, foreign, other US
-    states, other cities. Explicit elsewhere always wins — so a local token
-    like "sandy" cannot leak "Sandy Springs, GA".
-    """
+
+def _lookup_photon(query: str) -> Optional[Tuple[float, float]]:
+    try:
+        response = http_session.get(
+            "https://photon.komoot.io/api/",
+            params={"q": query, "limit": 1},
+            headers={"User-Agent": _UA},
+            timeout=6,
+        )
+        if response.status_code != 200:
+            return None
+        features = response.json().get("features") or []
+        if not features:
+            return None
+        coords = (features[0].get("geometry") or {}).get("coordinates") or []
+        if len(coords) >= 2:
+            return float(coords[1]), float(coords[0])
+    except Exception:
+        return None
+    return None
+
+
+def _lookup_nominatim(query: str) -> Optional[Tuple[float, float]]:
+    try:
+        response = http_session.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": query, "format": "json", "limit": 1},
+            headers={"User-Agent": _UA},
+            timeout=8,
+        )
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        return None
+    return None
+
+
+def geocode_location(location: Any) -> Optional[Tuple[float, float]]:
+    """Geocode a location string with memory + SQLite cache and a per-run budget."""
+    query = _normalize_query(location)
+    if not query:
+        return None
+    with _geo_lock:
+        if query in _geo_cache:
+            return _geo_cache[query]
+
+    stored = _sqlite_get(query)
+    if stored is not _STORE_MISS:
+        with _geo_lock:
+            _geo_cache[query] = stored
+        return stored
+
+    with _geo_lock:
+        if _geo_budget["remaining"] <= 0:
+            return None
+        _geo_budget["remaining"] -= 1
+
+    coords = _lookup_photon(query) or _lookup_nominatim(query)
+
+    with _geo_lock:
+        if len(_geo_cache) >= _MAX_CACHE:
+            try:
+                _geo_cache.pop(next(iter(_geo_cache)))
+            except Exception:
+                _geo_cache.clear()
+        _geo_cache[query] = coords
+    _sqlite_put(query, coords)
+    return coords
+
+
+def _text_fallback_looks_local(location: str) -> bool:
+    """Strict fallback when geocoding is unavailable: Salt Lake City / South
+    Salt Lake only (the city segment must start with them), "slc", or a bare
+    street address. "Sandy, Salt Lake County" does NOT pass."""
     loc = re.sub(r"\s+", " ", str(location or "")).strip().lower()
     if not loc:
         return False
-
-    # Hard negatives first: provably elsewhere.
-    if any(country in loc for country in _NON_LOCAL_COUNTRIES):
-        return False
-    if any(
-        re.search(r"(?<![a-z])" + re.escape(city) + r"(?![a-z])", loc)
-        for city in _NON_LOCAL_CITIES
-    ):
-        return False
-    if any(
-        re.search(r"(?<![a-z])" + re.escape(region) + r"(?![a-z])", loc)
-        for region in _NON_LOCAL_REGIONS
-    ):
-        return False
-    if any(state in loc for state in _OTHER_US_STATE_NAMES):
-        return False
-    if _STATE_ABBR_RE.search(loc):
-        return False
-
-    # Local positives.
-    if any(token in loc for token in _LOCAL_TOKENS):
-        return True
     if re.search(r"(?<![a-z])slc(?![a-z])", loc):
         return True
-
-    # A bare street address cannot be proven non-local; keep it.
+    if loc.startswith("salt lake city") or loc.startswith("south salt lake"):
+        return True
     if _STREET_ADDRESS_RE.search(loc) or _GRID_ADDRESS_RE.search(loc):
         return True
-
     return False
 
 
+def haversine_miles(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    lat1, lon1 = a
+    lat2, lon2 = b
+    radius = 3958.7613
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    h = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return 2 * radius * math.asin(math.sqrt(h))
+
+
 def job_within_local_radius(job: dict, max_radius_miles) -> bool:
-    """True when the job is inside the 84115 radius (or cannot be proven outside)."""
+    """True when the job is inside the radius (geocoded), per the rules above."""
     try:
         limit = float(max_radius_miles)
     except (TypeError, ValueError):
@@ -185,4 +216,11 @@ def job_within_local_radius(job: dict, max_radius_miles) -> bool:
         or job.get("listing_location")
         or ""
     )
-    return location_is_local(location)
+    coords = geocode_location(location)
+    if coords:
+        try:
+            return haversine_miles(ORIGIN_LATLNG, coords) <= limit
+        except Exception:
+            pass
+    # Geocoder unavailable or unknown place: address-less fallback rule.
+    return _text_fallback_looks_local(location)

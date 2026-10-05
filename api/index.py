@@ -57,18 +57,22 @@ class Config:
     # fetch_jobs_live early-stop and RETURN within Cloud Run's request timeout.
     # 100000 (effectively no cap) caused the run to grind through every query and
     # never respond. 1200 returns far more than the old 500 yet still completes.
-    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "1200"))
+    MAX_RAW_JOBS = int(os.environ.get("MAX_RAW_JOBS", "2000"))
     # Only this many jobs per run get synchronous place/transit/review calls.
     # The rest are fast-normalized with resolution_flags and can be hydrated
     # later — this keeps a 1200-job run from exceeding Cloud Run's timeout.
     MAX_SYNC_ENRICH = int(os.environ.get("MAX_SYNC_ENRICH", "50"))
+    # Per-run budget for NEW geocode lookups (cache hits are free). Unique
+    # location strings are few, so this is plenty and keeps runs bounded.
+    MAX_GEOCODE_LOOKUPS = int(os.environ.get("MAX_GEOCODE_LOOKUPS", "120"))
     MAX_AI_CALLS = int(os.environ.get("MAX_AI_CALLS", "8"))
     SERPAPI_MIN_SEARCHES_LEFT = int(os.environ.get("SERPAPI_MIN_SEARCHES_LEFT", "0"))
     SERPAPI_BUDGET_MODE = os.environ.get("SERPAPI_BUDGET_MODE", "0").strip() == "1"
     # Per-run query count. The full ~1400-keyword bank rotates across runs (see
     # raw_job_queries offset), so coverage accumulates over saved batches rather
-    # than in one impossible request. 24 is the count that reliably completes.
-    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "24"))
+    # than in one impossible request. 30 keeps a full keyed-provider run inside
+    # the Cloud Run request budget.
+    MAX_QUERIES = int(os.environ.get("MAX_QUERIES", "30"))
 
     ENABLE_PUBLIC_WEB_RESEARCH = os.environ.get("ENABLE_PUBLIC_WEB_RESEARCH", "1").strip() == "1"
     ENABLE_REVIEW_WEB_SEARCH = os.environ.get("ENABLE_REVIEW_WEB_SEARCH", "1").strip() == "1"
@@ -674,6 +678,7 @@ def normalize_job(raw: Dict[str, Any], enrich: bool = True) -> Dict[str, Any]:
         "source_url": apply_link(raw) or clean(raw.get("source_url") or raw.get("url") or raw.get("share_link") or raw.get("apply_url")),
         "job_id": clean(raw.get("job_id")),
         "via": clean(raw.get("via")),
+        "_provider": clean(raw.get("_provider") or raw.get("source") or raw.get("provider")),
         "published_date": clean(raw.get("published_date") or raw.get("posted_at") or raw.get("publication_date") or raw.get("date") or ""),
         "ai_provider": "deterministic_budget_safe",
         "chef_names": [],
@@ -807,16 +812,25 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
     # outside_radius_count — visible in the response, never silently hidden.
     outside_radius_count = 0
     try:
-        from services.geo_filter import job_within_local_radius, local_gate_enabled
+        from services.geo_filter import (
+            job_within_local_radius,
+            local_gate_enabled,
+            set_geocode_budget,
+        )
 
         radius_limit = float(Config.MAX_RADIUS_MILES or 0)
         if local_gate_enabled() and radius_limit > 0:
+            set_geocode_budget(Config.MAX_GEOCODE_LOOKUPS)
             inside = []
             for job in normalized:
                 if job_within_local_radius(job, radius_limit):
                     inside.append(job)
                 else:
                     outside_radius_count += 1
+                    provider_key = clean(job.get("_provider"))
+                    if provider_key and provider_key in provider_breakdown:
+                        bd = provider_breakdown[provider_key]
+                        bd["excluded_nonlocal"] = bd.get("excluded_nonlocal", 0) + 1
             normalized = inside
     except Exception:
         logger.warning("geo_filter unavailable; skipping locality gate", exc_info=True)
@@ -853,9 +867,9 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
     # the remainder keep their resolution_flags and can be hydrated later via
     # /api/hydrate (progressive).
     try:
-        hydrate_budget = max(0, int(os.environ.get("MAX_HYDRATE_JOBS", "20")))
+        hydrate_budget = max(0, int(os.environ.get("MAX_HYDRATE_JOBS", "12")))
     except Exception:
-        hydrate_budget = 20
+        hydrate_budget = 12
     if hydrate_budget > 0 and accepted:
         try:
             from services.job_hydrator import hydrate_all_jobs

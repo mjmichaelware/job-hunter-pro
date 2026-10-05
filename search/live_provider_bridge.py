@@ -210,13 +210,6 @@ def fetch_provider_raw_jobs(
     from core.errors import ProviderHardFailure
     from services.provider_status import RunQuarantine, disabled_reason
 
-    try:
-        from services.geo_filter import location_is_local, local_gate_enabled
-        _locality_gate = local_gate_enabled()
-    except Exception:
-        location_is_local = None
-        _locality_gate = False
-
     search_providers = list(get_providers_by_type(ProviderType.SEARCH))
     available_providers = [
         p for p in search_providers
@@ -238,9 +231,9 @@ def fetch_provider_raw_jobs(
     # arrives before Cloud Run's request timeout, so the UI never has to fall
     # back and jobs are never dropped by a timeout.
     try:
-        deadline_seconds = int(os.environ.get("FANOUT_DEADLINE_SECONDS", "150"))
+        deadline_seconds = int(os.environ.get("FANOUT_DEADLINE_SECONDS", "180"))
     except Exception:
-        deadline_seconds = 150
+        deadline_seconds = 180
     deadline_ts = time.time() + max(10, deadline_seconds)
 
     active_count = max(1, len(available_providers))
@@ -318,15 +311,6 @@ def fetch_provider_raw_jobs(
 
             for item in results:
                 raw = _result_to_raw(item, key, label, query, location)
-                # Locality gate at the raw stage: provably non-local listings
-                # never enter the run (so they can't consume the global cap or
-                # reappear via incremental batches). Jobs with no location text
-                # default to the run location and pass.
-                if _locality_gate and location_is_local is not None:
-                    raw_location = str(raw.get("location") or raw.get("listing_location") or "")
-                    if not location_is_local(raw_location):
-                        bd["excluded_nonlocal"] = bd.get("excluded_nonlocal", 0) + 1
-                        continue
                 # URL-first identity: the same posting found via multiple queries
                 # (or providers) collapses to one; distinct openings that share a
                 # title are all kept. Hash/job_id is only a last resort.

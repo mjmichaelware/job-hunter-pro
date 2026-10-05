@@ -40,33 +40,45 @@ class FoursquareProvider(SearchProvider):
         params = {"near": FSQ_NEAR, "limit": 50}
         if query.strip():
             params["query"] = query.strip()
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "X-Places-Api-Version": os.environ.get("FOURSQUARE_API_VERSION", "2025-06-17"),
+            "accept": "application/json",
+            "User-Agent": "JobHunterPro/1.0",
+        }
+        # Foursquare moved to the new Places API host; the old v3 host is 410.
+        endpoints = (
+            "https://places-api.foursquare.com/places/search",
+            "https://api.foursquare.com/v3/places/search",
+        )
         results: List[SearchResult] = []
-        try:
-            resp = http_session.get(
-                "https://api.foursquare.com/v3/places/search",
-                params=params, headers={"Authorization": key, "accept": "application/json"}, timeout=12,
-            )
-            check_hard_failure(self.metadata.key, resp)
-            resp.raise_for_status()
-            for place in (resp.json().get("results", []) or []):
-                name = place.get("name", "")
-                loc = (place.get("location", {}) or {}).get("formatted_address", "")
-                results.append(SearchResult(
-                    provider=self.metadata.key,
-                    query=query,
-                    title="Business lead: %s" % name,
-                    url="https://foursquare.com/v/%s" % place.get("fsq_id", ""),
-                    snippet=str(loc),
-                    source_name=name,
-                    published_date=None,
-                    raw_json=place,
-                    confidence=0.5,
-                    cost_units=0.0,
-                ))
-        except ProviderHardFailure:
-            raise
-        except Exception as e:
-            logger.error("Foursquare failed: %s", e)
+        for endpoint in endpoints:
+            try:
+                resp = http_session.get(endpoint, params=params, headers=headers, timeout=12)
+                check_hard_failure(self.metadata.key, resp)
+                if resp.status_code != 200:
+                    continue
+                for place in (resp.json().get("results", []) or []):
+                    name = place.get("name", "")
+                    loc = (place.get("location", {}) or {}).get("formatted_address", "")
+                    results.append(SearchResult(
+                        provider=self.metadata.key,
+                        query=query,
+                        title="Business lead: %s" % name,
+                        url="https://foursquare.com/v/%s" % place.get("fsq_id", ""),
+                        snippet=str(loc),
+                        source_name=name,
+                        published_date=None,
+                        raw_json=place,
+                        confidence=0.5,
+                        cost_units=0.0,
+                    ))
+                if results:
+                    break
+            except ProviderHardFailure:
+                raise
+            except Exception as e:
+                logger.error("Foursquare failed (%s): %s", endpoint, e)
         return results
 
 

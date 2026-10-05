@@ -264,7 +264,7 @@ def hydrate_all_jobs(jobs: list, max_workers: int = 4, limit: Optional[int] = No
 
     _research_budget["remaining"] = int(os.environ.get("MAX_WEB_RESEARCH", "5"))
     _hydrate_deadline["ts"] = time.time() + float(
-        os.environ.get("HYDRATE_DEADLINE_SECONDS", "45")
+        os.environ.get("HYDRATE_DEADLINE_SECONDS", "35")
     )
     workers = max(1, min(int(max_workers or 4), 8))
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:

@@ -35,6 +35,12 @@ class CareerjetProvider(SearchProvider):
         try:
             import os
             url = "http://public.api.careerjet.net/search"
+            # Careerjet requires user_ip + user_agent AND a Referer identifying
+            # the affiliate site (403 "Undeclared referrer" without it).
+            headers = {
+                "Referer": os.environ.get("CAREERJET_REFERER", "https://jobhunterpro.app/"),
+                "User-Agent": "JobHunterPro/1.0",
+            }
             # Careerjet requires user_ip and user_agent; supports pagesize (max 99).
             params = {
                 "affid": Config.CAREERJET_AFFID,
@@ -45,7 +51,7 @@ class CareerjetProvider(SearchProvider):
                 "user_agent": "JobHunterPro/1.0"
             }
             
-            response = http_session.get(url, params=params, timeout=Config.REQUEST_TIMEOUT)
+            response = http_session.get(url, params=params, headers=headers, timeout=Config.REQUEST_TIMEOUT)
             check_hard_failure(self.metadata.key, response)
             response.raise_for_status()
             data = response.json()
