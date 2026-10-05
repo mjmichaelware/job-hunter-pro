@@ -32,7 +32,7 @@ class AdzunaProvider(SearchProvider):
         import os
         max_pages = int(os.environ.get("ADZUNA_MAX_PAGES", "3"))
         where = os.environ.get("ADZUNA_WHERE", "Salt Lake City")
-        distance = os.environ.get("ADZUNA_DISTANCE_KM", "80")  # ~50mi, covers Utah metro
+        distance = os.environ.get("ADZUNA_DISTANCE_KM", "8")  # ~5mi around 84115
 
         results = []
         seen = set()

@@ -49,8 +49,11 @@ function loadDiscoveryView() {
     const jobs = arr(data, ['accepted', 'data', 'jobs', 'results']);
     const rejected = arr(data, ['rejected']);
     const raw = data.raw_count != null ? data.raw_count : (jobs.length + rejected.length);
+    const outside = data.outside_radius_count || 0;
     const stored = data.stored ? 'saved' : 'NOT saved (storage error)';
-    const msg = jobs.length + ' accepted · ' + raw + ' raw · ' + rejected.length + ' need resolution · ' + stored;
+    const msg = jobs.length + ' accepted · ' + raw + ' raw'
+      + (outside ? ' · ' + outside + ' outside 5mi' : '')
+      + ' · ' + rejected.length + ' need resolution · ' + stored;
     AppState.liveResult = { jobs: jobs, rejected: rejected, msg: msg };
     status.textContent = msg + ' — opening Jobs…';
     if (typeof announce === 'function') announce(msg);

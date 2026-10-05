@@ -33,7 +33,7 @@ class JoobleProvider(SearchProvider):
 
         import os
         max_pages = int(os.environ.get("JOOBLE_MAX_PAGES", "3"))
-        location = os.environ.get("JOOBLE_LOCATION", "Utah")
+        location = os.environ.get("JOOBLE_LOCATION", "Salt Lake City, UT")
         results = []
         seen = set()
         try:

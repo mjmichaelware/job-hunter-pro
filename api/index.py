@@ -40,7 +40,7 @@ class Config:
     JOB_LOCATION = os.environ.get("JOB_LOCATION", "84115").strip()
 
     MAX_TRANSIT_SECONDS = int(os.environ.get("MAX_TRANSIT_SECONDS", "2100"))
-    MAX_RADIUS_MILES = float(os.environ.get("MAX_RADIUS_MILES", "2.5"))
+    MAX_RADIUS_MILES = float(os.environ.get("MAX_RADIUS_MILES", "5"))
     REQUEST_TIMEOUT = float(os.environ.get("REQUEST_TIMEOUT", "12"))
 
     MAX_SERP_QUERIES = int(os.environ.get("MAX_SERP_QUERIES", "4"))
@@ -755,6 +755,26 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
         else:
             normalized.append(normalize_job(raw, enrich=False))
 
+    # Locality gate: 5-mile radius around 84115. Jobs with a computed radius
+    # must be inside it; address-less jobs must say Salt Lake City / South Salt
+    # Lake City (or be a bare street address). Everything else is counted in
+    # outside_radius_count — visible in the response, never silently hidden.
+    outside_radius_count = 0
+    try:
+        from services.geo_filter import job_within_local_radius, local_gate_enabled
+
+        radius_limit = float(Config.MAX_RADIUS_MILES or 0)
+        if local_gate_enabled() and radius_limit > 0:
+            inside = []
+            for job in normalized:
+                if job_within_local_radius(job, radius_limit):
+                    inside.append(job)
+                else:
+                    outside_radius_count += 1
+            normalized = inside
+    except Exception:
+        logger.warning("geo_filter unavailable; skipping locality gate", exc_info=True)
+
     # Partition into accepted (every usable job; missing resolution becomes
     # non-fatal resolution_flags) and rejected (genuinely unusable: no title,
     # nothing to apply to, duplicate, or — only in a domain preset — a clear
@@ -780,6 +800,26 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
         -j.get("match", 0),
     ))
 
+    # Bounded AI hydration: fill info cards with description / salary / tags /
+    # shift / requirements / benefits extracted from the exact source listing,
+    # plus web research against the job title + place of work. Only a bounded
+    # number of jobs per run (MAX_HYDRATE_JOBS) so the response always returns;
+    # the remainder keep their resolution_flags and can be hydrated later via
+    # /api/hydrate (progressive).
+    try:
+        hydrate_budget = max(0, int(os.environ.get("MAX_HYDRATE_JOBS", "20")))
+    except Exception:
+        hydrate_budget = 20
+    if hydrate_budget > 0 and accepted:
+        try:
+            from services.job_hydrator import hydrate_all_jobs
+
+            head = accepted[:hydrate_budget]
+            tail = accepted[hydrate_budget:]
+            accepted = hydrate_all_jobs(head, max_workers=4, limit=hydrate_budget) + tail
+        except Exception:
+            logger.warning("job hydration unavailable", exc_info=True)
+
     flag_summary: Dict[str, int] = {}
     for job in accepted:
         for flag in job.get("resolution_flags", []) or []:
@@ -791,8 +831,9 @@ def fetch_jobs_live(mode: str = "broad", domain: str = "", extra_terms: Optional
         "mode": mode,
         "domain": domain,
         "accepted": accepted,
-        "rejected": rejected[:100],
+        "rejected": rejected,
         "rejected_total": len(rejected),
+        "outside_radius_count": outside_radius_count,
         "resolution_flag_summary": flag_summary,
         "provider_breakdown": provider_breakdown,
         "quarantined_providers": quarantined_providers,
@@ -1173,6 +1214,7 @@ def jobs():
         "raw_count": result["raw_count"],
         "query_count": result["query_count"],
         "rejected_count": result.get("rejected_total", len(result.get("rejected", []))),
+        "outside_radius_count": result.get("outside_radius_count", 0),
         "rejection_summary": rejection_summary,
         "resolution_flag_summary": result.get("resolution_flag_summary", {}),
         "provider_breakdown": result.get("provider_breakdown", {}),
@@ -1184,8 +1226,10 @@ def jobs():
             "default_mode": "broad",
             "food_only": mode == "food_service" or domain == "food_service",
             "missing_resolution": "kept_as_resolution_flags_not_rejected",
+            "locality_gate": "known_radius_within_max_or_addressless_slc_only",
+            "outside_radius": "excluded_from_feed_counted_in_outside_radius_count",
             "discovery": "federated_search_providers",
-            "reasoning_providers": "not_used_as_discovery",
+            "reasoning_providers": "used_for_post_discovery_hydration",
             "places_opportunities": "optional_separate_endpoint_/api/opportunities",
         },
         "data": filtered,
@@ -1256,6 +1300,32 @@ def jobs():
     response_payload["sqlite_stored"] = sqlite_stored
 
     return jsonify(response_payload)
+
+@app.route("/api/hydrate", methods=["POST"])
+def hydrate():
+    """Progressive info-card hydration for jobs already on screen.
+
+    No discovery quota is spent here; enrichment uses the reasoning providers
+    (OpenAI/Gemini/Groq/xAI), bounded source scrapes, and bounded web research.
+    """
+    payload = request.get_json(silent=True) or {}
+    jobs = payload.get("jobs") or []
+    if not isinstance(jobs, list):
+        return jsonify({"status": "error", "error": "jobs must be a list"}), 400
+    try:
+        limit = int(payload.get("limit", 10))
+    except Exception:
+        limit = 10
+    limit = max(0, min(limit, 25))
+    try:
+        from services.job_hydrator import hydrate_all_jobs
+
+        clean_jobs = [j for j in jobs if isinstance(j, dict)]
+        hydrated = hydrate_all_jobs(clean_jobs, max_workers=4, limit=limit)
+    except Exception as exc:
+        logger.warning("hydrate endpoint failed: %s", exc)
+        return jsonify({"status": "error", "error": str(exc)[:180]}), 500
+    return jsonify({"status": "success", "count": len(hydrated), "limit": limit, "data": hydrated})
 
 @app.route("/api/debug/jobs")
 def debug_jobs():

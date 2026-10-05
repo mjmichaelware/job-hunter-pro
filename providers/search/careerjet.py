@@ -39,7 +39,7 @@ class CareerjetProvider(SearchProvider):
             params = {
                 "affid": Config.CAREERJET_AFFID,
                 "keywords": query,
-                "location": os.environ.get("CAREERJET_LOCATION", "Utah"),
+                "location": os.environ.get("CAREERJET_LOCATION", "Salt Lake City, UT"),
                 "pagesize": os.environ.get("CAREERJET_PAGESIZE", "99"),
                 "user_ip": "127.0.0.1",
                 "user_agent": "JobHunterPro/1.0"

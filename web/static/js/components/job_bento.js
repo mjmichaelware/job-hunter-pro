@@ -37,17 +37,31 @@ function bentoJobCard(job, isUnresolved) {
   const matchBadge = _matchBadge(job);
   const dupCount = Number(job._dup_count || 1);
   const dupBadge = (dupCount > 1) ? '<span class="badge badge-cached">×' + dupCount + '</span>' : '';
+  const summary = cleanText(pick(job, ['summary', 'description'], null), '');
+  const shift = cleanText(pick(job, ['shift'], null), '');
+  const empType = cleanText(pick(job, ['employment_type'], null), '');
+  const workplace = cleanText(pick(job, ['workplace'], null), '');
+  const benefits = Array.isArray(job.benefits) ? job.benefits.filter(Boolean).slice(0, 5) : [];
+  const requirements = Array.isArray(job.requirements) ? job.requirements.filter(Boolean).slice(0, 3) : [];
+  const aiProvider = String(pick(job, ['ai_provider'], '') || '');
+  const aiEnriched = job.ai_enriched === true;
+  const aiBadge = (aiProvider && aiProvider !== 'deterministic_budget_safe')
+    ? '<span class="badge badge-cached">' + (aiEnriched ? 'AI · ' : 'enriched · ') + esc(aiProvider) + '</span>'
+    : '';
   const flags = Array.isArray(job.resolution_flags) ? job.resolution_flags : [];
   const cls = 'bento bento--' + density + (isUnresolved ? ' bento--unresolved' : '');
   const uid = 'job-' + Math.random().toString(36).slice(2, 9);
 
   let body = '<div class="bento__head"><div><div class="bento__title">' + title + '</div>'
     + '<div class="bento__company">' + company + (source ? ' · <span class="source-chip">' + source + '</span>' : '') + '</div></div>'
-    + '<div class="bento__badges">' + matchBadge + dupBadge + '</div></div>';
+    + '<div class="bento__badges">' + matchBadge + dupBadge + aiBadge + '</div></div>';
 
   if (density === 'full' || density === 'key') {
     body += '<div class="bento__meta">'
+      + (empType ? '<span class="badge badge-safe">' + esc(empType) + '</span>' : '')
+      + (shift ? '<span class="tag">' + esc(shift) + '</span>' : '')
       + '<span class="bento__loc">' + location + '</span>'
+      + (workplace ? '<span class="tag">' + esc(workplace) + '</span>' : '')
       + (salary ? '<span class="badge badge-cached">' + salary + '</span>' : '')
       + (posted ? '<span class="tag">' + posted + '</span>' : '')
       + '</div>';
@@ -60,6 +74,15 @@ function bentoJobCard(job, isUnresolved) {
   if (job.radius_miles != null) fullTiles.push('<div class="tile"><div class="tile__label">Radius</div><div class="tile__value">' + esc(formatMiles(job.radius_miles)) + '</div></div>');
 
   if (density === 'full') {
+    if (summary) {
+      body += '<p class="bento__summary">' + esc(summary.length > 260 ? summary.slice(0, 257) + '…' : summary) + '</p>';
+    }
+    if (benefits.length) {
+      body += '<div class="bento__flags">' + tagList(benefits) + '</div>';
+    }
+    if (requirements.length) {
+      body += '<ul class="bento__reqs">' + requirements.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>';
+    }
     body += (fullTiles.length ? '<div class="bento__tiles">' + fullTiles.join('') + '</div>' : '')
       + (flags.length ? '<div class="bento__flags">' + tagList(flags) + '</div>' : '')
       + (url ? '<div class="bento__actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="btn-link" data-stop>' + esc(t('common.apply')) + '</a></div>' : '');

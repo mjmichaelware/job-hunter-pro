@@ -141,6 +141,43 @@ async function loadJobsView() {
   };
 
   renderJobsView();
+  hydratePendingJobs(0);
+}
+
+// Progressive info-card hydration: ask the server to enrich up to 10
+// not-yet-enriched jobs, merge results back, re-render, repeat a few rounds.
+// Uses reasoning providers (OpenAI/Gemini/Groq/xAI) + bounded source/web
+// research — no discovery quota is spent.
+let _hydrating = false;
+async function hydratePendingJobs(round) {
+  if (_hydrating || round >= 3) return;
+  const pending = _jobsState.jobs.filter(function (j) { return !j.ai_enriched && !j._hydrate_attempted; });
+  if (!pending.length) return;
+  _hydrating = true;
+  const batch = pending.slice(0, 10);
+  batch.forEach(function (j) { j._hydrate_attempted = true; });
+  try {
+    const res = await fetch('/api/hydrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobs: batch, limit: batch.length }),
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      const hydrated = (payload && payload.data) || [];
+      const index = {};
+      _jobsState.jobs.forEach(function (j, i) { index[_jobUniqueKey(j)] = i; });
+      hydrated.forEach(function (h) {
+        const idx = index[_jobUniqueKey(h)];
+        if (idx != null) _jobsState.jobs[idx] = h;
+      });
+      if (AppState.activeView === 'jobs') renderJobsView();
+    }
+  } catch (err) {
+    console.warn('[hydrate] failed:', err && err.message);
+  }
+  _hydrating = false;
+  hydratePendingJobs(round + 1);
 }
 
 registerView('jobs', 'Jobs', loadJobsView);

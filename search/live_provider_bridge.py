@@ -121,7 +121,7 @@ def _result_to_raw(item: Any, provider_key: str, provider_label: str, query: str
     company = _pick(item_dict, raw_dict, keys=["company", "company_name", "employer", "organization", "source_name", "source"], default=provider_label)
     url = _pick(item_dict, raw_dict, keys=["url", "source_url", "apply_url", "redirect_url", "link"], default="")
     snippet = _pick(item_dict, raw_dict, keys=["snippet", "description", "summary", "body"], default="")
-    location = _pick(item_dict, raw_dict, keys=["location", "formatted_location", "candidate_required_location", "where"], default=default_location)
+    location = _pick(item_dict, raw_dict, keys=["location", "formatted_location", "candidate_required_location", "where", "jobGeo", "job_geo", "region", "locations", "city", "area"], default=default_location)
     published = _pick(item_dict, raw_dict, keys=["published_date", "posted_at", "publication_date", "created_at", "date", "created", "updated", "pubDate", "PublicationStartdate", "AcquisitionDate", "AccquisitionDate"], default="")
 
     identity = hashlib.sha256(f"{provider_key}|{query}|{title}|{company}|{url}".encode("utf-8")).hexdigest()
@@ -198,6 +198,13 @@ def fetch_provider_raw_jobs(
     from core.errors import ProviderHardFailure
     from services.provider_status import RunQuarantine, disabled_reason
 
+    try:
+        from services.geo_filter import location_is_local, local_gate_enabled
+        _locality_gate = local_gate_enabled()
+    except Exception:
+        location_is_local = None
+        _locality_gate = False
+
     search_providers = list(get_providers_by_type(ProviderType.SEARCH))
     available_providers = [
         p for p in search_providers
@@ -252,6 +259,7 @@ def fetch_provider_raw_jobs(
             "disabled_by_policy": bool(off_reason),
             "queries_attempted": 0,
             "raw_count": 0,
+            "excluded_nonlocal": 0,
             "status": status,
             "cap": provider_cap,
         }
@@ -298,6 +306,15 @@ def fetch_provider_raw_jobs(
 
             for item in results:
                 raw = _result_to_raw(item, key, label, query, location)
+                # Locality gate at the raw stage: provably non-local listings
+                # never enter the run (so they can't consume the global cap or
+                # reappear via incremental batches). Jobs with no location text
+                # default to the run location and pass.
+                if _locality_gate and location_is_local is not None:
+                    raw_location = str(raw.get("location") or raw.get("listing_location") or "")
+                    if not location_is_local(raw_location):
+                        bd["excluded_nonlocal"] = bd.get("excluded_nonlocal", 0) + 1
+                        continue
                 # URL-first identity: the same posting found via multiple queries
                 # (or providers) collapses to one; distinct openings that share a
                 # title are all kept. Hash/job_id is only a last resort.

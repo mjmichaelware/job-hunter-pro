@@ -77,6 +77,9 @@
 /* job card meta + density tiers */
 .bento__meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .bento__loc { color: var(--c-muted); font-size: 0.85rem; }
+.bento__summary { margin: 6px 0 0; color: var(--c-text); font-size: 0.82rem; line-height: 1.35; opacity: 0.92; }
+.bento__reqs { margin: 6px 0 0; padding-left: 18px; color: var(--c-muted); font-size: 0.76rem; line-height: 1.35; }
+.bento__reqs li { margin: 2px 0; }
 .bento__minirow { display: flex; justify-content: flex-start; }
 .bento--key .bento__title, .bento--tight .bento__title { font-size: 0.92rem; }
 .bento--micro { padding: var(--s-2); gap: var(--s-2); }

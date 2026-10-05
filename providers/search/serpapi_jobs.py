@@ -40,8 +40,10 @@ class SerpApiJobsProvider(SearchProvider):
             params = {
                 "engine": "google_jobs",
                 "q": query,
-                "api_key": Config.SERPAPI_KEY,
+                "location": "Salt Lake City, Utah, United States",
                 "hl": "en",
+                "gl": "us",
+                "api_key": Config.SERPAPI_KEY,
             }
             
             response = http_session.get(url, params=params, timeout=Config.REQUEST_TIMEOUT)
